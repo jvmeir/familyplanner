@@ -1,0 +1,16 @@
+package web
+
+import "github.com/jvmeir/familyplanner/internal/i18n"
+
+// Admin is the dashboard landing page.
+templ Admin() {
+	@AdminPage("dashboard") {
+		<h1>{ i18n.T(ctx, "admin.welcome") }</h1>
+		<p class="muted">{ i18n.T(ctx, "admin.dashboard_hint") }</p>
+		<div class="cards">
+			<a class="card linkcard" href="/admin/views">{ i18n.T(ctx, "nav.views") }</a>
+			<a class="card linkcard" href="/admin/widgets">{ i18n.T(ctx, "nav.widgets") }</a>
+			<a class="card linkcard" href="/kiosk">{ i18n.T(ctx, "admin.open_kiosk") }</a>
+		</div>
+	}
+}

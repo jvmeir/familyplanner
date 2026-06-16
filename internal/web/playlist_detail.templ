@@ -1,0 +1,71 @@
+package web
+
+import (
+	"fmt"
+
+	"github.com/jvmeir/familyplanner/internal/i18n"
+)
+
+// PlaylistDetailPage edits one playlist's settings and its ordered views.
+templ PlaylistDetailPage(d PlaylistDetailVM) {
+	@AdminPage("playlists") {
+		<h1>{ d.Name }</h1>
+		<form class="card form" method="post" action={ templ.SafeURL("/admin/playlists/" + fmt.Sprint(d.ID)) }>
+			@csrfInput()
+			<h2>{ i18n.T(ctx, "playlist.settings") }</h2>
+			<label>
+				{ i18n.T(ctx, "admin.field_name") }
+				<input name="name" value={ d.Name } required/>
+			</label>
+			<label>
+				{ i18n.T(ctx, "playlist.interval") }
+				<input type="number" name="interval" value={ fmt.Sprint(d.DefaultDwell) } min="3"/>
+			</label>
+			<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
+		</form>
+		@PlaylistItems(d)
+	}
+}
+
+// PlaylistItems renders the add-view form and the ordered item list (HTMX-swappable).
+templ PlaylistItems(d PlaylistDetailVM) {
+	<div id="pl-items">
+		<form class="card form" hx-post={ "/admin/playlists/" + fmt.Sprint(d.ID) + "/items" } hx-target="#pl-items" hx-swap="outerHTML">
+			@csrfInput()
+			<h2>{ i18n.T(ctx, "playlist.add_view") }</h2>
+			<label>
+				{ i18n.T(ctx, "nav.views") }
+				<select name="view_id">
+					for _, v := range d.AvailableViews {
+						<option value={ fmt.Sprint(v.ID) }>{ v.Name }</option>
+					}
+				</select>
+			</label>
+			<label>
+				{ i18n.T(ctx, "playlist.item_dwell") }
+				<input type="number" name="dwell" value="0" min="0"/>
+			</label>
+			<button type="submit">{ i18n.T(ctx, "admin.add") }</button>
+		</form>
+		<div class="list">
+			if len(d.Items) == 0 {
+				<p class="muted">{ i18n.T(ctx, "playlist.no_items") }</p>
+			}
+			for i, it := range d.Items {
+				<div class="row">
+					<span class="row-name">{ it.ViewName }</span>
+					<span class="row-type">
+						if it.Dwell == 0 {
+							{ i18n.T(ctx, "admin.none") }
+						} else {
+							{ fmt.Sprint(it.Dwell) }s
+						}
+					</span>
+					<button class="btn ghost" hx-post={ "/admin/playlists/items/" + fmt.Sprint(it.ID) + "/move?dir=up" } hx-target="#pl-items" hx-swap="outerHTML" disabled?={ i == 0 }>↑</button>
+					<button class="btn ghost" hx-post={ "/admin/playlists/items/" + fmt.Sprint(it.ID) + "/move?dir=down" } hx-target="#pl-items" hx-swap="outerHTML" disabled?={ i == len(d.Items)-1 }>↓</button>
+					<button class="btn ghost" hx-delete={ "/admin/playlists/items/" + fmt.Sprint(it.ID) } hx-target="#pl-items" hx-swap="outerHTML">×</button>
+				</div>
+			}
+		</div>
+	</div>
+}

@@ -1,0 +1,24 @@
+package web
+
+// View renders a recursive split layout inside the themed container.
+templ View(themeVars templ.SafeCSS, root LayoutVM) {
+	<div class="view" style={ themeVars } data-mode="day">
+		@LayoutPane(root)
+	</div>
+}
+
+// LayoutPane renders a layout node: a leaf's widget, or a split of weighted
+// nested panes (recursively).
+templ LayoutPane(vm LayoutVM) {
+	if vm.Cell != nil {
+		@widgetCell(*vm.Cell)
+	} else {
+		<div class={ "split", "dir-" + vm.Dir }>
+			for _, c := range vm.Children {
+				<div class="pane" style={ PaneStyle(c.Weight) }>
+					@LayoutPane(c.Node)
+				</div>
+			}
+		</div>
+	}
+}

@@ -1,0 +1,55 @@
+package web
+
+import (
+	"fmt"
+
+	"github.com/jvmeir/familyplanner/internal/i18n"
+)
+
+// ViewsPage lists views and offers a create form.
+templ ViewsPage(themes []ThemeOptVM, views []ViewVM) {
+	@AdminPage("views") {
+		<h1>{ i18n.T(ctx, "nav.views") }</h1>
+		<form class="card form" hx-post="/admin/views" hx-target="#viewlist" hx-swap="outerHTML">
+			@csrfInput()
+			<label>
+				{ i18n.T(ctx, "admin.field_name") }
+				<input name="name" required/>
+			</label>
+			<label>
+				{ i18n.T(ctx, "admin.field_cols") }
+				<input type="number" name="cols" value="3" min="1" max="12"/>
+			</label>
+			<label>
+				{ i18n.T(ctx, "admin.field_rows") }
+				<input type="number" name="rows" value="2" min="1" max="12"/>
+			</label>
+			<label>
+				{ i18n.T(ctx, "admin.field_theme") }
+				<select name="theme">
+					for _, th := range themes {
+						<option value={ th.ID }>{ th.Name }</option>
+					}
+				</select>
+			</label>
+			<button type="submit">{ i18n.T(ctx, "admin.add") }</button>
+		</form>
+		@ViewList(views)
+	}
+}
+
+// ViewList is the (HTMX-swappable) list of views.
+templ ViewList(views []ViewVM) {
+	<div id="viewlist" class="list">
+		if len(views) == 0 {
+			<p class="muted">{ i18n.T(ctx, "admin.empty") }</p>
+		}
+		for _, v := range views {
+			<div class="row">
+				<span class="row-name">{ v.Name }</span>
+				<a class="btn ghost" href={ templ.SafeURL("/admin/views/" + fmt.Sprint(v.ID) + "/layout") }>{ i18n.T(ctx, "view.edit_layout") }</a>
+				<button class="btn ghost" hx-delete={ "/admin/views/" + fmt.Sprint(v.ID) } hx-target="#viewlist" hx-swap="outerHTML" hx-confirm={ i18n.T(ctx, "admin.confirm_delete") }>×</button>
+			</div>
+		}
+	</div>
+}

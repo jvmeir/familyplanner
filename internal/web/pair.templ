@@ -1,0 +1,22 @@
+package web
+
+import "github.com/jvmeir/familyplanner/internal/i18n"
+
+templ Pair(errMsg string) {
+	@Layout(i18n.T(ctx, "kiosk.pair.title")) {
+		<main class="center">
+			<form class="card" method="post" action="/pair">
+				<h1>{ i18n.T(ctx, "kiosk.pair.title") }</h1>
+				<p class="muted">{ i18n.T(ctx, "kiosk.pair.intro") }</p>
+				if errMsg != "" {
+					<p class="error">{ errMsg }</p>
+				}
+				<label>
+					{ i18n.T(ctx, "login.passphrase") }
+					<input type="password" name="passphrase" autofocus required/>
+				</label>
+				<button type="submit">{ i18n.T(ctx, "kiosk.pair.submit") }</button>
+			</form>
+		</main>
+	}
+}

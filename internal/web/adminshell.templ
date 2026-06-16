@@ -1,0 +1,40 @@
+package web
+
+import "github.com/jvmeir/familyplanner/internal/i18n"
+
+// AdminPage is the admin shell: nav, CSRF wiring, HTMX, and a content slot.
+templ AdminPage(active string) {
+	@Layout(i18n.T(ctx, "app.title")) {
+		<meta name="csrf-token" content={ CSRF(ctx) }/>
+		<header class="adminnav">
+			<a class="brand" href="/admin">{ i18n.T(ctx, "app.title") }</a>
+			<nav>
+				<a href="/admin/datasources" class={ navClass(active, "datasources") }>{ i18n.T(ctx, "nav.datasources") }</a>
+				<a href="/admin/widgets" class={ navClass(active, "widgets") }>{ i18n.T(ctx, "nav.widgets") }</a>
+				<a href="/admin/views" class={ navClass(active, "views") }>{ i18n.T(ctx, "nav.views") }</a>
+				<a href="/admin/playlists" class={ navClass(active, "playlists") }>{ i18n.T(ctx, "nav.playlists") }</a>
+				<a href="/admin/devices" class={ navClass(active, "devices") }>{ i18n.T(ctx, "nav.devices") }</a>
+				<a class="navlink" href="/kiosk">{ i18n.T(ctx, "nav.kiosk") }</a>
+				<form method="post" action="/logout">
+					@csrfInput()
+					<button class="btn ghost" type="submit">{ i18n.T(ctx, "nav.logout") }</button>
+				</form>
+			</nav>
+		</header>
+		<main class="adminmain">
+			{ children... }
+		</main>
+		<script src="/static/htmx.min.js"></script>
+		<script>
+			document.body.addEventListener("htmx:configRequest", function (e) {
+				var m = document.querySelector("meta[name=csrf-token]");
+				if (m) e.detail.headers["X-CSRF-Token"] = m.content;
+			});
+		</script>
+	}
+}
+
+// csrfInput renders the hidden CSRF field for non-HTMX form posts.
+templ csrfInput() {
+	<input type="hidden" name="_csrf" value={ CSRF(ctx) }/>
+}

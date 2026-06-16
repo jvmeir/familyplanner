@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    image: familyplanner:dev
+    container_name: familyplanner-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      FP_ENV: dev
+      FP_ENCRYPTION_KEY: dev-insecure-key-change-me
+      FP_ADMIN_PASSPHRASE: changeme
+      FP_TIMEZONE: Europe/Brussels
+      FP_LOCALE: nl
+    volumes:
+      # VM path (dev VM), not a Windows path. SQLite + cached files live here.
+      - /root/familyplanner/data:/data

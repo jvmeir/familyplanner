@@ -1,0 +1,13 @@
+package web
+
+// Grid renders the legacy fixed cols×rows layout (used when a view has no
+// recursive layout tree yet). Served inline and as an SSE-refresh fragment.
+templ Grid(gridStyle templ.SafeCSS, cells []CellVM) {
+	<div class="view" style={ gridStyle } data-mode="day">
+		for _, c := range cells {
+			<div class={ "cell", "kind-" + c.Kind } style={ c.Style }>
+				@widgetCell(c)
+			</div>
+		}
+	</div>
+}

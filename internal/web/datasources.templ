@@ -1,0 +1,136 @@
+package web
+
+import (
+	"fmt"
+
+	"github.com/jvmeir/familyplanner/internal/i18n"
+)
+
+// DataSourcesPage lists reusable data sources (iCal feeds, later OAuth) + create form.
+templ DataSourcesPage(types []WidgetTypeVM, initialFields []FieldVM, sources []DataSourceVM) {
+	@AdminPage("datasources") {
+		<h1>{ i18n.T(ctx, "nav.datasources") }</h1>
+		<form class="card form" hx-post="/admin/datasources" hx-target="#dslist" hx-swap="outerHTML">
+			@csrfInput()
+			<label>
+				{ i18n.T(ctx, "admin.field_name") }
+				<input name="name" required/>
+			</label>
+			<label>
+				{ i18n.T(ctx, "admin.field_type") }
+				<select name="type" hx-get="/admin/datasources/fields" hx-target="#dsfields" hx-trigger="change">
+					for _, t := range types {
+						<option value={ t.ID }>{ t.Name }</option>
+					}
+				</select>
+			</label>
+			<div id="dsfields">
+				@WidgetFields(initialFields)
+			</div>
+			<button type="submit">{ i18n.T(ctx, "admin.add") }</button>
+		</form>
+		@DataSourceList(sources)
+	}
+}
+
+// DataSourceList is the (HTMX-swappable) list of data sources.
+templ DataSourceList(sources []DataSourceVM) {
+	<div id="dslist" class="list">
+		if len(sources) == 0 {
+			<p class="muted">{ i18n.T(ctx, "admin.empty") }</p>
+		}
+		for _, d := range sources {
+			<div class="row">
+				<span class="row-name">{ d.Name }</span>
+				<span class="row-type">{ d.Type }</span>
+				if d.IsOAuth {
+					if d.Connected {
+						<span class="tag">{ i18n.T(ctx, "datasource.connected") }</span>
+					}
+					<a class="btn ghost" href={ templ.SafeURL("/admin/datasources/" + fmt.Sprint(d.ID) + "/oauth/start") }>{ i18n.T(ctx, "datasource.connect") }</a>
+				}
+				if d.HasPicker {
+					<a class="btn ghost" href={ templ.SafeURL("/admin/datasources/" + fmt.Sprint(d.ID) + "/configure") }>{ i18n.T(ctx, "datasource.configure") }</a>
+				}
+				<button class="btn ghost" hx-delete={ "/admin/datasources/" + fmt.Sprint(d.ID) } hx-target="#dslist" hx-swap="outerHTML" hx-confirm={ i18n.T(ctx, "admin.confirm_delete") }>×</button>
+			</div>
+		}
+	</div>
+}
+
+// DataSourceConfigurePage lets you pick a resource (calendar/list) fetched live
+// from the authenticated API.
+templ DataSourceConfigurePage(id int64, name string, label string, options []OptionVM, errMsg string) {
+	@AdminPage("datasources") {
+		<h1>{ name }</h1>
+		if errMsg != "" {
+			<p class="muted">{ errMsg }</p>
+		} else {
+			<form class="card form" method="post" action={ templ.SafeURL("/admin/datasources/" + fmt.Sprint(id) + "/configure") }>
+				@csrfInput()
+				<label>
+					{ label }
+					<select name="resource">
+						for _, o := range options {
+							<option value={ o.Value } selected?={ o.Selected }>{ o.Label }</option>
+						}
+					</select>
+				</label>
+				<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
+			</form>
+		}
+		<a class="btn ghost" href="/admin/datasources">{ i18n.T(ctx, "nav.datasources") }</a>
+	}
+}
+
+// WidgetSources is the per-widget data-source linking section (on the edit page).
+templ WidgetSources(widgetID int64, linked []WidgetSourceVM, available []DataSourceVM) {
+	<div id="wsources" class="card">
+		<h2>{ i18n.T(ctx, "datasource.sources") }</h2>
+		<div class="list">
+			if len(linked) == 0 {
+				<p class="muted">{ i18n.T(ctx, "datasource.none_linked") }</p>
+			}
+			for _, l := range linked {
+				<div class="row">
+					<span class="row-name">{ l.SourceName }</span>
+					if l.HasPicker {
+						<select name="resource"
+							hx-post={ fmt.Sprintf("/admin/widgets/%d/sources/%d/resource", widgetID, l.LinkID) }
+							hx-target="#wsources" hx-swap="outerHTML" hx-trigger="change"
+							aria-label={ l.ResourceLabel }>
+							<option value="">{ l.ResourceLabel }…</option>
+							for _, o := range l.ResourceOptions {
+								<option value={ o.Value } selected?={ o.Selected }>{ o.Label }</option>
+							}
+						</select>
+					}
+					if l.Filter != "" {
+						<span class="row-type">{ i18n.T(ctx, "widget.calendar.field.filter") }: { l.Filter }</span>
+					}
+					<button class="btn ghost" hx-delete={ fmt.Sprintf("/admin/widgets/%d/sources/%d", widgetID, l.LinkID) } hx-target="#wsources" hx-swap="outerHTML">×</button>
+				</div>
+			}
+		</div>
+		if len(available) > 0 {
+			<form class="form inline" hx-post={ fmt.Sprintf("/admin/widgets/%d/sources", widgetID) } hx-target="#wsources" hx-swap="outerHTML">
+				@csrfInput()
+				<label>
+					{ i18n.T(ctx, "datasource.source") }
+					<select name="data_source_id">
+						for _, a := range available {
+							<option value={ fmt.Sprint(a.ID) }>{ a.Name }</option>
+						}
+					</select>
+				</label>
+				<label>
+					{ i18n.T(ctx, "widget.calendar.field.filter") }
+					<input name="filter"/>
+				</label>
+				<button type="submit">{ i18n.T(ctx, "admin.add") }</button>
+			</form>
+		} else {
+			<p class="muted">{ i18n.T(ctx, "datasource.create_first") }</p>
+		}
+	</div>
+}

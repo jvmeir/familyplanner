@@ -1,0 +1,89 @@
+package web
+
+import (
+	"fmt"
+
+	"github.com/jvmeir/familyplanner/internal/i18n"
+)
+
+// WidgetsPage lists widgets and offers a schema-driven create form.
+templ WidgetsPage(types []WidgetTypeVM, initialFields []FieldVM, widgets []WidgetVM) {
+	@AdminPage("widgets") {
+		<h1>{ i18n.T(ctx, "nav.widgets") }</h1>
+		<form class="card form" hx-post="/admin/widgets" hx-target="#widgetlist" hx-swap="outerHTML">
+			@csrfInput()
+			<label>
+				{ i18n.T(ctx, "admin.field_name") }
+				<input name="name" required/>
+			</label>
+			<label>
+				{ i18n.T(ctx, "admin.field_type") }
+				<select name="type" hx-get="/admin/widgets/fields" hx-target="#wfields" hx-trigger="change">
+					for _, t := range types {
+						<option value={ t.ID }>{ t.Name }</option>
+					}
+				</select>
+			</label>
+			<div id="wfields">
+				@WidgetFields(initialFields)
+			</div>
+			<button type="submit">{ i18n.T(ctx, "admin.add") }</button>
+		</form>
+		@WidgetList(widgets)
+	}
+}
+
+// WidgetEditPage edits an existing widget (type fixed; config fields prefilled).
+templ WidgetEditPage(id int64, name string, typeName string, fields []FieldVM, acceptsSources bool, linked []WidgetSourceVM, available []DataSourceVM) {
+	@AdminPage("widgets") {
+		<h1>{ name }</h1>
+		<form class="card form" method="post" action={ templ.SafeURL("/admin/widgets/" + fmt.Sprint(id)) }>
+			@csrfInput()
+			<label>
+				{ i18n.T(ctx, "admin.field_name") }
+				<input name="name" value={ name } required/>
+			</label>
+			<p class="muted">{ i18n.T(ctx, "admin.field_type") }: { typeName }</p>
+			@WidgetFields(fields)
+			<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
+		</form>
+		if acceptsSources {
+			@WidgetSources(id, linked, available)
+		}
+	}
+}
+
+// WidgetFields renders the config inputs for a widget type (HTMX-swapped on change).
+templ WidgetFields(fields []FieldVM) {
+	for _, f := range fields {
+		<label>
+			{ f.Label }
+			if f.Type == "select" {
+				<select name={ f.Name }>
+					for _, o := range f.Options {
+						<option value={ o.Value } selected?={ o.Selected }>{ o.Label }</option>
+					}
+				</select>
+			} else {
+				<input type={ f.Type } name={ f.Name } value={ f.Value } required?={ f.Required }/>
+			}
+		</label>
+	}
+}
+
+// WidgetList is the (HTMX-swappable) list of widgets.
+templ WidgetList(widgets []WidgetVM) {
+	<div id="widgetlist" class="list">
+		if len(widgets) == 0 {
+			<p class="muted">{ i18n.T(ctx, "admin.empty") }</p>
+		}
+		for _, wgt := range widgets {
+			<div class="row">
+				<span class="row-name">{ wgt.Name }</span>
+				<span class="row-type">{ wgt.TypeName }</span>
+				<a class="btn ghost" href={ templ.SafeURL("/admin/widgets/" + fmt.Sprint(wgt.ID) + "/edit") }>{ i18n.T(ctx, "admin.edit") }</a>
+				<button class="btn ghost" hx-delete={ "/admin/widgets/" + fmt.Sprint(wgt.ID) } hx-target="#widgetlist" hx-swap="outerHTML" hx-confirm={ i18n.T(ctx, "admin.confirm_delete") }>×</button>
+			</div>
+		}
+	</div>
+}

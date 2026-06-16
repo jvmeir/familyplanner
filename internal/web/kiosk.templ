@@ -1,0 +1,49 @@
+package web
+
+import (
+	"fmt"
+
+	"github.com/jvmeir/familyplanner/internal/i18n"
+)
+
+// Kiosk is the full-screen shell: a static date/time header, the rotating view
+// content, and a footer showing "playlist · view" plus the playback controls.
+// The header clock runs client-side; the footer view label updates on SSE.
+templ Kiosk(body templ.Component, controls ControlsVM) {
+	@Layout(i18n.T(ctx, "app.title")) {
+		<header class="kheader">
+			<span id="kdate" class="kdate"></span>
+			<span id="ktime" class="ktime"></span>
+		</header>
+		<div id="stage" data-view-id={ fmt.Sprint(controls.CurrentID) }>
+			@body
+		</div>
+		<footer class="kfooter">
+			<span class="kfooter-label">
+				<span id="kplaylist">{ controls.PlaylistName }</span>
+				<span class="sep">·</span>
+				<span id="kview"></span>
+			</span>
+			<span class="kfooter-controls">
+				<button onclick="fpCtl('prev')" title={ i18n.T(ctx, "kiosk.prev") }>⏮</button>
+				<button onclick="fpCtl('pause')" title={ i18n.T(ctx, "kiosk.pause") }>⏸</button>
+				<button onclick="fpCtl('resume')" title={ i18n.T(ctx, "kiosk.play") }>▶</button>
+				<button onclick="fpCtl('next')" title={ i18n.T(ctx, "kiosk.next") }>⏭</button>
+				<select id="kjump" onchange="fpGoto(this.value)" aria-label={ i18n.T(ctx, "kiosk.jump") }>
+					<option value="">{ i18n.T(ctx, "kiosk.jump") }</option>
+					for _, v := range controls.Playlist {
+						<option value={ fmt.Sprint(v.ID) } selected?={ v.ID == controls.CurrentID }>{ v.Name }</option>
+					}
+					if len(controls.All) > 0 {
+						<optgroup label={ i18n.T(ctx, "kiosk.all_views") }>
+							for _, v := range controls.All {
+								<option value={ fmt.Sprint(v.ID) }>{ v.Name }</option>
+							}
+						</optgroup>
+					}
+				</select>
+			</span>
+		</footer>
+		<script src="/static/kiosk.js"></script>
+	}
+}

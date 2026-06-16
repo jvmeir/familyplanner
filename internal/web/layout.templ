@@ -1,0 +1,16 @@
+package web
+
+templ Layout(title string) {
+	<!DOCTYPE html>
+	<html lang="nl">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title }</title>
+			<link rel="stylesheet" href="/static/app.css"/>
+		</head>
+		<body>
+			{ children... }
+		</body>
+	</html>
+}

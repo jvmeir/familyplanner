@@ -1,0 +1,11 @@
+.git
+.github
+/data
+/tmp
+/bin
+*.exe
+.env
+*.db
+*.db-*
+docs
+README.md

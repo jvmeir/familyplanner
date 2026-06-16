@@ -1,0 +1,69 @@
+package web
+
+import (
+	"fmt"
+
+	"github.com/jvmeir/familyplanner/internal/i18n"
+)
+
+// ViewLayoutPage is the visual split/merge layout editor for one view.
+templ ViewLayoutPage(viewID int64, viewName string, root EditorNodeVM, widgets []WidgetVM) {
+	@AdminPage("views") {
+		<h1>{ viewName }</h1>
+		<p class="muted">{ i18n.T(ctx, "layout.help") }</p>
+		<div id="editor-canvas" class="editor-canvas" data-view-id={ fmt.Sprint(viewID) }>
+			@EditorPane(viewID, root, widgets)
+		</div>
+		<script src="/static/layouteditor.js"></script>
+	}
+}
+
+// EditorPane recursively renders the editor: leaves get a widget selector + split/
+// remove tools; splits get weighted panes separated by draggable gutters.
+// Structural edits swap #editor-canvas's innerHTML (the wrapper persists, so the
+// drag handlers stay attached).
+templ EditorPane(viewID int64, n EditorNodeVM, widgets []WidgetVM) {
+	if n.IsLeaf {
+		<div class="epane eleaf" data-path={ n.Path }>
+			<div class="epane-body">
+				if n.WidgetName != "" {
+					<span class="epane-widget">{ n.WidgetName }</span>
+				} else {
+					<span class="epane-empty">{ i18n.T(ctx, "layout.empty_pane") }</span>
+				}
+			</div>
+			<div class="epane-tools">
+				<select name="widget"
+					hx-post={ fmt.Sprintf("/admin/views/%d/layout/widget?path=%s", viewID, n.Path) }
+					hx-target="#editor-canvas" hx-swap="innerHTML" hx-trigger="change">
+					<option value="0">{ i18n.T(ctx, "layout.no_widget") }</option>
+					for _, wd := range widgets {
+						<option value={ fmt.Sprint(wd.ID) } selected?={ wd.ID == n.WidgetID }>{ wd.Name }</option>
+					}
+				</select>
+				<button class="btn ghost"
+					hx-post={ fmt.Sprintf("/admin/views/%d/layout/split?dir=row&path=%s", viewID, n.Path) }
+					hx-target="#editor-canvas" hx-swap="innerHTML" title={ i18n.T(ctx, "layout.split_h") }>⇆</button>
+				<button class="btn ghost"
+					hx-post={ fmt.Sprintf("/admin/views/%d/layout/split?dir=col&path=%s", viewID, n.Path) }
+					hx-target="#editor-canvas" hx-swap="innerHTML" title={ i18n.T(ctx, "layout.split_v") }>⇅</button>
+				if n.Path != "" {
+					<button class="btn ghost danger"
+						hx-post={ fmt.Sprintf("/admin/views/%d/layout/remove?path=%s", viewID, n.Path) }
+						hx-target="#editor-canvas" hx-swap="innerHTML" title={ i18n.T(ctx, "layout.remove") }>×</button>
+				}
+			</div>
+		</div>
+	} else {
+		<div class={ "esplit", "dir-" + n.Dir } data-path={ n.Path }>
+			for i, c := range n.Children {
+				if i > 0 {
+					<div class="egutter" data-dir={ n.Dir }></div>
+				}
+				<div class="epane-wrap" style={ PaneStyle(c.Weight) }>
+					@EditorPane(viewID, c.Node, widgets)
+				</div>
+			}
+		</div>
+	}
+}

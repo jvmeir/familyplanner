@@ -1,0 +1,58 @@
+package web
+
+import (
+	"fmt"
+
+	"github.com/jvmeir/familyplanner/internal/i18n"
+)
+
+// DevicesPage lists paired kiosks: assign a playlist + a phone remote per device.
+templ DevicesPage(devices []DeviceVM, playlists []PlaylistRef, views []ViewRef) {
+	@AdminPage("devices") {
+		<h1>{ i18n.T(ctx, "nav.devices") }</h1>
+		<p class="muted">{ i18n.T(ctx, "remote.offline_hint") }</p>
+		@DeviceList(devices, playlists, views)
+	}
+}
+
+// DeviceList is the (HTMX-swappable) device list.
+templ DeviceList(devices []DeviceVM, playlists []PlaylistRef, views []ViewRef) {
+	<div id="devicelist" class="list">
+		if len(devices) == 0 {
+			<p class="muted">{ i18n.T(ctx, "admin.empty") }</p>
+		}
+		for _, d := range devices {
+			<div class="card devicecard">
+				<div class="row">
+					<span class="row-name">{ d.Name } #{ fmt.Sprint(d.ID) }</span>
+					<span class="row-type">{ i18n.T(ctx, "device.last_seen") }: { d.LastSeen }</span>
+				</div>
+				<form class="form inline" hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/playlist" } hx-target="#devicelist" hx-swap="outerHTML">
+					@csrfInput()
+					<label>
+						{ i18n.T(ctx, "device.playlist") }
+						<select name="playlist_id">
+							<option value="0">{ i18n.T(ctx, "playlist.default_badge") }</option>
+							for _, p := range playlists {
+								<option value={ fmt.Sprint(p.ID) } selected?={ p.ID == d.PlaylistID }>{ p.Name }</option>
+							}
+						</select>
+					</label>
+					<button type="submit">{ i18n.T(ctx, "device.assign") }</button>
+				</form>
+				<div class="remote">
+					<button class="btn ghost" hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/prev" } hx-swap="none">⏮</button>
+					<button class="btn ghost" hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/pause" } hx-swap="none">⏸</button>
+					<button class="btn ghost" hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/resume" } hx-swap="none">▶</button>
+					<button class="btn ghost" hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/next" } hx-swap="none">⏭</button>
+					<select name="view" hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/goto" } hx-swap="none" hx-trigger="change">
+						<option value="">{ i18n.T(ctx, "kiosk.jump") }</option>
+						for _, v := range views {
+							<option value={ fmt.Sprint(v.ID) }>{ v.Name }</option>
+						}
+					</select>
+				</div>
+			</div>
+		}
+	</div>
+}

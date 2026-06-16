@@ -1,0 +1,15 @@
+# build output
+/bin/
+/tmp/
+*.exe
+
+# runtime data (sqlite db, cached photos)
+/data/
+
+# local env
+.env
+
+# editor
+.idea/
+.vscode/
+*.swp

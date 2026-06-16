@@ -1,0 +1,55 @@
+package web
+
+import (
+	"fmt"
+
+	"github.com/jvmeir/familyplanner/internal/i18n"
+)
+
+// PlaylistsPage lists playlists and offers a create form.
+templ PlaylistsPage(playlists []PlaylistVM) {
+	@AdminPage("playlists") {
+		<h1>{ i18n.T(ctx, "nav.playlists") }</h1>
+		<form class="card form" hx-post="/admin/playlists" hx-target="#playlistlist" hx-swap="outerHTML">
+			@csrfInput()
+			<label>
+				{ i18n.T(ctx, "admin.field_name") }
+				<input name="name" required/>
+			</label>
+			<label>
+				{ i18n.T(ctx, "playlist.interval") }
+				<input type="number" name="interval" value="30" min="3"/>
+			</label>
+			<label class="check">
+				<input type="checkbox" name="is_default" value="1"/>
+				{ i18n.T(ctx, "playlist.is_default") }
+			</label>
+			<button type="submit">{ i18n.T(ctx, "admin.add") }</button>
+		</form>
+		@PlaylistList(playlists)
+	}
+}
+
+// PlaylistList is the (HTMX-swappable) list of playlists.
+templ PlaylistList(playlists []PlaylistVM) {
+	<div id="playlistlist" class="list">
+		if len(playlists) == 0 {
+			<p class="muted">{ i18n.T(ctx, "admin.empty") }</p>
+		}
+		for _, p := range playlists {
+			<div class="row">
+				<span class="row-name">
+					<a href={ templ.SafeURL("/admin/playlists/" + fmt.Sprint(p.ID)) }>{ p.Name }</a>
+					if p.IsDefault {
+						<span class="tag">{ i18n.T(ctx, "playlist.default_badge") }</span>
+					}
+				</span>
+				<span class="row-type">{ fmt.Sprint(p.DefaultDwell) }s</span>
+				if !p.IsDefault {
+					<button class="btn ghost" hx-post={ "/admin/playlists/" + fmt.Sprint(p.ID) + "/default" } hx-target="#playlistlist" hx-swap="outerHTML">{ i18n.T(ctx, "playlist.make_default") }</button>
+				}
+				<button class="btn ghost" hx-delete={ "/admin/playlists/" + fmt.Sprint(p.ID) } hx-target="#playlistlist" hx-swap="outerHTML" hx-confirm={ i18n.T(ctx, "admin.confirm_delete") }>×</button>
+			</div>
+		}
+	</div>
+}

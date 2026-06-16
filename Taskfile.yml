@@ -1,0 +1,57 @@
+version: '3'
+
+vars:
+  BIN: bin/familyplanner
+
+tasks:
+  gen:
+    desc: Generate templ + sqlc code
+    cmds:
+      - templ generate
+      - sqlc generate
+
+  build:
+    desc: Build the server binary
+    deps: [gen]
+    cmds:
+      - go build -o {{.BIN}} ./cmd/server
+
+  run:
+    desc: Run the server
+    deps: [gen]
+    cmds:
+      - go run ./cmd/server
+
+  dev:
+    desc: Live-reload dev server (regenerates templ on change)
+    cmds:
+      - templ generate --watch --proxy=http://localhost:8080 --cmd="go run ./cmd/server"
+
+  vet:
+    cmds:
+      - go vet ./...
+
+  test:
+    desc: Run unit + integration tests (race detector; needs a C compiler)
+    deps: [gen]
+    cmds:
+      - go test -race -cover ./...
+
+  test:norace:
+    desc: Tests without the race detector (Windows without gcc)
+    deps: [gen]
+    cmds:
+      - go test -cover ./...
+
+  ci:
+    desc: Mirror of CI - generate, verify, vet, test
+    cmds:
+      - templ generate
+      - sqlc generate
+      - git diff --exit-code
+      - go vet ./...
+      - go test -race -cover ./...
+
+  tidy:
+    cmds:
+      - go mod tidy

@@ -1,0 +1,119 @@
+package web
+
+import (
+	"fmt"
+
+	"github.com/jvmeir/familyplanner/internal/i18n"
+)
+
+// widgetCell renders one widget's content. Shared by the legacy grid and the
+// recursive layout renderer. An "empty" kind is an unassigned pane.
+templ widgetCell(c CellVM) {
+	if c.Kind == "empty" {
+		<div class="widget empty"></div>
+	} else if c.IframeURL != "" {
+		<div class="widget">
+			<iframe class="w-iframe" src={ templ.SafeURL(c.IframeURL) } sandbox="allow-scripts allow-same-origin allow-popups allow-forms" loading="lazy"></iframe>
+		</div>
+	} else if c.ImageURL != "" {
+		<div class="widget photo">
+			<img class="w-photo" src={ templ.SafeURL(c.ImageURL) } alt=""/>
+		</div>
+	} else {
+		<div class="widget">
+			if c.Title != "" {
+				<div class="w-title">{ c.Title }</div>
+			}
+			if c.Big != "" {
+				<div class="w-big">{ c.Big }</div>
+			}
+			if c.Sub != "" {
+				<div class="w-sub">{ c.Sub }</div>
+			}
+			if c.Body != "" {
+				<p class="w-body">{ c.Body }</p>
+			}
+			if len(c.Lines) > 0 {
+				<ul class="w-list" style={ listVars(len(c.Lines)) }>
+					for _, l := range c.Lines {
+						<li>{ l }</li>
+					}
+				</ul>
+			}
+			if len(c.Schedule) > 0 && c.ScheduleTable {
+				<table class="w-schedtable">
+					<tbody>
+						for _, d := range c.Schedule {
+							<tr class={ templ.KV("today", d.Today) }>
+								<th>{ d.Label }</th>
+								<td>
+									if len(d.Events) == 0 {
+										<span class="sched-empty">—</span>
+									} else {
+										for _, ev := range d.Events {
+											<span class="sched-ev">{ ev }</span>
+										}
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			}
+			if len(c.Schedule) > 0 && !c.ScheduleTable {
+				<div class="w-sched">
+					for _, d := range c.Schedule {
+						<div class={ "sched-day", templ.KV("today", d.Today) }>
+							<span class="sched-label">{ d.Label }</span>
+							if len(d.Events) == 0 {
+								<span class="sched-empty">—</span>
+							} else {
+								<span class="sched-events">
+									for _, ev := range d.Events {
+										<span class="sched-ev">{ ev }</span>
+									}
+								</span>
+							}
+						</div>
+					}
+				</div>
+			}
+			if c.Month != nil {
+				<div class="w-month">
+					<div class="wm-title">{ c.Month.Title }</div>
+					<table class="wm-grid">
+						<thead>
+							<tr>
+								for _, wd := range c.Month.Weekdays {
+									<th>{ wd }</th>
+								}
+							</tr>
+						</thead>
+						<tbody>
+							for _, week := range c.Month.Weeks {
+								<tr>
+									for _, day := range week {
+										<td class={ "wm-day", templ.KV("out", !day.InMonth), templ.KV("today", day.Today) }>
+											<span class="wm-num">{ fmt.Sprint(day.Day) }</span>
+											for i, ev := range day.Events {
+												if i < 2 {
+													<span class="wm-ev">{ ev }</span>
+												}
+											}
+											if len(day.Events) > 2 {
+												<span class="wm-more">+{ fmt.Sprint(len(day.Events) - 2) }</span>
+											}
+										</td>
+									}
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+			if c.Stale {
+				<span class="badge stale">{ i18n.T(ctx, "widget.stale") }</span>
+			}
+		</div>
+	}
+}
