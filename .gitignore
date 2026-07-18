@@ -3,6 +3,12 @@
 /tmp/
 *.exe
 
+# compiled WASM kiosk client (build artifact; `task spa` regenerates it)
+/internal/web/assets/app.wasm
+
+# UI test deps
+/test/ui/node_modules/
+
 # runtime data (sqlite db, cached photos)
 /data/
 

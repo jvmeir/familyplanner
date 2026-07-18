@@ -10,15 +10,23 @@ tasks:
       - templ generate
       - sqlc generate
 
+  spa:
+    desc: Build the kiosk SPA client (Go -> WebAssembly) into the embedded assets
+    env:
+      GOOS: js
+      GOARCH: wasm
+    cmds:
+      - go build -o internal/web/assets/app.wasm ./cmd/kioskspa
+
   build:
     desc: Build the server binary
-    deps: [gen]
+    deps: [gen, spa]
     cmds:
       - go build -o {{.BIN}} ./cmd/server
 
   run:
     desc: Run the server
-    deps: [gen]
+    deps: [gen, spa]
     cmds:
       - go run ./cmd/server
 
@@ -42,6 +50,14 @@ tasks:
     deps: [gen]
     cmds:
       - go test -cover ./...
+
+  test:ui:
+    desc: Synthetic browser (Playwright) UI tests for the kiosk SPA + PWA
+    deps: [build]
+    dir: test/ui
+    cmds:
+      - npm install --no-audit --no-fund
+      - node run.mjs
 
   ci:
     desc: Mirror of CI - generate, verify, vet, test

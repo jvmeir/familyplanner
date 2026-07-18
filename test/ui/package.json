@@ -1,0 +1,12 @@
+{
+  "name": "familyplanner-ui-tests",
+  "private": true,
+  "type": "module",
+  "description": "Synthetic browser (Playwright) tests for the Family Planner kiosk SPA + PWA.",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}

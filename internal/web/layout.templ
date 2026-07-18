@@ -5,12 +5,23 @@ templ Layout(title string) {
 	<html lang="nl">
 		<head>
 			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 			<title>{ title }</title>
+			<meta name="theme-color" content="#2f6df6"/>
+			<link rel="icon" href="/static/icon-192.png"/>
+			<link rel="apple-touch-icon" href="/static/icon-192.png"/>
+			<link rel="manifest" href="/manifest.webmanifest"/>
 			<link rel="stylesheet" href="/static/app.css"/>
 		</head>
 		<body>
 			{ children... }
+			<script>
+				if ("serviceWorker" in navigator) {
+					window.addEventListener("load", function () {
+						navigator.serviceWorker.register("/sw.js").catch(function () {});
+					});
+				}
+			</script>
 		</body>
 	</html>
 }

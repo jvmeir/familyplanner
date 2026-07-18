@@ -92,6 +92,11 @@ func (s *Server) routes() http.Handler {
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(web.Assets()))))
 
+	// PWA: service worker (root scope) + manifests, public so any page installs.
+	r.Get("/sw.js", s.handleServiceWorker)
+	r.Get("/manifest.webmanifest", s.handleManifest)
+	r.Get("/manifest.kiosk.webmanifest", s.handleKioskManifest)
+
 	// Session-backed routes (admin + auth + pairing).
 	r.Group(func(r chi.Router) {
 		r.Use(s.sessions.LoadAndSave)
@@ -161,6 +166,12 @@ func (s *Server) routes() http.Handler {
 		r.Get("/kiosk/view/{id}", s.handleKioskView)
 		r.Get("/kiosk/stream", s.handleKioskStream)
 		r.Post("/kiosk/control/{cmd}", s.handleKioskControl)
+
+		// JSON API + SPA client (API+SPA variant of the kiosk). Same device-cookie
+		// auth; reuses /kiosk/stream (SSE) and /kiosk/control for push + playback.
+		r.Get("/api/kiosk/state", s.handleAPIKioskState)
+		r.Get("/api/kiosk/view/{id}", s.handleAPIKioskView)
+		r.Get("/spa", s.handleSPA)
 	})
 
 	return r
@@ -401,16 +412,28 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 // renderViewComponent renders a view's body: the recursive layout tree if the
 // view has one, otherwise the legacy fixed grid.
 func (s *Server) renderViewComponent(ctx context.Context, view dbgen.View) templ.Component {
-	if view.LayoutJson != "" {
-		if root, err := layout.Parse(view.LayoutJson); err == nil {
-			th := theme.Resolve(view.ThemeID, s.defaultTheme(ctx))
-			return web.View(web.ThemeVars(th), s.buildLayoutVM(ctx, root))
-		} else {
-			slog.Error("parse layout", "view", view.ID, "err", err)
-		}
+	if lm, th, ok := s.buildViewVM(ctx, view); ok {
+		return web.View(web.ThemeVars(th), lm)
 	}
 	gs, cells := s.renderLegacyGrid(ctx, view)
 	return web.Grid(gs, cells)
+}
+
+// buildViewVM resolves a view's recursive layout into a render-ready LayoutVM
+// plus its theme. ok is false when the view has no layout tree (legacy grid);
+// callers then fall back to renderLegacyGrid. Shared by the HTML kiosk and the
+// JSON kiosk API so both render identical data.
+func (s *Server) buildViewVM(ctx context.Context, view dbgen.View) (web.LayoutVM, theme.Theme, bool) {
+	if view.LayoutJson == "" {
+		return web.LayoutVM{}, theme.Theme{}, false
+	}
+	root, err := layout.Parse(view.LayoutJson)
+	if err != nil {
+		slog.Error("parse layout", "view", view.ID, "err", err)
+		return web.LayoutVM{}, theme.Theme{}, false
+	}
+	th := theme.Resolve(view.ThemeID, s.defaultTheme(ctx))
+	return s.buildLayoutVM(ctx, root), th, true
 }
 
 // buildLayoutVM walks the layout tree, fetching each leaf widget's data.

@@ -62,6 +62,9 @@ button, .btn {
 }
 
 /* ---------- kiosk chrome (header / stage / footer) ---------- */
+/* The WASM SPA client mounts the shell inside #app; make it the same full-height
+   flex column the server-rendered kiosk gets directly from <body>. */
+#app { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 #stage { flex: 1; min-height: 0; }
 .view {
   height: 100%;
