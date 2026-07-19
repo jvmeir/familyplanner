@@ -4,11 +4,41 @@ package oauth
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/microsoft"
 )
+
+// ErrorKind classifies a token-refresh failure for health reporting.
+type ErrorKind string
+
+const (
+	// ErrReconnect means the refresh token was rejected (OAuth "invalid_grant"):
+	// the data source must be reconnected interactively.
+	ErrReconnect ErrorKind = "reconnect"
+	// ErrTransient means a temporary failure (network, provider hiccup) that will
+	// likely self-heal on the next refresh.
+	ErrTransient ErrorKind = "error"
+)
+
+// ClassifyError inspects a FreshToken error. An OAuth "invalid_grant" response
+// means the refresh token is dead (revoked/expired/consent withdrawn) and needs
+// an interactive reconnect; everything else is treated as transient.
+func ClassifyError(err error) ErrorKind {
+	if err == nil {
+		return ""
+	}
+	var re *oauth2.RetrieveError
+	if errors.As(err, &re) && re.ErrorCode == "invalid_grant" {
+		return ErrReconnect
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "invalid_grant") {
+		return ErrReconnect
+	}
+	return ErrTransient
+}
 
 type providerDef struct {
 	endpoint oauth2.Endpoint

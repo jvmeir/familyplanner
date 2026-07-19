@@ -1,17 +1,59 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/jvmeir/familyplanner/internal/health"
 	"github.com/jvmeir/familyplanner/internal/kioskapi"
+	"github.com/jvmeir/familyplanner/internal/oauth"
 	"github.com/jvmeir/familyplanner/internal/theme"
 	"github.com/jvmeir/familyplanner/internal/web"
 )
+
+// staleAfter is how old a widget's last successful fetch may be before the kiosk
+// flags it stale.
+const staleAfter = time.Hour
+
+// handleAPIKioskHealth returns the kiosk health summary as JSON (for the SPA
+// corner badge). Same device-cookie auth as the rest of the kiosk API.
+func (s *Server) handleAPIKioskHealth(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, s.buildHealth(r.Context()))
+}
+
+// buildHealth aggregates data-source auth health + widget sync health into a
+// display-ready summary. Read-only: it never calls external services.
+func (s *Server) buildHealth(ctx context.Context) health.Summary {
+	var sources []health.Source
+	if rows, err := s.store.ListDataSources(ctx); err == nil {
+		for _, ds := range rows {
+			sources = append(sources, health.Source{
+				Name:         ds.Name,
+				IsOAuth:      oauth.Known(ds.Type),
+				OAuthStatus:  ds.OauthStatus,
+				Health:       ds.Health,
+				AccessExpiry: ds.AccessExpiry,
+			})
+		}
+	}
+	var widgets []health.Widget
+	if rows, err := s.store.ListWidgetHealth(ctx); err == nil {
+		for _, wr := range rows {
+			widgets = append(widgets, health.Widget{
+				Name:      wr.WidgetName,
+				Status:    wr.Status,
+				FetchedAt: wr.FetchedAt,
+			})
+		}
+	}
+	return health.Assess(sources, widgets, s.now(), staleAfter)
+}
 
 // ---------- JSON kiosk API (feeds the SPA client) ----------
 //

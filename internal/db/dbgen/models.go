@@ -11,6 +11,10 @@ type DataSource struct {
 	ConfigJson       string `json:"config_json"`
 	SecretCiphertext string `json:"secret_ciphertext"`
 	OauthStatus      string `json:"oauth_status"`
+	AccessExpiry     string `json:"access_expiry"`
+	LastSync         string `json:"last_sync"`
+	LastError        string `json:"last_error"`
+	Health           string `json:"health"`
 	CreatedAt        string `json:"created_at"`
 	UpdatedAt        string `json:"updated_at"`
 }

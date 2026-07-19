@@ -137,18 +137,22 @@ func (b *Broker) sourcesFor(ctx context.Context, widgetID int64) []widget.Source
 	return out
 }
 
-// refreshOAuth refreshes a stored token, persists it if rotated, and returns a
-// {"access_token": ...} secret for the widget (nil on failure).
+// refreshOAuth refreshes a stored token, persists it if rotated, records the
+// source's auth health, and returns a {"access_token": ...} secret for the
+// widget (nil on failure).
 func (b *Broker) refreshOAuth(ctx context.Context, dsType string, dsID int64, secret json.RawMessage) json.RawMessage {
 	var sec struct {
 		Token *oauth2.Token `json:"token"`
 	}
 	if err := json.Unmarshal(secret, &sec); err != nil || sec.Token == nil {
+		b.recordSourceHealth(ctx, dsID, "", string(oauth.ErrReconnect), "geen token")
 		return nil
 	}
 	clientID, clientSecret := b.oauthCreds(dsType)
 	fresh, err := oauth.FreshToken(ctx, dsType, clientID, clientSecret, sec.Token)
 	if err != nil {
+		// Keep the last-known access-token expiry so the admin can see it.
+		b.recordSourceHealth(ctx, dsID, expiryStr(sec.Token), string(oauth.ClassifyError(err)), err.Error())
 		return nil
 	}
 	if fresh.AccessToken != sec.Token.AccessToken {
@@ -160,8 +164,28 @@ func (b *Broker) refreshOAuth(ctx context.Context, dsType string, dsID int64, se
 			}
 		}
 	}
+	b.recordSourceHealth(ctx, dsID, expiryStr(fresh), "ok", "")
 	out, _ := json.Marshal(map[string]string{"access_token": fresh.AccessToken})
 	return out
+}
+
+// recordSourceHealth persists a data source's auth health; on "ok" it also
+// stamps last_sync.
+func (b *Broker) recordSourceHealth(ctx context.Context, dsID int64, expiry, health, errMsg string) {
+	_ = b.store.UpdateDataSourceHealth(ctx, dbgen.UpdateDataSourceHealthParams{
+		AccessExpiry: expiry, LastError: errMsg, Health: health, ID: dsID,
+	})
+	if health == "ok" {
+		_ = b.store.MarkDataSourceSynced(ctx, dsID)
+	}
+}
+
+// expiryStr formats an access token's expiry as RFC3339 (empty if unset).
+func expiryStr(tok *oauth2.Token) string {
+	if tok == nil || tok.Expiry.IsZero() {
+		return ""
+	}
+	return tok.Expiry.UTC().Format(time.RFC3339)
 }
 
 func (b *Broker) markErr(ctx context.Context, id int64, msg string) {

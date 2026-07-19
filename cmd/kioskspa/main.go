@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"syscall/js"
 
+	"github.com/jvmeir/familyplanner/internal/health"
 	"github.com/jvmeir/familyplanner/internal/kioskapi"
 )
 
@@ -29,6 +30,8 @@ type app struct {
 	dateEl    js.Value
 	timeEl    js.Value
 	stageEl   js.Value
+	viewHost  js.Value
+	healthEl  js.Value
 	plNameEl  js.Value
 	viewEl    js.Value
 	jumpSel   js.Value
@@ -86,6 +89,15 @@ func (a *app) mountShell() {
 
 	a.stageEl = el("div")
 	a.stageEl.Set("id", "stage")
+	// The view content lives in a host so the health badge (a sibling) survives
+	// view swaps; the badge is a positioned corner overlay, hidden when healthy.
+	a.viewHost = el("div")
+	setClass(a.viewHost, "stage-host")
+	a.healthEl = el("div")
+	setClass(a.healthEl, "khealth")
+	a.healthEl.Get("style").Set("display", "none")
+	appendChild(a.stageEl, a.viewHost)
+	appendChild(a.stageEl, a.healthEl)
 
 	footer := el("footer")
 	setClass(footer, "kfooter")
@@ -148,6 +160,7 @@ func (a *app) refreshState() {
 	}
 	a.renderViewLabel()
 	go a.loadView(a.currentID)
+	go a.refreshHealth()
 }
 
 func (a *app) renderJump() {
@@ -204,10 +217,39 @@ func (a *app) loadView(id int64) {
 	setAttr(view, "style", vr.ThemeVars)
 	appendChild(view, buildLayout(vr.Layout))
 
-	clear(a.stageEl)
+	clear(a.viewHost)
 	a.stageEl.Call("setAttribute", "data-view-id", strconv.FormatInt(id, 10))
-	appendChild(a.stageEl, view)
+	appendChild(a.viewHost, view)
 	a.renderViewLabel()
+}
+
+// refreshHealth pulls the health summary and repaints the corner badge.
+func (a *app) refreshHealth() {
+	var sum health.Summary
+	if err := getJSON("/api/kiosk/health", &sum); err != nil {
+		return
+	}
+	a.renderHealth(sum)
+}
+
+func (a *app) renderHealth(sum health.Summary) {
+	lvl := string(sum.Level)
+	if lvl != "warn" && lvl != "error" {
+		a.healthEl.Get("style").Set("display", "none")
+		return
+	}
+	setClass(a.healthEl, "khealth khealth-"+lvl)
+	a.healthEl.Get("style").Set("display", "")
+	clear(a.healthEl)
+	appendChild(a.healthEl, span("khealth-dot", ""))
+	msg := ""
+	if len(sum.Issues) > 0 {
+		msg = sum.Issues[0].Message
+	}
+	appendChild(a.healthEl, span("khealth-msg", msg))
+	if sum.Count > 1 {
+		appendChild(a.healthEl, span("khealth-more", "+"+strconv.Itoa(sum.Count-1)))
+	}
 }
 
 // buildLayout mirrors web.LayoutPane: a leaf renders a widget cell; a split
@@ -475,8 +517,10 @@ func (a *app) startSSE() {
 		return nil
 	}))
 	es.Call("addEventListener", "refresh", js.FuncOf(func(_ js.Value, args []js.Value) any {
-		// Periodic in-view data refresh (e.g. the clock widget). Reload current view.
+		// Periodic in-view data refresh (e.g. the clock widget). Reload current
+		// view + re-check health so the badge tracks live sync/auth state.
 		go a.loadView(a.currentID)
+		go a.refreshHealth()
 		return nil
 	}))
 }

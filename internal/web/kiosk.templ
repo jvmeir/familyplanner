@@ -9,7 +9,7 @@ import (
 // Kiosk is the full-screen shell: a static date/time header, the rotating view
 // content, and a footer showing "playlist · view" plus the playback controls.
 // The header clock runs client-side; the footer view label updates on SSE.
-templ Kiosk(body templ.Component, controls ControlsVM) {
+templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM) {
 	@Layout(i18n.T(ctx, "app.title")) {
 		<header class="kheader">
 			<span id="kdate" class="kdate"></span>
@@ -17,6 +17,15 @@ templ Kiosk(body templ.Component, controls ControlsVM) {
 		</header>
 		<div id="stage" data-view-id={ fmt.Sprint(controls.CurrentID) }>
 			@body
+			if health.Bad() {
+				<div class={ "khealth", "khealth-" + health.Level } role="status">
+					<span class="khealth-dot"></span>
+					<span class="khealth-msg">{ health.Message }</span>
+					if health.Count > 1 {
+						<span class="khealth-more">+{ fmt.Sprint(health.Count - 1) }</span>
+					}
+				</div>
+			}
 		</div>
 		<footer class="kfooter">
 			<span class="kfooter-label">

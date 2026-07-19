@@ -109,3 +109,30 @@ test('renders offline from cache (PWA resilience)', async () => {
     await ctx.setOffline(false);
   }
 });
+
+// Runs last: it creates an OAuth source, which makes every kiosk screen show the
+// health badge from then on.
+test('kiosk shows the health badge when an OAuth source needs reconnect', async () => {
+  // Admin login (session cookie coexists with the device cookie).
+  await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded' });
+  await page.fill('input[name="passphrase"]', PASSPHRASE);
+  await Promise.all([page.waitForNavigation(), page.click('button[type="submit"]')]);
+
+  // Create an ms_graph data source and never connect it -> reconnect needed.
+  await page.goto(BASE + '/admin/datasources', { waitUntil: 'load' });
+  await page.fill('input[name="name"]', 'Outlook Test');
+  await page.selectOption('select[name="type"]', 'ms_graph');
+  await page.waitForTimeout(300); // let the fields HTMX-swap
+  await page.click('form[hx-post="/admin/datasources"] button[type="submit"]');
+  await page.waitForTimeout(500);
+
+  // The kiosk badge should now be visible, red, and say "opnieuw verbinden".
+  await page.goto(BASE + '/spa', { waitUntil: 'load' });
+  await page.waitForSelector('.khealth', { state: 'visible', timeout: 15000 });
+  const badge = await page.evaluate(() => {
+    const el = document.querySelector('.khealth');
+    return { cls: el?.className || '', text: (el?.textContent || '').toLowerCase() };
+  });
+  assert.match(badge.cls, /khealth-error/, 'badge is error-level');
+  assert.match(badge.text, /verbinden/, 'badge mentions reconnect');
+});

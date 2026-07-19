@@ -82,6 +82,10 @@ CREATE TABLE data_sources (
     config_json       TEXT NOT NULL DEFAULT '{}',
     secret_ciphertext TEXT NOT NULL DEFAULT '',
     oauth_status      TEXT NOT NULL DEFAULT '',
+    access_expiry     TEXT NOT NULL DEFAULT '',
+    last_sync         TEXT NOT NULL DEFAULT '',
+    last_error        TEXT NOT NULL DEFAULT '',
+    health            TEXT NOT NULL DEFAULT '',
     created_at        TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );

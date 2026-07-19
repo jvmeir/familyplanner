@@ -43,10 +43,10 @@ templ DataSourceList(sources []DataSourceVM) {
 			<div class="row">
 				<span class="row-name">{ d.Name }</span>
 				<span class="row-type">{ d.Type }</span>
+				if d.HealthText != "" {
+					<span class={ "hpill", "hpill-" + d.HealthLevel } title={ d.LastError }>{ d.HealthText }</span>
+				}
 				if d.IsOAuth {
-					if d.Connected {
-						<span class="tag">{ i18n.T(ctx, "datasource.connected") }</span>
-					}
 					<a class="btn ghost" href={ templ.SafeURL("/admin/datasources/" + fmt.Sprint(d.ID) + "/oauth/start") }>{ i18n.T(ctx, "datasource.connect") }</a>
 				}
 				if d.HasPicker {

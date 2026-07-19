@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -184,14 +185,38 @@ func (s *Server) dataSourceVMs(ctx context.Context) []web.DataSourceVM {
 		}
 		_ = json.Unmarshal([]byte(d.ConfigJson), &c)
 		typ, _ := s.dsRegistry.Get(d.Type)
+		isOAuth := typ.CredKind == "oauth2"
+		level, text := dsHealthDisplay(d, isOAuth, s.now())
 		out = append(out, web.DataSourceVM{
 			ID: d.ID, Name: d.Name, Type: d.Type, URL: c.URL,
-			IsOAuth:   typ.CredKind == "oauth2",
-			Connected: d.OauthStatus == "connected",
-			HasPicker: typ.ResourceKind != "",
+			IsOAuth:     isOAuth,
+			Connected:   d.OauthStatus == "connected",
+			HasPicker:   typ.ResourceKind != "",
+			HealthLevel: level,
+			HealthText:  text,
+			LastError:   d.LastError,
+			LastSync:    d.LastSync,
 		})
 	}
 	return out
+}
+
+// dsHealthDisplay maps a data source's stored health into a status pill
+// (level, Dutch label). Non-OAuth sources have no auth to report.
+func dsHealthDisplay(d dbgen.DataSource, isOAuth bool, now time.Time) (level, text string) {
+	if !isOAuth {
+		return "", ""
+	}
+	switch {
+	case d.Health == "reconnect" || d.OauthStatus != "connected":
+		return "error", "Opnieuw verbinden"
+	case d.Health == "error":
+		return "warn", "Sync mislukt"
+	}
+	if exp, err := time.Parse(time.RFC3339, d.AccessExpiry); err == nil && exp.Before(now.UTC()) {
+		return "warn", "Toegang verlopen"
+	}
+	return "ok", "Verbonden"
 }
 
 func (s *Server) widgetSourceVMs(ctx context.Context, widgetID int64) []web.WidgetSourceVM {

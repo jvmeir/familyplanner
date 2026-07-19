@@ -44,7 +44,7 @@ func (q *Queries) AddWidgetSource(ctx context.Context, arg AddWidgetSourceParams
 const createDataSource = `-- name: CreateDataSource :one
 INSERT INTO data_sources (name, type, config_json, secret_ciphertext)
 VALUES (?, ?, ?, ?)
-RETURNING id, name, type, config_json, secret_ciphertext, oauth_status, created_at, updated_at
+RETURNING id, name, type, config_json, secret_ciphertext, oauth_status, access_expiry, last_sync, last_error, health, created_at, updated_at
 `
 
 type CreateDataSourceParams struct {
@@ -69,6 +69,10 @@ func (q *Queries) CreateDataSource(ctx context.Context, arg CreateDataSourcePara
 		&i.ConfigJson,
 		&i.SecretCiphertext,
 		&i.OauthStatus,
+		&i.AccessExpiry,
+		&i.LastSync,
+		&i.LastError,
+		&i.Health,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -94,7 +98,7 @@ func (q *Queries) DeleteWidgetSource(ctx context.Context, id int64) error {
 }
 
 const getDataSource = `-- name: GetDataSource :one
-SELECT id, name, type, config_json, secret_ciphertext, oauth_status, created_at, updated_at FROM data_sources WHERE id = ?
+SELECT id, name, type, config_json, secret_ciphertext, oauth_status, access_expiry, last_sync, last_error, health, created_at, updated_at FROM data_sources WHERE id = ?
 `
 
 func (q *Queries) GetDataSource(ctx context.Context, id int64) (DataSource, error) {
@@ -107,6 +111,10 @@ func (q *Queries) GetDataSource(ctx context.Context, id int64) (DataSource, erro
 		&i.ConfigJson,
 		&i.SecretCiphertext,
 		&i.OauthStatus,
+		&i.AccessExpiry,
+		&i.LastSync,
+		&i.LastError,
+		&i.Health,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -114,7 +122,7 @@ func (q *Queries) GetDataSource(ctx context.Context, id int64) (DataSource, erro
 }
 
 const listDataSources = `-- name: ListDataSources :many
-SELECT id, name, type, config_json, secret_ciphertext, oauth_status, created_at, updated_at FROM data_sources ORDER BY name
+SELECT id, name, type, config_json, secret_ciphertext, oauth_status, access_expiry, last_sync, last_error, health, created_at, updated_at FROM data_sources ORDER BY name
 `
 
 func (q *Queries) ListDataSources(ctx context.Context) ([]DataSource, error) {
@@ -133,6 +141,10 @@ func (q *Queries) ListDataSources(ctx context.Context) ([]DataSource, error) {
 			&i.ConfigJson,
 			&i.SecretCiphertext,
 			&i.OauthStatus,
+			&i.AccessExpiry,
+			&i.LastSync,
+			&i.LastError,
+			&i.Health,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -206,6 +218,15 @@ func (q *Queries) ListWidgetSources(ctx context.Context, widgetID int64) ([]List
 	return items, nil
 }
 
+const markDataSourceSynced = `-- name: MarkDataSourceSynced :exec
+UPDATE data_sources SET last_sync = datetime('now') WHERE id = ?
+`
+
+func (q *Queries) MarkDataSourceSynced(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, markDataSourceSynced, id)
+	return err
+}
+
 const maxWidgetSourcePosition = `-- name: MaxWidgetSourcePosition :one
 SELECT CAST(COALESCE(MAX(position), -1) AS INTEGER) FROM widget_sources WHERE widget_id = ?
 `
@@ -228,6 +249,29 @@ type UpdateDataSourceConfigParams struct {
 
 func (q *Queries) UpdateDataSourceConfig(ctx context.Context, arg UpdateDataSourceConfigParams) error {
 	_, err := q.db.ExecContext(ctx, updateDataSourceConfig, arg.ConfigJson, arg.ID)
+	return err
+}
+
+const updateDataSourceHealth = `-- name: UpdateDataSourceHealth :exec
+UPDATE data_sources
+SET access_expiry = ?, last_error = ?, health = ?, updated_at = datetime('now')
+WHERE id = ?
+`
+
+type UpdateDataSourceHealthParams struct {
+	AccessExpiry string `json:"access_expiry"`
+	LastError    string `json:"last_error"`
+	Health       string `json:"health"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) UpdateDataSourceHealth(ctx context.Context, arg UpdateDataSourceHealthParams) error {
+	_, err := q.db.ExecContext(ctx, updateDataSourceHealth,
+		arg.AccessExpiry,
+		arg.LastError,
+		arg.Health,
+		arg.ID,
+	)
 	return err
 }
 

@@ -60,6 +60,18 @@ type ViewRef struct {
 	Name string
 }
 
+// HealthVM drives the kiosk's corner health badge. Level is "" or "ok" when
+// everything is healthy (badge hidden), "warn" (amber) or "error" (red)
+// otherwise. Message is the most urgent issue; Count is the total.
+type HealthVM struct {
+	Level   string
+	Count   int
+	Message string
+}
+
+// Bad reports whether the badge should show (something needs attention).
+func (h HealthVM) Bad() bool { return h.Level == "warn" || h.Level == "error" }
+
 // ControlsVM drives the kiosk control bar: the current playlist's views, all
 // views (for jumping to parked ones), and which view is currently showing.
 type ControlsVM struct {
@@ -205,6 +217,11 @@ type DataSourceVM struct {
 	IsOAuth   bool   // shows a Connect action + status
 	Connected bool   // oauth connected
 	HasPicker bool   // shows a Configure action
+	// Health telemetry (OAuth sources): shown as a status pill.
+	HealthLevel string // "" | ok | warn | error
+	HealthText  string // short Dutch status
+	LastError   string // most recent error (tooltip)
+	LastSync    string // last successful sync time
 }
 
 // WidgetSourceVM is one data source linked to a widget (with its filter and an

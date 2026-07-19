@@ -56,6 +56,55 @@ func (q *Queries) ListExpiredWidgetIDs(ctx context.Context) ([]int64, error) {
 	return items, nil
 }
 
+const listWidgetHealth = `-- name: ListWidgetHealth :many
+SELECT w.id AS widget_id, w.name AS widget_name, w.type AS widget_type,
+       COALESCE(wc.status, '') AS status,
+       COALESCE(wc.error_msg, '') AS error_msg,
+       COALESCE(wc.fetched_at, '') AS fetched_at
+FROM widgets w
+LEFT JOIN widget_cache wc ON wc.widget_id = w.id
+ORDER BY w.name
+`
+
+type ListWidgetHealthRow struct {
+	WidgetID   int64  `json:"widget_id"`
+	WidgetName string `json:"widget_name"`
+	WidgetType string `json:"widget_type"`
+	Status     string `json:"status"`
+	ErrorMsg   string `json:"error_msg"`
+	FetchedAt  string `json:"fetched_at"`
+}
+
+func (q *Queries) ListWidgetHealth(ctx context.Context) ([]ListWidgetHealthRow, error) {
+	rows, err := q.db.QueryContext(ctx, listWidgetHealth)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWidgetHealthRow{}
+	for rows.Next() {
+		var i ListWidgetHealthRow
+		if err := rows.Scan(
+			&i.WidgetID,
+			&i.WidgetName,
+			&i.WidgetType,
+			&i.Status,
+			&i.ErrorMsg,
+			&i.FetchedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markWidgetCacheStale = `-- name: MarkWidgetCacheStale :exec
 UPDATE widget_cache SET status = 'stale', error_msg = ? WHERE widget_id = ?
 `

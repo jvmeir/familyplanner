@@ -18,6 +18,14 @@ UPDATE data_sources SET secret_ciphertext = ?, oauth_status = ?, updated_at = da
 -- name: UpdateDataSourceConfig :exec
 UPDATE data_sources SET config_json = ?, updated_at = datetime('now') WHERE id = ?;
 
+-- name: UpdateDataSourceHealth :exec
+UPDATE data_sources
+SET access_expiry = ?, last_error = ?, health = ?, updated_at = datetime('now')
+WHERE id = ?;
+
+-- name: MarkDataSourceSynced :exec
+UPDATE data_sources SET last_sync = datetime('now') WHERE id = ?;
+
 -- name: AddWidgetSource :one
 INSERT INTO widget_sources (widget_id, data_source_id, filter, position)
 VALUES (?, ?, ?, ?)

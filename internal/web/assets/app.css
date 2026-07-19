@@ -65,7 +65,57 @@ button, .btn {
 /* The WASM SPA client mounts the shell inside #app; make it the same full-height
    flex column the server-rendered kiosk gets directly from <body>. */
 #app { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-#stage { flex: 1; min-height: 0; }
+#stage { flex: 1; min-height: 0; position: relative; }
+.stage-host { height: 100%; }
+
+/* Subtle corner health badge: hidden when healthy, amber on warnings, red when
+   an OAuth source needs reconnecting. Sits above the footer, over the stage. */
+.khealth {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(60%, 520px);
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: .95rem;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+  backdrop-filter: blur(2px);
+}
+.khealth-warn { background: color-mix(in srgb, #d98a00 88%, transparent); }
+.khealth-error { background: color-mix(in srgb, #d1372f 90%, transparent); }
+.khealth-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #fff; flex: 0 0 auto;
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, .6);
+  animation: khpulse 2s infinite;
+}
+.khealth-msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Admin data-source status pill. */
+.hpill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+}
+.hpill-ok { background: #13b981; }
+.hpill-warn { background: #d98a00; }
+.hpill-error { background: #d1372f; }
+.khealth-more { opacity: .85; font-variant-numeric: tabular-nums; }
+@keyframes khpulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, .5); }
+  70% { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
 .view {
   height: 100%;
   padding: var(--gap, 14px);

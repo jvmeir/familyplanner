@@ -19,6 +19,13 @@ import (
 )
 
 func newTestHandler(t *testing.T) http.Handler {
+	h, _ := newTestHandlerStore(t)
+	return h
+}
+
+// newTestHandlerStore is like newTestHandler but also returns the store, so
+// tests can seed rows (e.g. an unconnected OAuth source for health checks).
+func newTestHandlerStore(t *testing.T) (http.Handler, *db.Store) {
 	t.Helper()
 	dir := t.TempDir()
 	cfg := &config.Config{
@@ -38,7 +45,7 @@ func newTestHandler(t *testing.T) http.Handler {
 
 	srv, err := server.New(cfg, store, reg, i18nSvc)
 	require.NoError(t, err)
-	return srv.Handler()
+	return srv.Handler(), store
 }
 
 func noRedirect() *http.Client {

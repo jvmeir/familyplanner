@@ -171,6 +171,7 @@ func (s *Server) routes() http.Handler {
 		// auth; reuses /kiosk/stream (SSE) and /kiosk/control for push + playback.
 		r.Get("/api/kiosk/state", s.handleAPIKioskState)
 		r.Get("/api/kiosk/view/{id}", s.handleAPIKioskView)
+		r.Get("/api/kiosk/health", s.handleAPIKioskHealth)
 		r.Get("/spa", s.handleSPA)
 	})
 
@@ -284,13 +285,25 @@ func (s *Server) checkPassphrase(ctx context.Context, passphrase string) bool {
 
 func (s *Server) handleKiosk(w http.ResponseWriter, r *http.Request) {
 	dev, _ := deviceFrom(r.Context())
+	health := s.healthVM(r.Context())
 	view, err := s.currentPlaylistView(r.Context(), dev)
 	if err != nil {
-		s.render(w, r, web.Kiosk(web.Grid("", nil), web.ControlsVM{}))
+		s.render(w, r, web.Kiosk(web.Grid("", nil), web.ControlsVM{}, health))
 		return
 	}
 	body := s.renderViewComponent(r.Context(), view)
-	s.render(w, r, web.Kiosk(body, s.buildControls(r.Context(), dev, view.ID)))
+	s.render(w, r, web.Kiosk(body, s.buildControls(r.Context(), dev, view.ID), health))
+}
+
+// healthVM maps the health summary into the kiosk badge view-model (empty when
+// everything is healthy, so the badge stays hidden).
+func (s *Server) healthVM(ctx context.Context) web.HealthVM {
+	sum := s.buildHealth(ctx)
+	vm := web.HealthVM{Level: string(sum.Level), Count: sum.Count}
+	if len(sum.Issues) > 0 {
+		vm.Message = sum.Issues[0].Message
+	}
+	return vm
 }
 
 func (s *Server) handleKioskView(w http.ResponseWriter, r *http.Request) {
