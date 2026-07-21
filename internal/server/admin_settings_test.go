@@ -44,10 +44,10 @@ func TestSettingsSavePersists(t *testing.T) {
 	token := m[1]
 
 	form := url.Values{
-		"_csrf":        {token},
+		"_csrf":         {token},
 		"voice_enabled": {""}, // unchecked -> disabled
-		"quiet_start":  {"23:00"},
-		"quiet_end":    {"06:30"},
+		"quiet_start":   {"23:00"},
+		"quiet_end":     {"06:30"},
 	}
 	resp, err := c.PostForm(ts.URL+"/admin/settings", form)
 	require.NoError(t, err)

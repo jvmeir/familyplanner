@@ -36,9 +36,9 @@ import (
 
 // Server holds dependencies and the built HTTP handler.
 type Server struct {
-	cfg      *config.Config
-	store    *db.Store
-	registry *widget.Registry
+	cfg        *config.Config
+	store      *db.Store
+	registry   *widget.Registry
 	i18n       *i18n.Service
 	sessions   *scs.SessionManager
 	rotation   *rotation.Manager
@@ -118,6 +118,7 @@ func (s *Server) routes() http.Handler {
 			r.Post("/admin/views/{id}/name", s.handleViewRename)
 			r.Delete("/admin/views/{id}", s.handleViewDelete)
 			r.Get("/admin/views/{id}/layout", s.handleViewLayout)
+			r.Get("/admin/views/{id}/preview", s.handleViewPreview)
 			r.Post("/admin/views/{id}/layout/split", s.handleLayoutSplit)
 			r.Post("/admin/views/{id}/layout/remove", s.handleLayoutRemove)
 			r.Post("/admin/views/{id}/layout/widget", s.handleLayoutSetWidget)
@@ -126,6 +127,7 @@ func (s *Server) routes() http.Handler {
 			r.Post("/admin/widgets", s.handleWidgetCreate)
 			r.Get("/admin/widgets/fields", s.handleWidgetFields)
 			r.Get("/admin/widgets/{id}/edit", s.handleWidgetEdit)
+			r.Get("/admin/widgets/{id}/preview", s.handleWidgetPreview)
 			r.Post("/admin/widgets/{id}", s.handleWidgetUpdate)
 			r.Delete("/admin/widgets/{id}", s.handleWidgetDelete)
 
@@ -153,12 +155,15 @@ func (s *Server) routes() http.Handler {
 			r.Get("/admin/datasources/fields", s.handleDataSourceFields)
 			r.Get("/admin/datasources/oauth/callback", s.handleOAuthCallback)
 			r.Post("/admin/datasources", s.handleDataSourceCreate)
+			r.Get("/admin/datasources/{id}/edit", s.handleDataSourceEdit)
+			r.Post("/admin/datasources/{id}", s.handleDataSourceUpdate)
 			r.Get("/admin/datasources/{id}/oauth/start", s.handleOAuthStart)
 			r.Get("/admin/datasources/{id}/configure", s.handleDataSourceConfigure)
 			r.Post("/admin/datasources/{id}/configure", s.handleDataSourceConfigureSave)
 			r.Delete("/admin/datasources/{id}", s.handleDataSourceDelete)
 			r.Post("/admin/widgets/{id}/sources", s.handleWidgetSourceAdd)
 			r.Post("/admin/widgets/{id}/sources/{linkID}/resource", s.handleWidgetSourceResource)
+			r.Post("/admin/widgets/{id}/sources/{linkID}/color", s.handleWidgetSourceColor)
 			r.Delete("/admin/widgets/{id}/sources/{linkID}", s.handleWidgetSourceDelete)
 		})
 	})
@@ -449,8 +454,8 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 	if !sendCurrent() {
 		return
 	}
-	sendConfig()               // push scale + ticker speed + date format on connect
-	send("version", s.bootID)    // kiosks reload when this changes (i.e. after a redeploy)
+	sendConfig()              // push scale + ticker speed + date format on connect
+	send("version", s.bootID) // kiosks reload when this changes (i.e. after a redeploy)
 	advance := time.NewTimer(dwell())
 	defer advance.Stop()
 	refresh := time.NewTicker(30 * time.Second)
@@ -610,7 +615,16 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 		}
 	}
 	vm := web.FormatCell(ctx, wgt.Type, data, stale, style)
-	if vm.Title == "" && vm.IframeURL == "" && vm.ImageURL == "" {
+	// Generic per-widget "hide title" flag (saved in config_json as hide_title),
+	// available on every widget type to save vertical space on the kiosk.
+	var meta struct {
+		HideTitle string `json:"hide_title"`
+	}
+	_ = json.Unmarshal([]byte(wgt.ConfigJson), &meta)
+	switch {
+	case meta.HideTitle == "1":
+		vm.Title = ""
+	case vm.Title == "" && vm.IframeURL == "" && vm.ImageURL == "":
 		vm.Title = wgt.Name // fall back to the widget's name (e.g. "Schoolagenda")
 	}
 	return vm

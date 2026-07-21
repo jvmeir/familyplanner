@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand/v2"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -14,29 +15,67 @@ import (
 	"github.com/jvmeir/familyplanner/internal/widget"
 )
 
+// colorRe validates a colour token (hex or a plain CSS colour name) before it is
+// interpolated into inline CSS, so a source colour can't inject styles.
+var colorRe = regexp.MustCompile(`^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{1,24})$`)
+
+// evStyle returns a coloured left-accent for a calendar event line, or "" when
+// the source has no (valid) colour.
+func evStyle(color string) templ.SafeCSS {
+	if !colorRe.MatchString(color) {
+		return ""
+	}
+	return templ.SafeCSS("border-left:0.4em solid " + color + ";padding-left:0.3em")
+}
+
+// colorOrDefault gives an <input type=color> a valid hex value (it can't be
+// empty); unset links default to a neutral grey.
+func colorOrDefault(c string) string {
+	if colorRe.MatchString(c) {
+		return c
+	}
+	return "#888888"
+}
+
 // CellVM is the presentation-ready view-model for one grid cell. Widget-type
 // specifics are flattened here (in Go) so templates stay dumb.
 type CellVM struct {
-	Kind  string
-	Title string
-	Big   string
-	Sub   string
-	Body      string   // paragraph text (e.g. a quote)
-	Lines     []string // list rows (e.g. calendar agenda)
+	Kind          string
+	Title         string
+	Big           string
+	Sub           string
+	Body          string          // paragraph text (e.g. a quote)
+	Lines         []string        // plain list rows (e.g. shopping, to-do)
+	Agenda        []EvVM          // calendar agenda rows (colour-coded)
 	Month         *MonthVM        // month-grid table (calendar month mode)
 	Schedule      []ScheduleDayVM // relative day-by-day (calendar days modes)
 	ScheduleTable bool            // render Schedule as a table (days_table) vs list (days)
 	IframeURL     string          // embedded web page
 	ImageURL      string          // single photo
-	Stale     bool
-	Style     templ.SafeCSS
+	Stale         bool
+	Style         templ.SafeCSS
+}
+
+// EvVM is one rendered calendar line; Color is the source's colour ("" = none).
+type EvVM struct {
+	Text  string
+	Color string
+}
+
+// evItems maps widget calendar items to the presentation view-model.
+func evItems(in []widget.CalItem) []EvVM {
+	out := make([]EvVM, 0, len(in))
+	for _, e := range in {
+		out = append(out, EvVM{Text: e.Text, Color: e.Color})
+	}
+	return out
 }
 
 // ScheduleDayVM is one day row in the relative day-by-day calendar table.
 type ScheduleDayVM struct {
 	Label  string
 	Today  bool
-	Events []string
+	Events []EvVM
 }
 
 // MonthVM is a traditional month grid for the calendar widget.
@@ -51,7 +90,7 @@ type DayVM struct {
 	Day     int
 	InMonth bool
 	Today   bool
-	Events  []string
+	Events  []EvVM
 }
 
 // ViewRef is a minimal view reference for the kiosk's jump dropdown.
@@ -215,9 +254,10 @@ type DataSourceVM struct {
 	Name      string
 	Type      string
 	URL       string
-	IsOAuth   bool   // shows a Connect action + status
-	Connected bool   // oauth connected
-	HasPicker bool   // shows a Configure action
+	IsOAuth   bool // shows a Connect action + status
+	Connected bool // oauth connected
+	HasPicker bool // shows a Configure action
+	HasConfig bool // shows an Edit action (type has editable config fields)
 	// Health telemetry (OAuth sources): shown as a status pill.
 	HealthLevel string // "" | ok | warn | error
 	HealthText  string // short Dutch status
@@ -235,6 +275,8 @@ type WidgetSourceVM struct {
 	HasPicker       bool
 	ResourceLabel   string
 	ResourceOptions []OptionVM
+	ShowColor       bool   // widget colour-codes its sources (calendar)
+	Color           string // per-link colour (hex, e.g. "#3b82f6")
 }
 
 // EditorNodeVM mirrors a layout node for the visual editor, carrying each
@@ -318,7 +360,7 @@ func init() {
 			for _, wk := range d.Month.Weeks {
 				row := make([]DayVM, 0, len(wk))
 				for _, c := range wk {
-					row = append(row, DayVM{Day: c.Day, InMonth: c.InMonth, Today: c.Today, Events: c.Events})
+					row = append(row, DayVM{Day: c.Day, InMonth: c.InMonth, Today: c.Today, Events: evItems(c.Events)})
 				}
 				m.Weeks = append(m.Weeks, row)
 			}
@@ -327,7 +369,7 @@ func init() {
 		if d.Mode == "days" || d.Mode == "days_table" {
 			sd := make([]ScheduleDayVM, 0, len(d.Days))
 			for _, day := range d.Days {
-				sd = append(sd, ScheduleDayVM{Label: day.Label, Today: day.Today, Events: day.Events})
+				sd = append(sd, ScheduleDayVM{Label: day.Label, Today: day.Today, Events: evItems(day.Events)})
 			}
 			return CellVM{Schedule: sd, ScheduleTable: d.Mode == "days_table"}
 		}
@@ -336,7 +378,7 @@ func init() {
 		}
 		vm := CellVM{}
 		for _, e := range d.Events {
-			vm.Lines = append(vm.Lines, e.When+"  "+e.Title)
+			vm.Agenda = append(vm.Agenda, EvVM{Text: e.When + "  " + e.Title, Color: e.Color})
 		}
 		return vm
 	})

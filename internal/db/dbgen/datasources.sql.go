@@ -12,7 +12,7 @@ import (
 const addWidgetSource = `-- name: AddWidgetSource :one
 INSERT INTO widget_sources (widget_id, data_source_id, filter, position)
 VALUES (?, ?, ?, ?)
-RETURNING id, widget_id, data_source_id, "filter", resource, position
+RETURNING id, widget_id, data_source_id, "filter", resource, color, position
 `
 
 type AddWidgetSourceParams struct {
@@ -36,6 +36,7 @@ func (q *Queries) AddWidgetSource(ctx context.Context, arg AddWidgetSourceParams
 		&i.DataSourceID,
 		&i.Filter,
 		&i.Resource,
+		&i.Color,
 		&i.Position,
 	)
 	return i, err
@@ -162,7 +163,7 @@ func (q *Queries) ListDataSources(ctx context.Context) ([]DataSource, error) {
 }
 
 const listWidgetSources = `-- name: ListWidgetSources :many
-SELECT ws.id, ws.widget_id, ws.data_source_id, ws.filter, ws.resource, ws.position,
+SELECT ws.id, ws.widget_id, ws.data_source_id, ws.filter, ws.resource, ws.color, ws.position,
        ds.name AS source_name, ds.type AS source_type, ds.config_json AS source_config,
        ds.secret_ciphertext AS source_secret
 FROM widget_sources ws
@@ -177,6 +178,7 @@ type ListWidgetSourcesRow struct {
 	DataSourceID int64  `json:"data_source_id"`
 	Filter       string `json:"filter"`
 	Resource     string `json:"resource"`
+	Color        string `json:"color"`
 	Position     int64  `json:"position"`
 	SourceName   string `json:"source_name"`
 	SourceType   string `json:"source_type"`
@@ -199,6 +201,7 @@ func (q *Queries) ListWidgetSources(ctx context.Context, widgetID int64) ([]List
 			&i.DataSourceID,
 			&i.Filter,
 			&i.Resource,
+			&i.Color,
 			&i.Position,
 			&i.SourceName,
 			&i.SourceType,
@@ -301,6 +304,20 @@ type UpdateDataSourceSecretParams struct {
 
 func (q *Queries) UpdateDataSourceSecret(ctx context.Context, arg UpdateDataSourceSecretParams) error {
 	_, err := q.db.ExecContext(ctx, updateDataSourceSecret, arg.SecretCiphertext, arg.OauthStatus, arg.ID)
+	return err
+}
+
+const updateWidgetSourceColor = `-- name: UpdateWidgetSourceColor :exec
+UPDATE widget_sources SET color = ? WHERE id = ?
+`
+
+type UpdateWidgetSourceColorParams struct {
+	Color string `json:"color"`
+	ID    int64  `json:"id"`
+}
+
+func (q *Queries) UpdateWidgetSourceColor(ctx context.Context, arg UpdateWidgetSourceColorParams) error {
+	_, err := q.db.ExecContext(ctx, updateWidgetSourceColor, arg.Color, arg.ID)
 	return err
 }
 

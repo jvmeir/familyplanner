@@ -34,7 +34,7 @@ templ WidgetsPage(types []WidgetTypeVM, initialFields []FieldVM, widgets []Widge
 }
 
 // WidgetEditPage edits an existing widget (type fixed; config fields prefilled).
-templ WidgetEditPage(id int64, name string, typeName string, fields []FieldVM, acceptsSources bool, linked []WidgetSourceVM, available []DataSourceVM) {
+templ WidgetEditPage(id int64, name string, typeName string, fields []FieldVM, hideTitle bool, acceptsSources bool, linked []WidgetSourceVM, available []DataSourceVM) {
 	@AdminPage("widgets") {
 		<h1>{ name }</h1>
 		<form class="card form" method="post" action={ templ.SafeURL("/admin/widgets/" + fmt.Sprint(id)) }>
@@ -45,7 +45,14 @@ templ WidgetEditPage(id int64, name string, typeName string, fields []FieldVM, a
 			</label>
 			<p class="muted">{ i18n.T(ctx, "admin.field_type") }: { typeName }</p>
 			@WidgetFields(fields)
-			<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
+			<label class="check">
+				<input type="checkbox" name="hide_title" checked?={ hideTitle }/>
+				{ i18n.T(ctx, "widget.hide_title") }
+			</label>
+			<div class="btn-row">
+				<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
+				<a class="btn ghost" href={ templ.SafeURL("/admin/widgets/" + fmt.Sprint(id) + "/preview") } target="_blank" rel="noopener">{ i18n.T(ctx, "admin.preview") }</a>
+			</div>
 		</form>
 		if acceptsSources {
 			@WidgetSources(id, linked, available)

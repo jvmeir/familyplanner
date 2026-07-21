@@ -14,6 +14,9 @@ type SettingsVM struct {
 	QuarterSound   string // sound at :15/:30/:45
 	HourSound      string // sound at :00
 	Announce       bool   // speak the time on the hour
+	ChimeAt15      bool   // chime on the :15 beat
+	ChimeAt30      bool   // chime on the :30 beat
+	ChimeAt45      bool   // chime on the :45 beat
 	KioskScale     string // UI scale multiplier, e.g. "1.00"
 	TickerWidgets  []ViewRef    // widgets of type "ticker" (id + name)
 	TickerWidgetID int64        // selected ticker widget (0 = none)
@@ -74,7 +77,26 @@ templ SettingsPage(vm SettingsVM) {
 						}
 					</select>
 				</label>
-				<button type="button" class="btn ghost" onclick="fpTestQuarter(document.querySelector('[name=quarter_sound]').value)">{ i18n.T(ctx, "settings.test") }</button>
+				<div class="check-row">
+					<label class="check">
+						<input type="checkbox" name="chime_15" checked?={ vm.ChimeAt15 }/>
+						{ i18n.T(ctx, "settings.chime_15") }
+					</label>
+					<label class="check">
+						<input type="checkbox" name="chime_30" checked?={ vm.ChimeAt30 }/>
+						{ i18n.T(ctx, "settings.chime_30") }
+					</label>
+					<label class="check">
+						<input type="checkbox" name="chime_45" checked?={ vm.ChimeAt45 }/>
+						{ i18n.T(ctx, "settings.chime_45") }
+					</label>
+				</div>
+				<p class="muted">{ i18n.T(ctx, "settings.chime_gap_help") }</p>
+				<div class="btn-row">
+					<button type="button" class="btn ghost" onclick="fpTestQuarter(document.querySelector('[name=quarter_sound]').value,1)">:15</button>
+					<button type="button" class="btn ghost" onclick="fpTestQuarter(document.querySelector('[name=quarter_sound]').value,2)">:30</button>
+					<button type="button" class="btn ghost" onclick="fpTestQuarter(document.querySelector('[name=quarter_sound]').value,3)">:45</button>
+				</div>
 			</fieldset>
 			<fieldset class="subsection">
 				<legend>{ i18n.T(ctx, "settings.hour") }</legend>

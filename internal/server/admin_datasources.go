@@ -64,6 +64,88 @@ func (s *Server) handleDataSourceCreate(w http.ResponseWriter, r *http.Request) 
 	s.render(w, r, web.DataSourceList(s.dataSourceVMs(r.Context())))
 }
 
+// handleDataSourceEdit renders a form to edit a data source's config (e.g. the
+// iCal/RSS URL or text lines) after creation.
+func (s *Server) handleDataSourceEdit(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	ds, err := s.store.GetDataSource(r.Context(), id)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	typ, ok := s.dsRegistry.Get(ds.Type)
+	if !ok {
+		http.Error(w, "unknown type", http.StatusBadRequest)
+		return
+	}
+	values := map[string]string{}
+	_ = json.Unmarshal([]byte(ds.ConfigJson), &values)
+	typeName := i18n.T(r.Context(), typ.NameKey)
+	s.render(w, r, web.DataSourceEditPage(ds.ID, ds.Name, typeName, schemaFieldVMs(r.Context(), typ.Config, values)))
+}
+
+// handleDataSourceUpdate saves edited config, keeping keys not present in the
+// config schema (e.g. an OAuth resource id) intact, then refreshes affected widgets.
+func (s *Server) handleDataSourceUpdate(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	ds, err := s.store.GetDataSource(r.Context(), id)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	typ, ok := s.dsRegistry.Get(ds.Type)
+	if !ok {
+		http.Error(w, "unknown type", http.StatusBadRequest)
+		return
+	}
+	config := map[string]string{}
+	_ = json.Unmarshal([]byte(ds.ConfigJson), &config) // preserve non-schema keys
+	for _, f := range typ.Config.Fields {
+		config[f.Name] = r.FormValue(f.Name)
+	}
+	cj, _ := json.Marshal(config)
+	if err := s.store.UpdateDataSourceConfig(r.Context(), dbgen.UpdateDataSourceConfigParams{ConfigJson: string(cj), ID: id}); err != nil {
+		http.Error(w, "update failed", http.StatusInternalServerError)
+		return
+	}
+	if name := r.FormValue("name"); name != "" && name != ds.Name {
+		_ = s.store.UpdateDataSourceName(r.Context(), dbgen.UpdateDataSourceNameParams{Name: name, ID: id})
+	}
+	s.refreshWidgetsUsingSource(r.Context(), id)
+	http.Redirect(w, r, "/admin/datasources", http.StatusSeeOther)
+}
+
+// refreshWidgetsUsingSource re-fetches every widget linked to the given source,
+// so a config edit takes effect immediately on the kiosk.
+func (s *Server) refreshWidgetsUsingSource(ctx context.Context, dsID int64) {
+	widgets, err := s.store.ListWidgets(ctx)
+	if err != nil {
+		return
+	}
+	for _, wgt := range widgets {
+		for _, ws := range s.wsRows(ctx, wgt.ID) {
+			if ws.DataSourceID == dsID {
+				s.brk.RefreshWidget(ctx, wgt)
+				break
+			}
+		}
+	}
+}
+
+// wsRows lists a widget's source links (empty on error).
+func (s *Server) wsRows(ctx context.Context, widgetID int64) []dbgen.ListWidgetSourcesRow {
+	rows, _ := s.store.ListWidgetSources(ctx, widgetID)
+	return rows
+}
+
 func (s *Server) handleDataSourceDelete(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -139,6 +221,27 @@ func (s *Server) handleWidgetSourceResource(w http.ResponseWriter, r *http.Reque
 	s.renderWidgetSources(w, r, id)
 }
 
+func (s *Server) handleWidgetSourceColor(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	linkID, err := strconv.ParseInt(chi.URLParam(r, "linkID"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad link id", http.StatusBadRequest)
+		return
+	}
+	if err := s.store.UpdateWidgetSourceColor(r.Context(), dbgen.UpdateWidgetSourceColorParams{
+		Color: r.FormValue("color"), ID: linkID,
+	}); err != nil {
+		http.Error(w, "update failed", http.StatusInternalServerError)
+		return
+	}
+	s.refreshWidgetCache(r.Context(), id)
+	s.renderWidgetSources(w, r, id)
+}
+
 func (s *Server) renderWidgetSources(w http.ResponseWriter, r *http.Request, widgetID int64) {
 	wgt, err := s.store.GetWidget(r.Context(), widgetID)
 	if err != nil {
@@ -192,6 +295,7 @@ func (s *Server) dataSourceVMs(ctx context.Context) []web.DataSourceVM {
 			IsOAuth:     isOAuth,
 			Connected:   d.OauthStatus == "connected",
 			HasPicker:   typ.ResourceKind != "",
+			HasConfig:   len(typ.Config.Fields) > 0,
 			HealthLevel: level,
 			HealthText:  text,
 			LastError:   d.LastError,
@@ -236,10 +340,16 @@ func (s *Server) widgetSourceVMs(ctx context.Context, widgetID int64) []web.Widg
 	if err != nil {
 		return nil
 	}
+	// Colour coding is meaningful for the calendar widget (events tinted by source).
+	showColor := false
+	if wgt, err := s.store.GetWidget(ctx, widgetID); err == nil {
+		showColor = wgt.Type == "calendar"
+	}
 	out := make([]web.WidgetSourceVM, 0, len(rows))
 	for _, r := range rows {
 		vm := web.WidgetSourceVM{
 			LinkID: r.ID, SourceName: r.SourceName, SourceType: r.SourceType, Filter: r.Filter,
+			ShowColor: showColor, Color: r.Color,
 		}
 		// If the data-source type has a resource picker, fetch its options live
 		// and mark the link's current choice.

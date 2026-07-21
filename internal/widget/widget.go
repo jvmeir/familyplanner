@@ -31,6 +31,7 @@ type SourceInput struct {
 	Secret   json.RawMessage // decrypted credentials (e.g. {"email","password"}); nil if none
 	Filter   string          // per-(widget,source) filter expression
 	Resource string          // per-(widget,source) chosen resource id (list/calendar/folder/album)
+	Color    string          // per-(widget,source) colour (e.g. calendar event colour coding)
 }
 
 // FieldType is the input kind for a config field (drives the admin form widget).
@@ -137,10 +138,10 @@ func RegisterDefaults(r *Registry) {
 		Schema:      Schema{}, // no configuration
 	})
 	r.Register(Type{
-		ID:          "calendar",
-		NameKey:     "widget.calendar.name",
-		NewProvider: newCalendar,
-		Decode:      decodeCalendar,
+		ID:             "calendar",
+		NameKey:        "widget.calendar.name",
+		NewProvider:    newCalendar,
+		Decode:         decodeCalendar,
 		AcceptsSources: []string{"ical", "ms_graph"},
 		// Feeds + per-feed filters come from linked data sources (managed on the
 		// widget's edit page). These fields control display only.
@@ -196,7 +197,12 @@ func RegisterDefaults(r *Registry) {
 		NewProvider:    newTodo,
 		Decode:         decodeTodo,
 		AcceptsSources: []string{"ms_todo"},
-		Schema:         Schema{},
+		Schema: Schema{Fields: []Field{
+			{Name: "scope", LabelKey: "widget.todolist.field.scope", Type: FieldSelect, Options: []Option{
+				{Value: "all", LabelKey: "widget.todolist.scope.all"},
+				{Value: "today_overdue", LabelKey: "widget.todolist.scope.today_overdue"},
+			}},
+		}},
 	})
 	r.Register(Type{
 		ID:             "ticker",

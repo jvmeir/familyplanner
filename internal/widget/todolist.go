@@ -11,10 +11,23 @@ type TodoData struct {
 	Items []string `json:"items"`
 }
 
-type todoProvider struct{ sources []SourceInput }
+type todoProvider struct {
+	sources []SourceInput
+	scope   string // "" / "all" = all open tasks; "today_overdue" = due today or earlier
+	now     NowFunc
+}
 
-func newTodo(_ json.RawMessage, sources []SourceInput, _ NowFunc) (Provider, error) {
-	return todoProvider{sources: sources}, nil
+func newTodo(raw json.RawMessage, sources []SourceInput, now NowFunc) (Provider, error) {
+	var cfg struct {
+		Scope string `json:"scope"`
+	}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &cfg)
+	}
+	if now == nil {
+		now = time.Now
+	}
+	return todoProvider{sources: sources, scope: cfg.Scope, now: now}, nil
 }
 
 func decodeTodo(raw json.RawMessage) (Data, error) {
@@ -24,6 +37,10 @@ func decodeTodo(raw json.RawMessage) (Data, error) {
 }
 
 func (p todoProvider) Fetch(ctx context.Context) (Data, time.Duration, error) {
+	// End of today (local): a task is "today or overdue" if it's due at/before this.
+	now := p.now()
+	endOfToday := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
+
 	var items []string
 	var firstErr error
 	ok := 0
@@ -46,14 +63,22 @@ func (p todoProvider) Fetch(ctx context.Context) (Data, time.Duration, error) {
 		if sec.AccessToken == "" || listID == "" {
 			continue
 		}
-		its, err := GraphTodoTasks(ctx, sec.AccessToken, listID)
+		tasks, err := GraphTodoTasks(ctx, sec.AccessToken, listID)
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err
 			}
 			continue
 		}
-		items = append(items, its...)
+		for _, t := range tasks {
+			if p.scope == "today_overdue" {
+				// Only tasks with a due date at/before end of today.
+				if t.Due.IsZero() || t.Due.After(endOfToday) {
+					continue
+				}
+			}
+			items = append(items, t.Title)
+		}
 		ok++
 	}
 	if ok == 0 && firstErr != nil {

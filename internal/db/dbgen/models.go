@@ -99,5 +99,6 @@ type WidgetSource struct {
 	DataSourceID int64  `json:"data_source_id"`
 	Filter       string `json:"filter"`
 	Resource     string `json:"resource"`
+	Color        string `json:"color"`
 	Position     int64  `json:"position"`
 }

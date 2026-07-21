@@ -47,6 +47,24 @@ type Config struct {
 	QuarterSound string `json:"quarterSound"` // sound at :15/:30/:45
 	HourSound    string `json:"hourSound"`    // sound at :00
 	Announce     bool   `json:"announce"`     // speak the Dutch time on the hour
+	// Per-quarter mutes. Stored inverted (false = chime plays) so configs saved
+	// before this option keep chiming on every quarter.
+	MuteAt15 bool `json:"muteAt15"`
+	MuteAt30 bool `json:"muteAt30"`
+	MuteAt45 bool `json:"muteAt45"`
+}
+
+// quarterMuted reports whether the quarter beat q (1=:15, 2=:30, 3=:45) is muted.
+func (c Config) quarterMuted(q int) bool {
+	switch q {
+	case 1:
+		return c.MuteAt15
+	case 2:
+		return c.MuteAt30
+	case 3:
+		return c.MuteAt45
+	}
+	return false
 }
 
 // Default is the seeded configuration: on, silent overnight; bing-bong on the
@@ -77,7 +95,7 @@ func (c Config) Decide(t time.Time) (Chime, bool) {
 	q := (t.Minute() / 15) % 4
 	if q != 0 { // quarter past/half/quarter to
 		sound := ValidQuarterSound(c.QuarterSound)
-		if sound == SoundNone {
+		if sound == SoundNone || c.quarterMuted(q) {
 			return Chime{}, false
 		}
 		return Chime{Sound: sound, Quarter: q, Hour: t.Hour()}, true

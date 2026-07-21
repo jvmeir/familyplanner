@@ -96,5 +96,6 @@ CREATE TABLE widget_sources (
     data_source_id INTEGER NOT NULL REFERENCES data_sources(id) ON DELETE CASCADE,
     filter         TEXT NOT NULL DEFAULT '',
     resource       TEXT NOT NULL DEFAULT '',
+    color          TEXT NOT NULL DEFAULT '',
     position       INTEGER NOT NULL DEFAULT 0
 );

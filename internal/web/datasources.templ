@@ -55,6 +55,9 @@ templ DataSourceList(sources []DataSourceVM) {
 				if d.HealthText != "" {
 					<span class={ "hpill", "hpill-" + d.HealthLevel } title={ d.LastError }>{ d.HealthText }</span>
 				}
+				if d.HasConfig {
+					<a class="btn ghost" href={ templ.SafeURL("/admin/datasources/" + fmt.Sprint(d.ID) + "/edit") }>{ i18n.T(ctx, "admin.edit") }</a>
+				}
 				if d.IsOAuth {
 					<a class="btn ghost" href={ templ.SafeURL("/admin/datasources/" + fmt.Sprint(d.ID) + "/oauth/start") }>{ i18n.T(ctx, "datasource.connect") }</a>
 				}
@@ -62,6 +65,27 @@ templ DataSourceList(sources []DataSourceVM) {
 			</div>
 		}
 	</div>
+}
+
+// DataSourceEditPage edits a data source's config fields (e.g. iCal/RSS URL,
+// text lines) after creation.
+templ DataSourceEditPage(id int64, name string, typeName string, fields []FieldVM) {
+	@AdminPage("datasources") {
+		<h1>{ name }</h1>
+		<form class="card form" method="post" action={ templ.SafeURL("/admin/datasources/" + fmt.Sprint(id)) }>
+			@csrfInput()
+			<label>
+				{ i18n.T(ctx, "admin.field_name") }
+				<input name="name" value={ name } required/>
+			</label>
+			<p class="muted">{ i18n.T(ctx, "admin.field_type") }: { typeName }</p>
+			@WidgetFields(fields)
+			<div class="btn-row">
+				<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
+				<a class="btn ghost" href="/admin/datasources">{ i18n.T(ctx, "admin.back") }</a>
+			</div>
+		</form>
+	}
 }
 
 // DataSourceConfigurePage lets you pick a resource (calendar/list) fetched live
@@ -113,6 +137,13 @@ templ WidgetSources(widgetID int64, linked []WidgetSourceVM, available []DataSou
 					}
 					if l.Filter != "" {
 						<span class="row-type">{ i18n.T(ctx, "widget.calendar.field.filter") }: { l.Filter }</span>
+					}
+					if l.ShowColor {
+						<input type="color" class="ws-color" value={ colorOrDefault(l.Color) }
+							title={ i18n.T(ctx, "datasource.color") }
+							hx-post={ fmt.Sprintf("/admin/widgets/%d/sources/%d/color", widgetID, l.LinkID) }
+							hx-target="#wsources" hx-swap="outerHTML" hx-trigger="change"
+							name="color"/>
 					}
 					<button class="btn ghost" hx-delete={ fmt.Sprintf("/admin/widgets/%d/sources/%d", widgetID, l.LinkID) } hx-target="#wsources" hx-swap="outerHTML">×</button>
 				</div>

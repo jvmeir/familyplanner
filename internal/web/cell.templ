@@ -40,6 +40,13 @@ templ widgetCell(c CellVM) {
 					}
 				</ul>
 			}
+			if len(c.Agenda) > 0 {
+				<ul class="w-list w-agenda cell-scroll" style={ listVars(len(c.Agenda)) }>
+					for _, ev := range c.Agenda {
+						<li style={ evStyle(ev.Color) }>{ ev.Text }</li>
+					}
+				</ul>
+			}
 			if len(c.Schedule) > 0 && c.ScheduleTable {
 				<table class="w-schedtable">
 					<tbody>
@@ -51,7 +58,7 @@ templ widgetCell(c CellVM) {
 										<span class="sched-empty">—</span>
 									} else {
 										for _, ev := range d.Events {
-											<span class="sched-ev">{ ev }</span>
+											<span class="sched-ev" style={ evStyle(ev.Color) }>{ ev.Text }</span>
 										}
 									}
 								</td>
@@ -68,9 +75,9 @@ templ widgetCell(c CellVM) {
 							if len(d.Events) == 0 {
 								<span class="sched-empty">—</span>
 							} else {
-								<span class="sched-events">
+								<span class="sched-events cell-scroll">
 									for _, ev := range d.Events {
-										<span class="sched-ev">{ ev }</span>
+										<span class="sched-ev" style={ evStyle(ev.Color) }>{ ev.Text }</span>
 									}
 								</span>
 							}
@@ -95,14 +102,11 @@ templ widgetCell(c CellVM) {
 									for _, day := range week {
 										<td class={ "wm-day", templ.KV("out", !day.InMonth), templ.KV("today", day.Today) }>
 											<span class="wm-num">{ fmt.Sprint(day.Day) }</span>
-											for i, ev := range day.Events {
-												if i < 2 {
-													<span class="wm-ev">{ ev }</span>
+											<span class="wm-events cell-scroll">
+												for _, ev := range day.Events {
+													<span class="wm-ev" style={ evStyle(ev.Color) }>{ ev.Text }</span>
 												}
-											}
-											if len(day.Events) > 2 {
-												<span class="wm-more">+{ fmt.Sprint(len(day.Events) - 2) }</span>
-											}
+											</span>
 										</td>
 									}
 								</tr>

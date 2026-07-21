@@ -42,6 +42,7 @@ templ ViewList(views []ViewVM) {
 					aria-label={ i18n.T(ctx, "admin.rename") }
 				/>
 				<a class="btn ghost" href={ templ.SafeURL("/admin/views/" + fmt.Sprint(v.ID) + "/layout") }>{ i18n.T(ctx, "view.edit_layout") }</a>
+				<a class="btn ghost" href={ templ.SafeURL("/admin/views/" + fmt.Sprint(v.ID) + "/preview") } target="_blank" rel="noopener">{ i18n.T(ctx, "admin.preview") }</a>
 				<button class="btn ghost" hx-delete={ "/admin/views/" + fmt.Sprint(v.ID) } hx-target="#viewlist" hx-swap="outerHTML" hx-confirm={ i18n.T(ctx, "admin.confirm_delete") }>×</button>
 			</div>
 		}

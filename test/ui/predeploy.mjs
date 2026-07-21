@@ -47,7 +47,7 @@ let guard = 0;
 while (id && !seen.has(id) && guard++ < 16) {
   seen.add(id);
   await check(id);
-  await page.click('.kfooter-controls button:last-child'); // ⏭ next
+  await page.evaluate(() => window.fpCtl && window.fpCtl('next')); // ⏭ next
   await page
     .waitForFunction((prev) => (document.getElementById('stage')?.dataset.viewId || '') !== prev, id, { timeout: 8000 })
     .catch(() => {});

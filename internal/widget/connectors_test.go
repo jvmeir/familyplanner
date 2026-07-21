@@ -97,7 +97,11 @@ func TestCalendarMonthMode(t *testing.T) {
 	for _, week := range cd.Month.Weeks {
 		for _, day := range week {
 			if day.InMonth && day.Day == 20 {
-				require.Contains(t, day.Events, "Verjaardag")
+				var texts []string
+				for _, ev := range day.Events {
+					texts = append(texts, ev.Text)
+				}
+				require.Contains(t, texts, "Verjaardag")
 				found = true
 			}
 		}
@@ -302,7 +306,11 @@ func TestMSTodo(t *testing.T) {
 	tasks, err := GraphTodoTasks(context.Background(), "tok", "l1")
 	require.NoError(t, err)
 	require.Len(t, tasks, 2)
-	require.Contains(t, tasks, "Melk kopen")
+	var titles []string
+	for _, tk := range tasks {
+		titles = append(titles, tk.Title)
+	}
+	require.Contains(t, titles, "Melk kopen")
 }
 
 func TestWebWidget(t *testing.T) {

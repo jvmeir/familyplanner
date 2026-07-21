@@ -50,11 +50,33 @@
           const v = stage.querySelector(".view");
           if (v) v.classList.add("kslide");
         }
+        setupCellScroll();
       }
     } catch (e) {
       // keep last-good content on any error
     }
   }
+
+  // Auto-scroll any calendar cell/agenda that overflows: creep top→bottom→top so
+  // days with many events show them all without shrinking the text.
+  var scrollTimers = [];
+  function setupCellScroll() {
+    scrollTimers.forEach(clearInterval);
+    scrollTimers = [];
+    stage.querySelectorAll(".cell-scroll").forEach(function (el) {
+      if (el.scrollHeight - el.clientHeight < 4) return; // fits: nothing to scroll
+      var dir = 1, pause = 24; // start paused at the top
+      var timer = setInterval(function () {
+        if (pause > 0) { pause--; return; }
+        var max = el.scrollHeight - el.clientHeight;
+        el.scrollTop += dir;
+        if (el.scrollTop >= max) { el.scrollTop = max; dir = -1; pause = 24; }
+        else if (el.scrollTop <= 0) { el.scrollTop = 0; dir = 1; pause = 24; }
+      }, 70);
+      scrollTimers.push(timer);
+    });
+  }
+  setupCellScroll();
 
   const es = new EventSource("/kiosk/stream");
   window.fpES = es; // shared so voiceclock.js can listen for "chime" without a 2nd stream

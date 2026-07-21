@@ -104,6 +104,7 @@ func (s *Server) handleWidgetEdit(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, web.WidgetEditPage(
 		wgt.ID, wgt.Name, typeName,
 		s.fieldVMs(r.Context(), wgt.Type, cfg),
+		cfg["hide_title"] == "1",
 		len(typ.AcceptsSources) > 0,
 		s.widgetSourceVMs(r.Context(), wgt.ID),
 		s.availableSourcesFor(r.Context(), typ),
@@ -135,6 +136,9 @@ func (s *Server) handleWidgetUpdate(w http.ResponseWriter, r *http.Request) {
 	for _, f := range typ.Schema.Fields {
 		cfg[f.Name] = r.FormValue(f.Name)
 	}
+	if r.FormValue("hide_title") != "" {
+		cfg["hide_title"] = "1" // generic flag, not part of any type's schema
+	}
 	js, _ := json.Marshal(cfg)
 	if err := s.store.UpdateWidget(r.Context(), dbgen.UpdateWidgetParams{
 		Name: name, ConfigJson: string(js), ID: id,
@@ -147,6 +151,39 @@ func (s *Server) handleWidgetUpdate(w http.ResponseWriter, r *http.Request) {
 		s.brk.RefreshWidget(r.Context(), updated)
 	}
 	http.Redirect(w, r, "/admin/widgets", http.StatusSeeOther)
+}
+
+// handleWidgetPreview renders a single widget full-screen (new tab) so the admin
+// can check how it looks/scrolls before placing it on a screen.
+func (s *Server) handleWidgetPreview(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	wgt, err := s.store.GetWidget(r.Context(), id)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	th := theme.Resolve(s.defaultTheme(r.Context()), theme.DefaultID)
+	cell := s.cellForWidget(r.Context(), id, "")
+	s.render(w, r, web.PreviewPage(wgt.Name, web.PreviewWidget(web.ThemeVars(th), cell)))
+}
+
+// handleViewPreview renders a whole screen full-screen (new tab).
+func (s *Server) handleViewPreview(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	view, err := s.store.GetView(r.Context(), id)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	s.render(w, r, web.PreviewPage(view.Name, s.renderViewComponent(r.Context(), view)))
 }
 
 func (s *Server) handleWidgetDelete(w http.ResponseWriter, r *http.Request) {

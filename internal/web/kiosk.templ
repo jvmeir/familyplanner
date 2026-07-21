@@ -29,6 +29,7 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker [
 					<button onclick="fpCtl('pause')" title={ i18n.T(ctx, "kiosk.pause") }>⏸</button>
 					<button onclick="fpCtl('resume')" title={ i18n.T(ctx, "kiosk.play") }>▶</button>
 					<button onclick="fpCtl('next')" title={ i18n.T(ctx, "kiosk.next") }>⏭</button>
+					<button id="ksnooze" onclick="fpSnooze()" title={ i18n.T(ctx, "kiosk.snooze") }>🔔</button>
 				</span>
 				<span class="kfooter-label">
 					<span id="kplaylist">{ controls.PlaylistName }</span>

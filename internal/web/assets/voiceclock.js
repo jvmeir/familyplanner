@@ -41,12 +41,17 @@
   }
 
   // ---- sprekende klok (speaking clock) ----
-  // Two-tone descending PA "bing-bong" on the quarters.
-  function bingbong(ac) {
-    if (!ac) return;
+  // Two-tone descending PA "bing-bong" on the quarters. The pause between "bing"
+  // and "bong" grows with the quarter (:15 short → :45 long) so you can tell
+  // which quarter it is by ear. Returns its total duration.
+  var BB_GAP = { 1: 0.30, 2: 0.55, 3: 0.85 };
+  function bingbong(ac, quarter) {
+    if (!ac) return 0;
+    var gap = BB_GAP[quarter] || 0.45;
     var t = ac.currentTime;
-    bell(ac, 659.25, t, 1.4, 0.34);        // E5 "bing"
-    bell(ac, 523.25, t + 0.45, 1.9, 0.34); // C5 "bong"
+    bell(ac, 659.25, t, 1.4, 0.34);          // E5 "bing"
+    bell(ac, 523.25, t + gap, 1.9, 0.34);    // C5 "bong"
+    return gap + 1.9;
   }
   // Three 1 kHz time-signal pips; the third is double-length and its onset marks
   // the exact time (per the GTS / speaking-clock convention).
@@ -122,7 +127,7 @@
 
   function playSound(ac, sound, quarter, hour) {
     switch (sound) {
-      case "bingbong": bingbong(ac); return 2.4;
+      case "bingbong": return bingbong(ac, quarter);
       case "gong": return gong(ac);
       case "pips": return pips(ac);
       case "timesignal": timePips(ac); return 3;
@@ -131,9 +136,27 @@
     }
   }
 
+  // ---- snooze: mute chimes on demand, independent of the quiet-hours schedule.
+  // Persisted per-kiosk in localStorage so it survives auto-reloads.
+  function snoozed() {
+    try { return localStorage.getItem("fpChimeSnooze") === "1"; } catch (_) { return false; }
+  }
+  function paintSnooze() {
+    var b = document.getElementById("ksnooze");
+    if (b) { b.textContent = snoozed() ? "🔕" : "🔔"; b.classList.toggle("on", snoozed()); }
+  }
+  window.fpSnooze = function () {
+    try { localStorage.setItem("fpChimeSnooze", snoozed() ? "0" : "1"); } catch (_) {}
+    if (snoozed()) { try { window.speechSynthesis.cancel(); } catch (_) {} }
+    paintSnooze();
+  };
+  document.addEventListener("DOMContentLoaded", paintSnooze);
+  paintSnooze();
+
   // runChime handles one chime event end-to-end (sound + any announcement).
   function runChime(d) {
     d = d || {};
+    if (snoozed() && !d.preview) return; // manual snooze mutes live chimes
     var sound = d.sound || "none";
     var ac = audio();
     // Speaking-clock: on the hour with the time-signal sound + spoken time, the
@@ -149,12 +172,12 @@
   }
 
   // Admin previews.
-  window.fpTestQuarter = function (sound) {
-    runChime({ sound: sound, quarter: 1, hour: new Date().getHours() });
+  window.fpTestQuarter = function (sound, quarter) {
+    runChime({ sound: sound, quarter: quarter || 1, hour: new Date().getHours(), preview: true });
   };
   window.fpTestHour = function (sound, announce) {
     var h = new Date().getHours();
-    runChime({ sound: sound, quarter: 0, hour: h, announce: !!announce, text: dutchHour(h) });
+    runChime({ sound: sound, quarter: 0, hour: h, announce: !!announce, text: dutchHour(h), preview: true });
   };
 
   function unlock() {

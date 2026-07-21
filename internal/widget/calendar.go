@@ -23,18 +23,26 @@ type CalendarConfig struct {
 	Filter      string `json:"filter"`       // only events whose summary/CATEGORIES match (comma, any)
 }
 
+// CalItem is one rendered event line carrying the colour of the data source it
+// came from (empty = no colour; the theme's default text colour is used).
+type CalItem struct {
+	Text  string `json:"text"`
+	Color string `json:"color,omitempty"`
+}
+
 // CalendarEvent is one upcoming event, pre-formatted (agenda mode).
 type CalendarEvent struct {
 	When  string `json:"when"`
 	Title string `json:"title"`
+	Color string `json:"color,omitempty"`
 }
 
 // DayCell is one day in the month grid.
 type DayCell struct {
-	Day     int      `json:"day"`
-	InMonth bool     `json:"in_month"`
-	Today   bool     `json:"today"`
-	Events  []string `json:"events"`
+	Day     int       `json:"day"`
+	InMonth bool      `json:"in_month"`
+	Today   bool      `json:"today"`
+	Events  []CalItem `json:"events"`
 }
 
 // MonthGrid is a traditional month table (Monday-first weeks).
@@ -45,9 +53,9 @@ type MonthGrid struct {
 
 // ScheduleDay is one day in the relative day-by-day table (empty days included).
 type ScheduleDay struct {
-	Label  string   `json:"label"`
-	Today  bool     `json:"today"`
-	Events []string `json:"events"`
+	Label  string    `json:"label"`
+	Today  bool      `json:"today"`
+	Events []CalItem `json:"events"`
 }
 
 // CalendarData is the normalized render data; shape depends on Mode.
@@ -94,7 +102,13 @@ type calEvent struct {
 	t      time.Time
 	end    time.Time // event end (zero if unknown); enables multi-day spanning
 	title  string
+	color  string // colour of the source this event came from ("" = none)
 	allDay bool
+}
+
+// item builds a rendered line for this event on the given day, carrying colour.
+func (e calEvent) item(day time.Time) CalItem {
+	return CalItem{Text: e.onDay(day), Color: e.color}
 }
 
 func dateOf(t time.Time) time.Time {
@@ -143,8 +157,8 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 
 	// Gather iCal feeds from the linked data sources (each with its own filter),
 	// falling back to a single URL in the widget config for backward compatibility.
-	type feed struct{ url, filter string }
-	type gsrc struct{ token, calID, filter string }
+	type feed struct{ url, filter, color string }
+	type gsrc struct{ token, calID, filter, color string }
 	var feeds []feed
 	var graphs []gsrc
 	for _, s := range p.sources {
@@ -155,7 +169,7 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 			}
 			_ = json.Unmarshal(s.Config, &c)
 			if c.URL != "" {
-				feeds = append(feeds, feed{c.URL, s.Filter})
+				feeds = append(feeds, feed{c.URL, s.Filter, s.Color})
 			}
 		case "ms_graph":
 			var sec struct {
@@ -171,12 +185,12 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 				calID = s.Resource
 			}
 			if sec.AccessToken != "" {
-				graphs = append(graphs, gsrc{sec.AccessToken, calID, s.Filter})
+				graphs = append(graphs, gsrc{sec.AccessToken, calID, s.Filter, s.Color})
 			}
 		}
 	}
 	if len(feeds) == 0 && len(graphs) == 0 && p.cfg.URL != "" {
-		feeds = append(feeds, feed{p.cfg.URL, p.cfg.Filter})
+		feeds = append(feeds, feed{p.cfg.URL, p.cfg.Filter, ""})
 	}
 	if len(feeds) == 0 && len(graphs) == 0 {
 		return nil, 0, fmt.Errorf("calendar: no data sources configured")
@@ -192,6 +206,9 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 				firstErr = err
 			}
 			continue
+		}
+		for i := range evs {
+			evs[i].color = fd.color
 		}
 		all = append(all, evs...)
 		ok++
@@ -212,6 +229,7 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 				}
 				return ""
 			}) {
+				e.color = g.color
 				all = append(all, e)
 			}
 		}
@@ -251,7 +269,7 @@ func buildWeekGrid(now time.Time, all []calEvent, cfg CalendarConfig) *MonthGrid
 			cell := DayCell{Day: day.Day(), InMonth: true, Today: sameDate(day, now)}
 			for _, e := range all {
 				if e.occupies(day) {
-					cell.Events = append(cell.Events, e.onDay(day))
+					cell.Events = append(cell.Events, e.item(day))
 				}
 			}
 			week = append(week, cell)
@@ -348,10 +366,10 @@ func buildSchedule(now time.Time, all []calEvent, cfg CalendarConfig) []Schedule
 		}
 		for _, e := range all {
 			if e.occupies(d) {
-				day.Events = append(day.Events, e.onDay(d))
+				day.Events = append(day.Events, e.item(d))
 			}
 		}
-		sort.Strings(day.Events)
+		sort.Slice(day.Events, func(i, j int) bool { return day.Events[i].Text < day.Events[j].Text })
 		days = append(days, day)
 	}
 	return days
@@ -378,7 +396,7 @@ func buildAgenda(now time.Time, all []calEvent, cfg CalendarConfig) []CalendarEv
 	for _, e := range evs {
 		when := fmt.Sprintf("%s %d %s %02d:%02d",
 			nlWeekday[e.t.Weekday()], e.t.Day(), nlMonthShort[int(e.t.Month())-1], e.t.Hour(), e.t.Minute())
-		out = append(out, CalendarEvent{When: when, Title: e.title})
+		out = append(out, CalendarEvent{When: when, Title: e.title, Color: e.color})
 	}
 	return out
 }
@@ -400,7 +418,7 @@ func buildMonth(now time.Time, all []calEvent) *MonthGrid {
 			}
 			for _, e := range all {
 				if e.occupies(day) {
-					cell.Events = append(cell.Events, e.title)
+					cell.Events = append(cell.Events, CalItem{Text: e.title, Color: e.color})
 				}
 			}
 			week = append(week, cell)

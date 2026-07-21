@@ -35,13 +35,16 @@ VALUES (?, ?, ?, ?)
 RETURNING *;
 
 -- name: ListWidgetSources :many
-SELECT ws.id, ws.widget_id, ws.data_source_id, ws.filter, ws.resource, ws.position,
+SELECT ws.id, ws.widget_id, ws.data_source_id, ws.filter, ws.resource, ws.color, ws.position,
        ds.name AS source_name, ds.type AS source_type, ds.config_json AS source_config,
        ds.secret_ciphertext AS source_secret
 FROM widget_sources ws
 JOIN data_sources ds ON ds.id = ws.data_source_id
 WHERE ws.widget_id = ?
 ORDER BY ws.position, ws.id;
+
+-- name: UpdateWidgetSourceColor :exec
+UPDATE widget_sources SET color = ? WHERE id = ?;
 
 -- name: DeleteWidgetSource :exec
 DELETE FROM widget_sources WHERE id = ?;

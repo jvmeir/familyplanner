@@ -25,7 +25,7 @@ type Broker struct {
 	store      *db.Store
 	reg        *widget.Registry
 	now        func() time.Time
-	key        []byte                            // app encryption key, to decrypt data-source secrets
+	key        []byte                                  // app encryption key, to decrypt data-source secrets
 	oauthCreds func(dsType string) (id, secret string) // app-level OAuth client credentials
 	interval   time.Duration
 }
@@ -132,6 +132,7 @@ func (b *Broker) sourcesFor(ctx context.Context, widgetID int64) []widget.Source
 			Secret:   secret,
 			Filter:   r.Filter,
 			Resource: r.Resource,
+			Color:    r.Color,
 		})
 	}
 	return out
