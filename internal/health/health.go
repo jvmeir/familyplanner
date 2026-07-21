@@ -71,15 +71,15 @@ func Assess(sources []Source, widgets []Widget, now time.Time, staleAfter time.D
 		if !s.IsOAuth {
 			continue // only OAuth sources have auth to go inactive
 		}
+		// Note: a past AccessExpiry is NOT a problem — access tokens are short-lived
+		// and the broker refreshes them automatically from the refresh token. Only a
+		// dead refresh token (invalid_grant -> "reconnect") or a failed sync matters;
+		// genuinely stale data is caught by the widget-staleness check below.
 		switch {
 		case s.Health == "reconnect" || (s.OAuthStatus != "connected" && s.Health != "ok"):
 			issues = append(issues, Issue{LevelError, "reconnect", s.Name, s.Name + ": opnieuw verbinden"})
 		case s.Health == "error":
 			issues = append(issues, Issue{LevelWarn, "sync", s.Name, s.Name + ": synchronisatie mislukt"})
-		default:
-			if exp, err := time.Parse(time.RFC3339, s.AccessExpiry); err == nil && exp.Before(now) {
-				issues = append(issues, Issue{LevelWarn, "expired", s.Name, s.Name + ": toegang verlopen"})
-			}
 		}
 	}
 

@@ -97,11 +97,9 @@ func TestCalendarMonthMode(t *testing.T) {
 	for _, week := range cd.Month.Weeks {
 		for _, day := range week {
 			if day.InMonth && day.Day == 20 {
-				var texts []string
-				for _, ev := range day.Events {
-					texts = append(texts, ev.Text)
-				}
-				require.Contains(t, texts, "Verjaardag")
+				// Timed events show the start time in front ("10:00 Verjaardag").
+				require.Len(t, day.Events, 1)
+				require.Contains(t, day.Events[0].Text, "Verjaardag")
 				found = true
 			}
 		}

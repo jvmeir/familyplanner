@@ -36,11 +36,13 @@ func TestAssessNeverConnected(t *testing.T) {
 	require.Equal(t, "reconnect", sum.Issues[0].Kind)
 }
 
-func TestAssessAccessExpired(t *testing.T) {
+func TestAssessAccessExpiredIsHealthy(t *testing.T) {
+	// A past access-token expiry is normal: the broker refreshes it from the
+	// refresh token, so a connected + healthy source stays OK (no warning).
 	sum := Assess([]Source{{Name: "Outlook", IsOAuth: true, OAuthStatus: "connected", Health: "ok",
 		AccessExpiry: now.Add(-time.Minute).Format(time.RFC3339)}}, nil, now, time.Hour)
-	require.Equal(t, LevelWarn, sum.Level)
-	require.Equal(t, "expired", sum.Issues[0].Kind)
+	require.Equal(t, LevelOK, sum.Level)
+	require.Empty(t, sum.Issues)
 }
 
 func TestAssessFailedSyncAndStale(t *testing.T) {

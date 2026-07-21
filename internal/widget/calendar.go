@@ -418,7 +418,9 @@ func buildMonth(now time.Time, all []calEvent) *MonthGrid {
 			}
 			for _, e := range all {
 				if e.occupies(day) {
-					cell.Events = append(cell.Events, CalItem{Text: e.title, Color: e.color})
+					// e.item prefixes the start time for timed events ("09:30 Zwemles")
+					// and uses a bullet for all-day / continuation days.
+					cell.Events = append(cell.Events, e.item(day))
 				}
 			}
 			week = append(week, cell)

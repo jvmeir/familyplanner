@@ -329,9 +329,8 @@ func dsHealthDisplay(d dbgen.DataSource, isOAuth bool, now time.Time) (level, te
 	case d.Health == "error":
 		return "warn", "Sync mislukt"
 	}
-	if exp, err := time.Parse(time.RFC3339, d.AccessExpiry); err == nil && exp.Before(now.UTC()) {
-		return "warn", "Toegang verlopen"
-	}
+	// A past access-token expiry is normal (refreshed automatically from the
+	// refresh token); only a dead refresh token or a failed sync is a problem.
 	return "ok", "Verbonden"
 }
 
