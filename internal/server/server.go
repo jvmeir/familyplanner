@@ -166,6 +166,7 @@ func (s *Server) routes() http.Handler {
 		r.Use(s.requireKiosk)
 		r.Get("/kiosk", s.handleKiosk)
 		r.Get("/kiosk/view/{id}", s.handleKioskView)
+		r.Get("/kiosk/ticker", s.handleKioskTicker)
 		r.Get("/kiosk/stream", s.handleKioskStream)
 		r.Post("/kiosk/control/{cmd}", s.handleKioskControl)
 	})
@@ -281,13 +282,55 @@ func (s *Server) checkPassphrase(ctx context.Context, passphrase string) bool {
 func (s *Server) handleKiosk(w http.ResponseWriter, r *http.Request) {
 	dev, _ := deviceFrom(r.Context())
 	health := s.healthVM(r.Context())
+	ticker := s.tickerItems(r.Context())
 	view, err := s.currentPlaylistView(r.Context(), dev)
 	if err != nil {
-		s.render(w, r, web.Kiosk(web.Grid("", nil), web.ControlsVM{}, health))
+		s.render(w, r, web.Kiosk(web.Grid("", nil), web.ControlsVM{}, health, ticker))
 		return
 	}
 	body := s.renderViewComponent(r.Context(), view)
-	s.render(w, r, web.Kiosk(body, s.buildControls(r.Context(), dev, view.ID), health))
+	s.render(w, r, web.Kiosk(body, s.buildControls(r.Context(), dev, view.ID), health, ticker))
+}
+
+// tickerItems resolves the configured global ticker widget's cached items (empty
+// if none configured). Read-only from cache, like the rest of the kiosk.
+func (s *Server) tickerItems(ctx context.Context) []string {
+	raw, err := s.store.GetSetting(ctx, "ticker_widget_id")
+	if err != nil || raw == "" {
+		return nil
+	}
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || id == 0 {
+		return nil
+	}
+	cache, err := s.store.GetWidgetCache(ctx, id)
+	if err != nil {
+		if wgt, gerr := s.store.GetWidget(ctx, id); gerr == nil {
+			s.brk.RefreshWidget(ctx, wgt)
+			cache, err = s.store.GetWidgetCache(ctx, id)
+		}
+		if err != nil {
+			return nil
+		}
+	}
+	typ, ok := s.registry.Get("ticker")
+	if !ok || typ.Decode == nil {
+		return nil
+	}
+	d, derr := typ.Decode(json.RawMessage(cache.DataJson))
+	if derr != nil {
+		return nil
+	}
+	if td, ok := d.(widget.TickerData); ok {
+		return td.Items
+	}
+	return nil
+}
+
+// handleKioskTicker returns just the ticker track fragment, so the kiosk can
+// refresh the ticker (which lives in the persistent bar) without a full reload.
+func (s *Server) handleKioskTicker(w http.ResponseWriter, r *http.Request) {
+	s.render(w, r, web.TickerTrack(s.tickerItems(r.Context())))
 }
 
 // healthVM maps the health summary into the kiosk badge view-model (empty when

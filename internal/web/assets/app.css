@@ -147,6 +147,19 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 .kdate { color: rgba(255, 255, 255, .7); text-transform: capitalize; }
 .ktime { font-weight: 800; font-size: 1.25rem; }
 .kticker { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; color: rgba(255, 255, 255, .82); }
+.kticker-track {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  animation: kmarquee 45s linear infinite;
+}
+.kticker:hover .kticker-track { animation-play-state: paused; }
+.kticker-item::after { content: "•"; margin: 0 1.2em; opacity: .45; }
+.kticker-item:last-child::after { content: ""; }
+@keyframes kmarquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
 .kbar-right { display: flex; align-items: center; gap: 0.8em; margin-left: auto; white-space: nowrap; }
 .kfooter-label { color: rgba(255, 255, 255, .85); }
 .kfooter-label .sep { opacity: .5; margin: 0 6px; }

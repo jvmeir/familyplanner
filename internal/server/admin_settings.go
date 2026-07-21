@@ -37,20 +37,38 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 			Key: "kiosk_scale", Value: strconv.FormatFloat(clampScale(v), 'f', 2, 64),
 		})
 	}
+	// Global ticker widget selection (0 = none).
+	if v := r.FormValue("ticker_widget_id"); v != "" {
+		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "ticker_widget_id", Value: v})
+	}
 	s.render(w, r, web.SettingsPage(s.settingsVM(r.Context(), true)))
 }
 
 func (s *Server) settingsVM(ctx context.Context, saved bool) web.SettingsVM {
 	cfg := s.voiceClockConfig(ctx)
+	var tickers []web.ViewRef
+	if ws, err := s.store.ListWidgets(ctx); err == nil {
+		for _, w := range ws {
+			if w.Type == "ticker" {
+				tickers = append(tickers, web.ViewRef{ID: w.ID, Name: w.Name})
+			}
+		}
+	}
+	var tickerID int64
+	if v, err := s.store.GetSetting(ctx, "ticker_widget_id"); err == nil {
+		tickerID, _ = strconv.ParseInt(v, 10, 64)
+	}
 	return web.SettingsVM{
-		VoiceEnabled: cfg.Enabled,
-		QuietStart:   cfg.QuietStart,
-		QuietEnd:     cfg.QuietEnd,
-		QuarterSound: voiceclock.ValidQuarterSound(cfg.QuarterSound),
-		HourSound:    voiceclock.ValidHourSound(cfg.HourSound),
-		Announce:     cfg.Announce,
-		KioskScale:   strconv.FormatFloat(s.kioskScale(ctx), 'f', 2, 64),
-		Saved:        saved,
+		VoiceEnabled:   cfg.Enabled,
+		QuietStart:     cfg.QuietStart,
+		QuietEnd:       cfg.QuietEnd,
+		QuarterSound:   voiceclock.ValidQuarterSound(cfg.QuarterSound),
+		HourSound:      voiceclock.ValidHourSound(cfg.HourSound),
+		Announce:       cfg.Announce,
+		KioskScale:     strconv.FormatFloat(s.kioskScale(ctx), 'f', 2, 64),
+		TickerWidgets:  tickers,
+		TickerWidgetID: tickerID,
+		Saved:          saved,
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 // with a single merged bottom bar holding the live clock, a scrolling ticker,
 // and the "playlist · screen" label + playback controls. The clock runs
 // client-side; the view label + ticker update over SSE.
-templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM) {
+templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker []string) {
 	@Layout(i18n.T(ctx, "app.title")) {
 		<div id="stage" data-view-id={ fmt.Sprint(controls.CurrentID) }>
 			@KioskBody(body, health)
@@ -20,7 +20,9 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM) {
 				<span id="kdate" class="kdate"></span>
 				<span id="ktime" class="ktime"></span>
 			</span>
-			<span class="kticker" id="kticker"></span>
+			<span class="kticker" id="kticker">
+				@TickerTrack(ticker)
+			</span>
 			<span class="kbar-right">
 				<span class="kfooter-label">
 					<span id="kplaylist">{ controls.PlaylistName }</span>
@@ -50,6 +52,19 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM) {
 		</footer>
 		<script src="/static/kiosk.js"></script>
 		<script src="/static/voiceclock.js"></script>
+	}
+}
+
+// TickerTrack renders the scrolling ticker's items (empty = nothing, so no
+// animation runs). Rendered inline in the bar and as the /kiosk/ticker fragment
+// the client swaps in on refresh.
+templ TickerTrack(items []string) {
+	if len(items) > 0 {
+		<span class="kticker-track">
+			for _, it := range items {
+				<span class="kticker-item">{ it }</span>
+			}
+		</span>
 	}
 }
 

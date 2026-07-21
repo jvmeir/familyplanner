@@ -71,6 +71,22 @@ func RegisterDefaults(r *Registry) {
 		}},
 	})
 	r.Register(Type{
+		ID:       "rss",
+		NameKey:  "datasource.type.rss",
+		CredKind: CredNone,
+		Config: widget.Schema{Fields: []widget.Field{
+			{Name: "url", LabelKey: "datasource.field.rss_url", Type: widget.FieldText, Required: true},
+		}},
+	})
+	r.Register(Type{
+		ID:       "text",
+		NameKey:  "datasource.type.text",
+		CredKind: CredNone,
+		Config: widget.Schema{Fields: []widget.Field{
+			{Name: "lines", LabelKey: "datasource.field.text_lines", Type: widget.FieldTextarea, Required: true},
+		}},
+	})
+	r.Register(Type{
 		ID:       "bring",
 		NameKey:  "datasource.type.bring",
 		CredKind: CredBasic,

@@ -64,6 +64,8 @@ templ WidgetFields(fields []FieldVM) {
 						<option value={ o.Value } selected?={ o.Selected }>{ o.Label }</option>
 					}
 				</select>
+			} else if f.Type == "textarea" {
+				<textarea name={ f.Name } rows="4" required?={ f.Required }>{ f.Value }</textarea>
 			} else {
 				<input type={ f.Type } name={ f.Name } value={ f.Value } required?={ f.Required }/>
 			}

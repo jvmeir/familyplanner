@@ -1,17 +1,23 @@
 package web
 
-import "github.com/jvmeir/familyplanner/internal/i18n"
+import (
+	"fmt"
+
+	"github.com/jvmeir/familyplanner/internal/i18n"
+)
 
 // SettingsVM drives the admin settings page.
 type SettingsVM struct {
-	VoiceEnabled bool
-	QuietStart   string // "HH:MM"
-	QuietEnd     string
-	QuarterSound string // sound at :15/:30/:45
-	HourSound    string // sound at :00
-	Announce     bool   // speak the time on the hour
-	KioskScale   string // UI scale multiplier, e.g. "1.00"
-	Saved        bool
+	VoiceEnabled   bool
+	QuietStart     string // "HH:MM"
+	QuietEnd       string
+	QuarterSound   string // sound at :15/:30/:45
+	HourSound      string // sound at :00
+	Announce       bool   // speak the time on the hour
+	KioskScale     string // UI scale multiplier, e.g. "1.00"
+	TickerWidgets  []ViewRef // widgets of type "ticker" (id + name)
+	TickerWidgetID int64     // selected ticker widget (0 = none)
+	Saved          bool
 }
 
 // soundOptions lists the selectable chime sounds (value + i18n key).
@@ -81,6 +87,19 @@ templ SettingsPage(vm SettingsVM) {
 					{ i18n.T(ctx, "settings.announce") }
 				</label>
 				<button type="button" class="btn ghost" onclick="fpTestHour(document.querySelector('[name=hour_sound]').value, document.querySelector('[name=announce]').checked)">{ i18n.T(ctx, "settings.test") }</button>
+			</fieldset>
+			<fieldset class="subsection">
+				<legend>{ i18n.T(ctx, "settings.ticker") }</legend>
+				<p class="muted">{ i18n.T(ctx, "settings.ticker_help") }</p>
+				<label>
+					{ i18n.T(ctx, "settings.ticker_widget") }
+					<select name="ticker_widget_id">
+						<option value="0">{ i18n.T(ctx, "settings.ticker_none") }</option>
+						for _, tw := range vm.TickerWidgets {
+							<option value={ fmt.Sprint(tw.ID) } selected?={ tw.ID == vm.TickerWidgetID }>{ tw.Name }</option>
+						}
+					</select>
+				</label>
 			</fieldset>
 			<h2>{ i18n.T(ctx, "settings.scale") }</h2>
 			<p class="muted">{ i18n.T(ctx, "settings.scale_help") }</p>

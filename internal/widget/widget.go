@@ -42,6 +42,7 @@ const (
 	FieldNumber   FieldType = "number"
 	FieldSelect   FieldType = "select"
 	FieldPassword FieldType = "password"
+	FieldTextarea FieldType = "textarea"
 )
 
 // Option is a choice for a FieldSelect field.
@@ -195,6 +196,14 @@ func RegisterDefaults(r *Registry) {
 		NewProvider:    newTodo,
 		Decode:         decodeTodo,
 		AcceptsSources: []string{"ms_todo"},
+		Schema:         Schema{},
+	})
+	r.Register(Type{
+		ID:             "ticker",
+		NameKey:        "widget.ticker.name",
+		NewProvider:    newTicker,
+		Decode:         decodeTicker,
+		AcceptsSources: []string{"rss", "text"},
 		Schema:         Schema{},
 	})
 	r.Register(Type{

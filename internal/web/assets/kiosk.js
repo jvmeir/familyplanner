@@ -64,7 +64,21 @@
   });
   es.addEventListener("refresh", function () {
     loadView(currentViewID, false);
+    loadTicker();
   });
+
+  // The ticker lives in the persistent bar (not swapped with the view), so
+  // refresh it separately on each tick.
+  const tickerEl = document.getElementById("kticker");
+  async function loadTicker() {
+    if (!tickerEl) return;
+    try {
+      const r = await fetch("/kiosk/ticker", { headers: { Accept: "text/html" } });
+      if (r.ok) tickerEl.innerHTML = await r.text();
+    } catch (e) {
+      // keep last-good ticker
+    }
+  }
   // Auto-reload after a redeploy: the server sends its boot id on (re)connect;
   // EventSource reconnects when the container restarts, and a changed id means a
   // new build is live, so reload to pick up new HTML/CSS/JS.
