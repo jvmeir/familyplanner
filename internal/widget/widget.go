@@ -178,7 +178,6 @@ func RegisterDefaults(r *Registry) {
 		Decode:         decodeVideo,
 		AcceptsSources: []string{"video"},
 		Schema: Schema{Fields: []Field{
-			{Name: "url", LabelKey: "widget.video.field.url", Type: FieldText},
 			{Name: "mute", LabelKey: "widget.video.field.mute", Type: FieldSelect, Options: []Option{
 				{Value: "no", LabelKey: "widget.video.mute.no"},
 				{Value: "yes", LabelKey: "widget.video.mute.yes"},
@@ -195,7 +194,12 @@ func RegisterDefaults(r *Registry) {
 		NewProvider:    newShopping,
 		Decode:         decodeShopping,
 		AcceptsSources: []string{"bring"},
-		Schema:         Schema{},
+		Schema: Schema{Fields: []Field{
+			{Name: "group", LabelKey: "widget.shopping.field.group", Type: FieldSelect, Options: []Option{
+				{Value: "no", LabelKey: "widget.shopping.group.no"},
+				{Value: "yes", LabelKey: "widget.shopping.group.yes"},
+			}},
+		}},
 	})
 	r.Register(Type{
 		ID:             "todolist",

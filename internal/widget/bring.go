@@ -63,6 +63,68 @@ func bringLocalize(cat map[string]string, name string) string {
 	return name
 }
 
+// bringSectionURL is Bring's public section catalog (item -> aisle/section).
+var bringSectionURL = "https://web.getbring.com/locale/catalog.nl-NL.json"
+
+var (
+	bringSecMu    sync.Mutex
+	bringSecMap   map[string]string // lower(item name or id) -> section name
+	bringSecOrder []string          // section names in catalog order
+	bringSecAt    time.Time
+)
+
+// bringSections returns the item→section map (keyed by lowercased item name and
+// id) and the section order, from Bring's public catalog. Cached for a day; nil
+// on failure (grouping then falls back to a flat list).
+func bringSections(ctx context.Context) (map[string]string, []string) {
+	bringSecMu.Lock()
+	defer bringSecMu.Unlock()
+	if bringSecMap != nil && time.Since(bringSecAt) < 24*time.Hour {
+		return bringSecMap, bringSecOrder
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bringSectionURL, nil)
+	if err != nil {
+		return bringSecMap, bringSecOrder
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return bringSecMap, bringSecOrder
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return bringSecMap, bringSecOrder
+	}
+	var doc struct {
+		Catalog struct {
+			Sections []struct {
+				Name  string `json:"name"`
+				Items []struct {
+					ItemID string `json:"itemId"`
+					Name   string `json:"name"`
+				} `json:"items"`
+			} `json:"sections"`
+		} `json:"catalog"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil || len(doc.Catalog.Sections) == 0 {
+		return bringSecMap, bringSecOrder
+	}
+	m := map[string]string{}
+	order := make([]string, 0, len(doc.Catalog.Sections))
+	for _, sec := range doc.Catalog.Sections {
+		order = append(order, sec.Name)
+		for _, it := range sec.Items {
+			if it.Name != "" {
+				m[strings.ToLower(it.Name)] = sec.Name
+			}
+			if it.ItemID != "" {
+				m[strings.ToLower(it.ItemID)] = sec.Name
+			}
+		}
+	}
+	bringSecMap, bringSecOrder, bringSecAt = m, order, time.Now()
+	return bringSecMap, bringSecOrder
+}
+
 const bringAPIKey = "cof4Nc6D8saplXjE3h3HXqHH8m7VU2i1Gs0g85Sp"
 
 type bringAuth struct {
@@ -130,7 +192,7 @@ func bringResolveList(ctx context.Context, auth bringAuth, name string) string {
 	return ""
 }
 
-func bringItems(ctx context.Context, auth bringAuth, listUUID string) ([]string, error) {
+func bringItems(ctx context.Context, auth bringAuth, listUUID string, group bool) ([]string, error) {
 	if listUUID == "" {
 		listUUID = auth.BringListUUID
 	}
@@ -157,16 +219,56 @@ func bringItems(ctx context.Context, auth bringAuth, listUUID string) ([]string,
 		return nil, err
 	}
 	cat := bringCatalog(ctx) // German -> Dutch (nil on failure = no translation)
-	items := make([]string, 0, len(body.Purchase))
+	display := func(name, spec string) string {
+		if spec != "" {
+			return name + " (" + spec + ")"
+		}
+		return name
+	}
+	if !group {
+		items := make([]string, 0, len(body.Purchase))
+		for _, p := range body.Purchase {
+			items = append(items, display(bringLocalize(cat, p.Name), p.Specification))
+		}
+		return items, nil
+	}
+	// Group by Bring's aisle/section, injecting the (uppercased) section name as a
+	// plain header item so the shopping widget stays generic. Unknown items go to
+	// "Overig"; a missing catalog falls back to a flat list.
+	secMap, order := bringSections(ctx)
+	if secMap == nil {
+		items := make([]string, 0, len(body.Purchase))
+		for _, p := range body.Purchase {
+			items = append(items, display(bringLocalize(cat, p.Name), p.Specification))
+		}
+		return items, nil
+	}
+	const other = "Overig"
+	groups := map[string][]string{}
 	for _, p := range body.Purchase {
 		name := bringLocalize(cat, p.Name)
-		if p.Specification != "" {
-			items = append(items, name+" ("+p.Specification+")")
-		} else {
-			items = append(items, name)
+		sec := secMap[strings.ToLower(name)]
+		if sec == "" {
+			sec = secMap[strings.ToLower(p.Name)]
+		}
+		if sec == "" {
+			sec = other
+		}
+		groups[sec] = append(groups[sec], display(name, p.Specification))
+	}
+	var out []string
+	emit := func(sec string) {
+		if its := groups[sec]; len(its) > 0 {
+			out = append(out, strings.ToUpper(sec))
+			out = append(out, its...)
+			delete(groups, sec)
 		}
 	}
-	return items, nil
+	for _, sec := range order {
+		emit(sec)
+	}
+	emit(other)
+	return out, nil
 }
 
 // BringLists returns the user's lists (for the configure picker). The option ID
@@ -205,8 +307,9 @@ func BringLists(ctx context.Context, email, password string) ([]ResourceOption, 
 	return out, nil
 }
 
-// bringFetch logs in and returns the items on the (named, or default) list.
-func bringFetch(ctx context.Context, email, password, listName string) ([]string, error) {
+// bringFetch logs in and returns the items on the (named, or default) list,
+// optionally grouped by aisle/section.
+func bringFetch(ctx context.Context, email, password, listName string, group bool) ([]string, error) {
 	auth, err := bringLogin(ctx, email, password)
 	if err != nil {
 		return nil, err
@@ -217,5 +320,5 @@ func bringFetch(ctx context.Context, email, password, listName string) ([]string
 			listUUID = u
 		}
 	}
-	return bringItems(ctx, auth, listUUID)
+	return bringItems(ctx, auth, listUUID, group)
 }

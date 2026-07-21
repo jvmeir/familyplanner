@@ -18,8 +18,9 @@ func youtubeID(s string) string {
 }
 
 // VideoConfig is the per-instance configuration. A video widget plays the videos
-// from its linked "video" data sources (like the ticker aggregates feeds); URL is
-// an optional single-video fallback when no sources are linked.
+// from its linked "video" data sources (like the ticker aggregates feeds). URL is
+// a legacy single-video fallback (no longer shown in the form) kept so widgets
+// configured before video data sources existed keep working.
 type VideoConfig struct {
 	URL  string `json:"url"`
 	Mute string `json:"mute"` // "yes" | "no" (default no)
@@ -70,7 +71,7 @@ func (p videoProvider) Fetch(_ context.Context) (Data, time.Duration, error) {
 			ids = append(ids, id)
 		}
 	}
-	if len(ids) == 0 { // fallback: a single video configured directly on the widget
+	if len(ids) == 0 { // legacy fallback: a single video configured on the widget
 		if id := youtubeID(p.cfg.URL); id != "" {
 			ids = append(ids, id)
 		}

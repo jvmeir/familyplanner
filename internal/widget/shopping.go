@@ -11,10 +11,19 @@ type ShoppingData struct {
 	Items []string `json:"items"`
 }
 
-type shoppingProvider struct{ sources []SourceInput }
+type shoppingProvider struct {
+	sources []SourceInput
+	group   bool // group items by Bring aisle/section, with header lines
+}
 
-func newShopping(_ json.RawMessage, sources []SourceInput, _ NowFunc) (Provider, error) {
-	return shoppingProvider{sources: sources}, nil
+func newShopping(raw json.RawMessage, sources []SourceInput, _ NowFunc) (Provider, error) {
+	var cfg struct {
+		Group string `json:"group"`
+	}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &cfg)
+	}
+	return shoppingProvider{sources: sources, group: cfg.Group == "yes"}, nil
 }
 
 func decodeShopping(raw json.RawMessage) (Data, error) {
@@ -40,7 +49,7 @@ func (p shoppingProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 			continue
 		}
 		// The list is chosen per widget↔source link (empty = default list).
-		its, err := bringFetch(ctx, cred.Email, cred.Password, s.Resource)
+		its, err := bringFetch(ctx, cred.Email, cred.Password, s.Resource, p.group)
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err
