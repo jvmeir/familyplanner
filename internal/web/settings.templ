@@ -15,8 +15,10 @@ type SettingsVM struct {
 	HourSound      string // sound at :00
 	Announce       bool   // speak the time on the hour
 	KioskScale     string // UI scale multiplier, e.g. "1.00"
-	TickerWidgets  []ViewRef // widgets of type "ticker" (id + name)
-	TickerWidgetID int64     // selected ticker widget (0 = none)
+	TickerWidgets  []ViewRef    // widgets of type "ticker" (id + name)
+	TickerWidgetID int64        // selected ticker widget (0 = none)
+	Themes         []ThemeOptVM // available themes
+	Theme          string       // selected global theme id
 	Saved          bool
 }
 
@@ -101,6 +103,14 @@ templ SettingsPage(vm SettingsVM) {
 					</select>
 				</label>
 			</fieldset>
+			<label>
+				{ i18n.T(ctx, "settings.theme") }
+				<select name="theme">
+					for _, th := range vm.Themes {
+						<option value={ th.ID } selected?={ th.ID == vm.Theme }>{ th.Name }</option>
+					}
+				</select>
+			</label>
 			<h2>{ i18n.T(ctx, "settings.scale") }</h2>
 			<p class="muted">{ i18n.T(ctx, "settings.scale_help") }</p>
 			<label>

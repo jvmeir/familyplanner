@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"strings"
 	"time"
@@ -19,11 +20,18 @@ type TickerData struct {
 const tickerMaxItems = 50
 
 type tickerProvider struct {
+	order   string // "sequential" (source order) | "random" (shuffled)
 	sources []SourceInput
 }
 
-func newTicker(_ json.RawMessage, sources []SourceInput, _ NowFunc) (Provider, error) {
-	return tickerProvider{sources: sources}, nil
+func newTicker(raw json.RawMessage, sources []SourceInput, _ NowFunc) (Provider, error) {
+	var cfg struct {
+		Order string `json:"order"`
+	}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &cfg)
+	}
+	return tickerProvider{order: cfg.Order, sources: sources}, nil
 }
 
 func decodeTicker(raw json.RawMessage) (Data, error) {
@@ -59,6 +67,9 @@ func (p tickerProvider) Fetch(ctx context.Context) (Data, time.Duration, error) 
 				}
 			}
 		}
+	}
+	if p.order == "random" {
+		rand.Shuffle(len(items), func(i, j int) { items[i], items[j] = items[j], items[i] })
 	}
 	if len(items) > tickerMaxItems {
 		items = items[:tickerMaxItems]

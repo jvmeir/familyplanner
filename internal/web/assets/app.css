@@ -161,6 +161,7 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
   to { transform: translateX(-100%); }
 }
 .kbar-right { display: flex; align-items: center; gap: 0.8em; margin-left: auto; white-space: nowrap; }
+.kcountdown { opacity: .7; font-variant-numeric: tabular-nums; margin-right: .3em; }
 .kfooter-label { color: rgba(255, 255, 255, .85); }
 .kfooter-label .sep { opacity: .5; margin: 0 6px; }
 .kfooter-controls { display: flex; gap: 6px; align-items: center; }

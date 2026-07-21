@@ -412,10 +412,18 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 		return 30 * time.Second
 	}
 	sendCurrent := func() bool {
-		if it, ok := state.Current(); ok {
-			return send("navigate", strconv.FormatInt(it.ViewID, 10))
+		it, ok := state.Current()
+		if !ok {
+			return send("refresh", "empty")
 		}
-		return send("refresh", "empty")
+		if !send("navigate", strconv.FormatInt(it.ViewID, 10)) {
+			return false
+		}
+		secs := 0 // 0 = paused / no countdown
+		if !state.Paused() {
+			secs = int(dwell().Seconds())
+		}
+		return send("dwell", strconv.Itoa(secs))
 	}
 	sendScale := func() bool {
 		return send("scale", strconv.FormatFloat(s.kioskScale(r.Context()), 'f', 2, 64))
@@ -517,7 +525,7 @@ func (s *Server) buildViewVM(ctx context.Context, view dbgen.View) (web.LayoutVM
 		slog.Error("parse layout", "view", view.ID, "err", err)
 		return web.LayoutVM{}, theme.Theme{}, false
 	}
-	th := theme.Resolve(view.ThemeID, s.defaultTheme(ctx))
+	th := theme.Resolve(s.defaultTheme(ctx), theme.DefaultID) // theme is a global setting
 	return s.buildLayoutVM(ctx, root), th, true
 }
 
@@ -551,7 +559,7 @@ func (s *Server) renderLegacyGrid(ctx context.Context, view dbgen.View) (templ.S
 	for _, p := range placements {
 		cells = append(cells, s.cellForWidget(ctx, p.WidgetID, web.CellStyle(p)))
 	}
-	th := theme.Resolve(view.ThemeID, s.defaultTheme(ctx))
+	th := theme.Resolve(s.defaultTheme(ctx), theme.DefaultID) // theme is a global setting
 	return web.GridStyle(view, th), cells
 }
 

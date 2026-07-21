@@ -30,6 +30,7 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker [
 					<span id="kview"></span>
 				</span>
 				<span class="kfooter-controls">
+					<span class="kcountdown" id="kcountdown"></span>
 					<button onclick="fpCtl('prev')" title={ i18n.T(ctx, "kiosk.prev") }>⏮</button>
 					<button onclick="fpCtl('pause')" title={ i18n.T(ctx, "kiosk.pause") }>⏸</button>
 					<button onclick="fpCtl('resume')" title={ i18n.T(ctx, "kiosk.play") }>▶</button>

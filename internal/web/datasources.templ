@@ -49,9 +49,6 @@ templ DataSourceList(sources []DataSourceVM) {
 				if d.IsOAuth {
 					<a class="btn ghost" href={ templ.SafeURL("/admin/datasources/" + fmt.Sprint(d.ID) + "/oauth/start") }>{ i18n.T(ctx, "datasource.connect") }</a>
 				}
-				if d.HasPicker {
-					<a class="btn ghost" href={ templ.SafeURL("/admin/datasources/" + fmt.Sprint(d.ID) + "/configure") }>{ i18n.T(ctx, "datasource.configure") }</a>
-				}
 				<button class="btn ghost" hx-delete={ "/admin/datasources/" + fmt.Sprint(d.ID) } hx-target="#dslist" hx-swap="outerHTML" hx-confirm={ i18n.T(ctx, "admin.confirm_delete") }>×</button>
 			</div>
 		}

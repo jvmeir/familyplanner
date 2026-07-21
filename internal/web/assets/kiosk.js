@@ -87,6 +87,26 @@
     if (bootID === null) bootID = e.data;
     else if (e.data !== bootID) location.reload();
   });
+
+  // Seconds-to-next-screen: the server sends the dwell (0 = paused) with each
+  // navigate; count it down locally.
+  var cdEl = document.getElementById("kcountdown");
+  var cdTimer = null, cdLeft = 0;
+  function cdRender() {
+    if (cdEl) cdEl.textContent = cdLeft > 0 ? "→ " + cdLeft + "s" : "";
+  }
+  es.addEventListener("dwell", function (e) {
+    cdLeft = parseInt(e.data, 10) || 0;
+    if (cdTimer) { clearInterval(cdTimer); cdTimer = null; }
+    cdRender();
+    if (cdLeft > 0) {
+      cdTimer = setInterval(function () {
+        cdLeft -= 1;
+        if (cdLeft <= 0) { cdLeft = 0; clearInterval(cdTimer); cdTimer = null; }
+        cdRender();
+      }, 1000);
+    }
+  });
   // UI scale multiplier (set from admin; applied live on top of viewport scaling).
   es.addEventListener("scale", function (e) {
     var v = parseFloat(e.data);

@@ -165,7 +165,7 @@ func (s *Server) handleWidgetDelete(w http.ResponseWriter, r *http.Request) {
 // ---- views ----
 
 func (s *Server) handleViews(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, web.ViewsPage(s.themeOpts(), s.viewVMs(r.Context())))
+	s.render(w, r, web.ViewsPage(s.viewVMs(r.Context())))
 }
 
 func (s *Server) handleViewCreate(w http.ResponseWriter, r *http.Request) {

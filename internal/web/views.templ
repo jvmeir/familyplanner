@@ -7,33 +7,18 @@ import (
 )
 
 // ViewsPage lists views and offers a create form.
-templ ViewsPage(themes []ThemeOptVM, views []ViewVM) {
+templ ViewsPage(views []ViewVM) {
 	@AdminPage("views") {
 		<h1>{ i18n.T(ctx, "nav.views") }</h1>
-		<form class="card form" hx-post="/admin/views" hx-target="#viewlist" hx-swap="outerHTML">
+		<form class="card form inline" hx-post="/admin/views" hx-target="#viewlist" hx-swap="outerHTML">
 			@csrfInput()
 			<label>
 				{ i18n.T(ctx, "admin.field_name") }
 				<input name="name" required/>
 			</label>
-			<label>
-				{ i18n.T(ctx, "admin.field_cols") }
-				<input type="number" name="cols" value="3" min="1" max="12"/>
-			</label>
-			<label>
-				{ i18n.T(ctx, "admin.field_rows") }
-				<input type="number" name="rows" value="2" min="1" max="12"/>
-			</label>
-			<label>
-				{ i18n.T(ctx, "admin.field_theme") }
-				<select name="theme">
-					for _, th := range themes {
-						<option value={ th.ID }>{ th.Name }</option>
-					}
-				</select>
-			</label>
 			<button type="submit">{ i18n.T(ctx, "admin.add") }</button>
 		</form>
+		<p class="muted">{ i18n.T(ctx, "view.create_hint") }</p>
 		@ViewList(views)
 	}
 }

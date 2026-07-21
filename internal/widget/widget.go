@@ -204,7 +204,12 @@ func RegisterDefaults(r *Registry) {
 		NewProvider:    newTicker,
 		Decode:         decodeTicker,
 		AcceptsSources: []string{"rss", "text"},
-		Schema:         Schema{},
+		Schema: Schema{Fields: []Field{
+			{Name: "order", LabelKey: "widget.ticker.field.order", Type: FieldSelect, Options: []Option{
+				{Value: "sequential", LabelKey: "widget.ticker.order.sequential"},
+				{Value: "random", LabelKey: "widget.ticker.order.random"},
+			}},
+		}},
 	})
 	r.Register(Type{
 		ID:             "photos",

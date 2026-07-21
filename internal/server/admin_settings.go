@@ -41,6 +41,10 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 	if v := r.FormValue("ticker_widget_id"); v != "" {
 		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "ticker_widget_id", Value: v})
 	}
+	// Global theme (applies to all screens).
+	if v := r.FormValue("theme"); v != "" {
+		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "default_theme", Value: v})
+	}
 	s.render(w, r, web.SettingsPage(s.settingsVM(r.Context(), true)))
 }
 
@@ -68,6 +72,8 @@ func (s *Server) settingsVM(ctx context.Context, saved bool) web.SettingsVM {
 		KioskScale:     strconv.FormatFloat(s.kioskScale(ctx), 'f', 2, 64),
 		TickerWidgets:  tickers,
 		TickerWidgetID: tickerID,
+		Themes:         s.themeOpts(),
+		Theme:          s.defaultTheme(ctx),
 		Saved:          saved,
 	}
 }
