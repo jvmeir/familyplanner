@@ -23,9 +23,28 @@
     if (dateEl) dateEl.textContent = dateFmt === "none" ? "" : fmtDate.format(now);
     if (timeEl) timeEl.textContent = fmtTime.format(now);
     tickCountdowns();
+    maybeNightlyReload(now);
   }
   tick();
   setInterval(tick, 1000);
+
+  // Nightly sanity reload: a 24/7 kiosk browser slowly accumulates cruft (SSE
+  // reconnects, long-lived YouTube iframes, timers). A single full reload at a
+  // dead hour (04:00 local) keeps it fresh without ever interrupting daytime
+  // viewing. Updates already reload via the "version" event; this covers the
+  // long-uptime-between-updates case. Guarded so it fires once per night.
+  const RELOAD_HOUR = 4;
+  let reloadedToday = false;
+  function maybeNightlyReload(now) {
+    if (now.getHours() === RELOAD_HOUR) {
+      if (!reloadedToday) {
+        reloadedToday = true;
+        location.reload();
+      }
+    } else {
+      reloadedToday = false; // re-arm once we leave the reload hour
+    }
+  }
 
   // Live "days, hours, minutes, seconds" countdown widgets (Precision=dhms).
   function tickCountdowns() {
