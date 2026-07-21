@@ -19,11 +19,11 @@ templ widgetCell(c CellVM) {
 		<div class="widget photo">
 			<img class="w-photo" src={ templ.SafeURL(c.ImageURL) } alt=""/>
 		</div>
-	} else if c.VideoID != "" {
+	} else if len(c.VideoIDs) > 0 {
 		<div class="widget video">
 			<div
 				class="w-yt"
-				data-video-id={ c.VideoID }
+				data-video-ids={ videoIDsAttr(c.VideoIDs) }
 				data-mute={ boolAttr(c.VideoMute) }
 				data-loop={ boolAttr(c.VideoLoop) }
 			></div>

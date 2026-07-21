@@ -346,6 +346,17 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 .w-yt { width: 100%; height: 100%; border-radius: var(--radius, 18px); overflow: hidden; }
 .w-yt iframe { width: 100%; height: 100%; border: 0; display: block; }
 
+/* Corner picture-in-picture video (persistent, over the rotating content). */
+.kpip { position: fixed; z-index: 20; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, .5); }
+.kpip .w-yt, .kpip iframe { width: 100%; height: 100%; border: 0; border-radius: 12px; display: block; }
+.kpip-s { width: 18vw; }
+.kpip-m { width: 26vw; }
+.kpip-l { width: 36vw; }
+.kpip-br { right: 1.5vw; bottom: 7vh; }
+.kpip-bl { left: 1.5vw; bottom: 7vh; }
+.kpip-tr { right: 1.5vw; top: 1.5vh; }
+.kpip-tl { left: 1.5vw; top: 1.5vh; }
+
 .badge {
   position: absolute;
   top: 10px;

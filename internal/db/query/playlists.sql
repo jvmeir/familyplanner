@@ -26,6 +26,9 @@ UPDATE kiosk_devices SET playlist_id = ? WHERE id = ?;
 -- name: UpdatePlaylist :exec
 UPDATE playlists SET name = ?, default_dwell_seconds = ?, updated_at = datetime('now') WHERE id = ?;
 
+-- name: UpdatePlaylistPip :exec
+UPDATE playlists SET pip_widget_id = ?, pip_config_json = ?, updated_at = datetime('now') WHERE id = ?;
+
 -- name: DeletePlaylist :exec
 DELETE FROM playlists WHERE id = ?;
 

@@ -56,6 +56,8 @@ CREATE TABLE playlists (
     name                  TEXT NOT NULL,
     is_default            INTEGER NOT NULL DEFAULT 0,
     default_dwell_seconds INTEGER NOT NULL DEFAULT 30,
+    pip_widget_id         INTEGER NOT NULL DEFAULT 0,
+    pip_config_json       TEXT NOT NULL DEFAULT '',
     created_at            TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
 );

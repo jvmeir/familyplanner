@@ -23,8 +23,53 @@ templ PlaylistDetailPage(d PlaylistDetailVM) {
 			</label>
 			<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
 		</form>
+		@PlaylistPip(d)
 		@PlaylistItems(d)
 	}
+}
+
+// PlaylistPip configures the corner picture-in-picture video for this playlist.
+templ PlaylistPip(d PlaylistDetailVM) {
+	<form class="card form" method="post" action={ templ.SafeURL("/admin/playlists/" + fmt.Sprint(d.ID) + "/pip") }>
+		@csrfInput()
+		<h2>{ i18n.T(ctx, "playlist.pip") }</h2>
+		<p class="muted">{ i18n.T(ctx, "playlist.pip_hint") }</p>
+		<label>
+			{ i18n.T(ctx, "playlist.pip_widget") }
+			<select name="pip_widget_id">
+				<option value="0">{ i18n.T(ctx, "playlist.pip_none") }</option>
+				for _, v := range d.VideoWidgets {
+					<option value={ fmt.Sprint(v.ID) } selected?={ v.ID == d.PipWidgetID }>{ v.Name }</option>
+				}
+			</select>
+		</label>
+		<label>
+			{ i18n.T(ctx, "playlist.pip_corner") }
+			<select name="pip_corner">
+				<option value="br" selected?={ d.PipCorner == "br" }>{ i18n.T(ctx, "playlist.corner.br") }</option>
+				<option value="bl" selected?={ d.PipCorner == "bl" }>{ i18n.T(ctx, "playlist.corner.bl") }</option>
+				<option value="tr" selected?={ d.PipCorner == "tr" }>{ i18n.T(ctx, "playlist.corner.tr") }</option>
+				<option value="tl" selected?={ d.PipCorner == "tl" }>{ i18n.T(ctx, "playlist.corner.tl") }</option>
+			</select>
+		</label>
+		<label>
+			{ i18n.T(ctx, "playlist.pip_size") }
+			<select name="pip_size">
+				<option value="s" selected?={ d.PipSize == "s" }>{ i18n.T(ctx, "playlist.size.s") }</option>
+				<option value="m" selected?={ d.PipSize == "m" }>{ i18n.T(ctx, "playlist.size.m") }</option>
+				<option value="l" selected?={ d.PipSize == "l" }>{ i18n.T(ctx, "playlist.size.l") }</option>
+			</select>
+		</label>
+		<label>
+			{ i18n.T(ctx, "playlist.pip_interval") }
+			<input type="number" name="pip_interval" value={ fmt.Sprint(d.PipInterval) } min="0"/>
+		</label>
+		<label class="check">
+			<input type="checkbox" name="pip_muted" checked?={ d.PipMuted }/>
+			{ i18n.T(ctx, "playlist.pip_muted") }
+		</label>
+		<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
+	</form>
 }
 
 // PlaylistItems renders the add-view form and the ordered item list (HTMX-swappable).

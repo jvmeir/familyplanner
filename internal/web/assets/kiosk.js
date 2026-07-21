@@ -70,6 +70,7 @@
           const v = stage.querySelector(".view");
           if (v) v.classList.add("kslide");
         }
+        tickCountdowns(); // set dhms text now so it doesn't flash the day-only fallback
         setupCellScroll();
         if (window.fpSetupVideos) window.fpSetupVideos();
         scheduleEndFallback();

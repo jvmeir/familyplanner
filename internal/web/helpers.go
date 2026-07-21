@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"regexp"
@@ -26,6 +27,12 @@ func evStyle(color string) templ.SafeCSS {
 		return ""
 	}
 	return templ.SafeCSS("border-left:0.4em solid " + color + ";padding-left:0.3em")
+}
+
+// videoIDsAttr JSON-encodes video ids for a data attribute (yt.js reads it).
+func videoIDsAttr(ids []string) string {
+	b, _ := json.Marshal(ids)
+	return string(b)
 }
 
 // boolAttr renders a bool as "1"/"0" for a data attribute.
@@ -62,7 +69,7 @@ type CellVM struct {
 	ScheduleTable bool            // render Schedule as a table (days_table) vs list (days)
 	IframeURL     string          // embedded web page
 	ImageURL      string          // single photo
-	VideoID       string          // YouTube video id (embedded via the IFrame API)
+	VideoIDs      []string        // YouTube video ids (embedded via the IFrame API, cycled)
 	VideoMute     bool            // play muted
 	VideoLoop     bool            // loop playback
 	CountdownTo   int64           // >0: render a live dhms countdown to this Unix time
@@ -124,6 +131,15 @@ type HealthVM struct {
 
 // Bad reports whether the badge should show (something needs attention).
 func (h HealthVM) Bad() bool { return h.Level == "warn" || h.Level == "error" }
+
+// PipVM drives the persistent corner picture-in-picture video on the kiosk.
+type PipVM struct {
+	IDs      []string
+	Corner   string // br | bl | tr | tl
+	Size     string // s | m | l
+	Muted    bool
+	Interval int // seconds hidden between videos (0 = continuous)
+}
 
 // ControlsVM drives the kiosk control bar: the current playlist's views, all
 // views (for jumping to parked ones), and which view is currently showing.
@@ -254,6 +270,13 @@ type PlaylistDetailVM struct {
 	DefaultDwell   int64
 	Items          []PlaylistItemVM
 	AvailableViews []ViewRef
+	// Corner picture-in-picture video for this playlist.
+	VideoWidgets []ViewRef // widgets of type "video" (id + name)
+	PipWidgetID  int64     // selected video widget (0 = no PiP)
+	PipCorner    string    // br | bl | tr | tl
+	PipSize      string    // s | m | l
+	PipInterval  int64     // seconds hidden between videos (0 = continuous)
+	PipMuted     bool
 }
 
 // DeviceVM is a row on the devices page.
@@ -422,7 +445,7 @@ func init() {
 
 	RegisterFormatter("video", func(_ context.Context, data any) CellVM {
 		d, _ := data.(widget.VideoData)
-		return CellVM{VideoID: d.VideoID, VideoMute: d.Mute, VideoLoop: d.Loop}
+		return CellVM{VideoIDs: d.IDs, VideoMute: d.Mute, VideoLoop: d.Loop}
 	})
 
 	RegisterFormatter("shopping", func(ctx context.Context, data any) CellVM {

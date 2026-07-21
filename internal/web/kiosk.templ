@@ -10,11 +10,21 @@ import (
 // with a single merged bottom bar holding the live clock, a scrolling ticker,
 // and the "playlist · screen" label + playback controls. The clock runs
 // client-side; the view label + ticker update over SSE.
-templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker []string) {
+templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker []string, pip *PipVM) {
 	@Layout(i18n.T(ctx, "app.title")) {
 		<div id="stage" data-view-id={ fmt.Sprint(controls.CurrentID) }>
 			@KioskBody(body, health)
 		</div>
+		if pip != nil && len(pip.IDs) > 0 {
+			<div class={ "kpip", "kpip-" + pip.Corner, "kpip-" + pip.Size }>
+				<div
+					class="w-yt"
+					data-video-ids={ videoIDsAttr(pip.IDs) }
+					data-mute={ boolAttr(pip.Muted) }
+					data-interval={ fmt.Sprint(pip.Interval) }
+				></div>
+			</div>
+		}
 		<footer class="kbar">
 			<span class="kclock">
 				<span id="ktime" class="ktime"></span>

@@ -1,10 +1,10 @@
-// YouTube embed for the video widget, via the IFrame Player API so we get the
-// ENDED event (which drives a screen's "advance on end" mode). fpSetupVideos()
-// is called after each view swap; on an advance-on-end screen it plays each
-// video once and, when all have finished, advances the playlist.
+// YouTube embeds via the IFrame Player API. Used two ways:
+//   1. On-screen video widgets inside #stage — recreated on each view swap; on an
+//      "advance on end" screen they advance the playlist after one pass.
+//   2. A persistent corner PiP (.kpip in the kiosk shell) that keeps playing while
+//      screens rotate, cycling its video list with an optional hide interval.
 (function () {
   var stage = document.getElementById("stage");
-  if (!stage) return;
 
   var apiReady = false, queue = [];
   function loadAPI() {
@@ -23,49 +23,77 @@
       queue = [];
     };
   }
+  function whenReady(f) { if (apiReady) f(); else { loadAPI(); queue.push(f); } }
 
-  var players = [];
-  function destroyAll() {
-    players.forEach(function (p) { try { p.destroy(); } catch (e) {} });
-    players = [];
+  function ids(el) { try { return JSON.parse(el.dataset.videoIds || "[]"); } catch (e) { return []; } }
+
+  // makePlayer plays a list on el, cycling. onAllEnded (optional) is called after
+  // one full pass instead of looping (used to advance an "advance on end" screen).
+  // interval > 0 hides el between videos (corner PiP).
+  function makePlayer(el, list, opts, onAllEnded) {
+    if (!list.length) return null;
+    var i = 0;
+    var holder = document.createElement("div");
+    el.innerHTML = "";
+    el.appendChild(holder);
+    var pv = { autoplay: 1, controls: 0, rel: 0, playsinline: 1, modestbranding: 1, mute: opts.mute ? 1 : 0 };
+    return new YT.Player(holder, {
+      width: "100%", height: "100%", videoId: list[0], playerVars: pv,
+      events: {
+        onReady: function (e) { if (opts.mute) e.target.mute(); try { e.target.playVideo(); } catch (x) {} },
+        onStateChange: function (e) {
+          if (e.data !== YT.PlayerState.ENDED) return;
+          var next = i + 1, pass = next >= list.length;
+          if (pass && onAllEnded) { onAllEnded(); return; }
+          if (pass) next = 0;
+          var go = function () { i = next; try { e.target.loadVideoById(list[i]); } catch (x) {} };
+          if (opts.interval > 0) {
+            el.style.visibility = "hidden";
+            setTimeout(function () { el.style.visibility = "visible"; go(); }, opts.interval * 1000);
+          } else {
+            go();
+          }
+        },
+      },
+    });
   }
 
+  // ---- on-screen widgets (inside #stage) ----
+  var stagePlayers = [];
   window.fpSetupVideos = function () {
-    destroyAll();
-    var els = stage.querySelectorAll(".w-yt[data-video-id]");
+    if (!stage) return;
+    stagePlayers.forEach(function (p) { try { p.destroy(); } catch (e) {} });
+    stagePlayers = [];
+    var els = stage.querySelectorAll(".w-yt[data-video-ids]");
     if (!els.length) return;
-    loadAPI();
     var view = stage.querySelector(".view");
     var onEnd = !!(view && view.dataset.advanceOnEnd === "1");
-    var total = els.length, ended = 0;
-
-    var build = function () {
+    whenReady(function () {
       els.forEach(function (el) {
-        var id = el.dataset.videoId;
-        if (!id) return;
-        var mute = el.dataset.mute === "1";
-        var loop = el.dataset.loop === "1" && !onEnd; // on_end plays once so it can end
-        var holder = document.createElement("div");
-        el.innerHTML = "";
-        el.appendChild(holder);
-        var pv = { autoplay: 1, controls: 0, rel: 0, playsinline: 1, modestbranding: 1, mute: mute ? 1 : 0 };
-        if (loop) { pv.loop = 1; pv.playlist = id; }
-        players.push(new YT.Player(holder, {
-          width: "100%", height: "100%", videoId: id, playerVars: pv,
-          events: {
-            onReady: function (e) { if (mute) e.target.mute(); try { e.target.playVideo(); } catch (x) {} },
-            onStateChange: function (e) {
-              if (e.data === YT.PlayerState.ENDED && !loop) {
-                ended++;
-                if (onEnd && ended >= total && window.fpCtl) window.fpCtl("next");
-              }
-            }
-          }
-        }));
+        var list = ids(el);
+        var opts = { mute: el.dataset.mute === "1", interval: 0 };
+        var done = onEnd ? function () { if (window.fpCtl) fpCtl("next"); } : null;
+        var p = makePlayer(el, list, opts, done);
+        if (p) stagePlayers.push(p);
       });
-    };
-    if (apiReady) build(); else queue.push(build);
+    });
   };
 
-  window.fpSetupVideos(); // handle a video present in the initial render
+  // ---- persistent corner PiP (in the kiosk shell) ----
+  var pipPlayer = null;
+  function setupPip() {
+    var el = document.querySelector(".kpip .w-yt");
+    if (!el || pipPlayer) return; // set up once; survives view swaps
+    var list = ids(el);
+    if (!list.length) return;
+    whenReady(function () {
+      pipPlayer = makePlayer(el, list, {
+        mute: el.dataset.mute !== "0", // PiP defaults muted
+        interval: parseInt(el.dataset.interval, 10) || 0,
+      }, null);
+    });
+  }
+
+  if (stage) window.fpSetupVideos(); // initial on-screen video
+  setupPip();
 })();

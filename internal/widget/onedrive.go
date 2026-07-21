@@ -2,7 +2,7 @@ package widget
 
 import (
 	"context"
-	"net/url"
+	"log/slog"
 	"sort"
 	"strings"
 )
@@ -34,19 +34,33 @@ func GraphListFolders(ctx context.Context, token string) ([]ResourceOption, erro
 func GraphListAlbums(ctx context.Context, token string) ([]ResourceOption, error) {
 	var body struct {
 		Value []struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
+			ID     string `json:"id"`
+			Name   string `json:"name"`
+			Bundle *struct {
+				Album *struct{} `json:"album"`
+			} `json:"bundle"`
 		} `json:"value"`
 	}
-	u := graphBase + "/me/drive/bundles?$filter=" + url.QueryEscape("bundle/album ne null") + "&$select=id,name&$top=200"
+	// Fetch ALL bundles (no $filter — that filter can return empty on some drives)
+	// and keep those that are albums (or, if none carry an explicit album facet,
+	// all bundles as a fallback).
+	u := graphBase + "/me/drive/bundles?$select=id,name,bundle&$top=200"
 	if err := graphGet(ctx, token, u, &body); err != nil {
 		return nil, err
 	}
-	out := make([]ResourceOption, 0, len(body.Value))
+	var albums, all []ResourceOption
 	for _, it := range body.Value {
-		out = append(out, ResourceOption{ID: it.ID, Name: it.Name})
+		opt := ResourceOption{ID: it.ID, Name: it.Name}
+		all = append(all, opt)
+		if it.Bundle != nil && it.Bundle.Album != nil {
+			albums = append(albums, opt)
+		}
 	}
-	return out, nil
+	slog.Info("onedrive: bundles listed", "total", len(all), "albums", len(albums))
+	if len(albums) > 0 {
+		return albums, nil
+	}
+	return all, nil // fallback: expose all bundles if none are tagged as albums
 }
 
 // GraphFolderPhotos returns pre-authenticated download URLs for the images in a

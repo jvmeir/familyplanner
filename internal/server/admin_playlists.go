@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -203,6 +204,30 @@ func (s *Server) playlistVMs(ctx context.Context) []web.PlaylistVM {
 	return out
 }
 
+func (s *Server) handlePlaylistPip(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	widgetID, _ := strconv.ParseInt(r.FormValue("pip_widget_id"), 10, 64) // 0 = no PiP
+	interval, _ := strconv.Atoi(r.FormValue("pip_interval"))
+	if interval < 0 {
+		interval = 0
+	}
+	pc := pipConfig{
+		Corner:   pick(r.FormValue("pip_corner"), "br", "bl", "tr", "tl"),
+		Size:     pick(r.FormValue("pip_size"), "m", "s", "l"),
+		Interval: interval,
+		Muted:    r.FormValue("pip_muted") != "",
+	}
+	cj, _ := json.Marshal(pc)
+	_ = s.store.UpdatePlaylistPip(r.Context(), dbgen.UpdatePlaylistPipParams{
+		PipWidgetID: widgetID, PipConfigJson: string(cj), ID: id,
+	})
+	http.Redirect(w, r, "/admin/playlists/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+}
+
 func (s *Server) playlistDetailVM(ctx context.Context, id int64) (web.PlaylistDetailVM, bool) {
 	pl, err := s.store.GetPlaylist(ctx, id)
 	if err != nil {
@@ -218,7 +243,42 @@ func (s *Server) playlistDetailVM(ctx context.Context, id int64) (web.PlaylistDe
 		vm.Items = append(vm.Items, web.PlaylistItemVM{ID: it.ID, ViewName: name, Dwell: it.DwellSeconds})
 	}
 	vm.AvailableViews = s.viewRefs(ctx)
+	// Corner PiP config.
+	vm.PipWidgetID = pl.PipWidgetID
+	pc := parsePipConfig(pl.PipConfigJson)
+	vm.PipCorner, vm.PipSize, vm.PipInterval, vm.PipMuted = pc.Corner, pc.Size, int64(pc.Interval), pc.Muted
+	if ws, err := s.store.ListWidgets(ctx); err == nil {
+		for _, w := range ws {
+			if w.Type == "video" {
+				vm.VideoWidgets = append(vm.VideoWidgets, web.ViewRef{ID: w.ID, Name: w.Name})
+			}
+		}
+	}
 	return vm, true
+}
+
+// pipConfig is the JSON stored in playlists.pip_config_json.
+type pipConfig struct {
+	Corner   string `json:"corner"`
+	Size     string `json:"size"`
+	Interval int    `json:"interval"`
+	Muted    bool   `json:"muted"`
+}
+
+// parsePipConfig decodes the stored PiP config, applying sensible defaults
+// (bottom-right, medium, muted, continuous).
+func parsePipConfig(raw string) pipConfig {
+	pc := pipConfig{Corner: "br", Size: "m", Muted: true}
+	if raw != "" {
+		_ = json.Unmarshal([]byte(raw), &pc)
+	}
+	if pc.Corner == "" {
+		pc.Corner = "br"
+	}
+	if pc.Size == "" {
+		pc.Size = "m"
+	}
+	return pc
 }
 
 func (s *Server) viewRefs(ctx context.Context) []web.ViewRef {

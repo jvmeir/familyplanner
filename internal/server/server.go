@@ -146,6 +146,7 @@ func (s *Server) routes() http.Handler {
 			r.Post("/admin/playlists/{id}/default", s.handlePlaylistSetDefault)
 			r.Get("/admin/playlists/{id}", s.handlePlaylistDetail)
 			r.Post("/admin/playlists/{id}", s.handlePlaylistUpdate)
+			r.Post("/admin/playlists/{id}/pip", s.handlePlaylistPip)
 			r.Post("/admin/playlists/{id}/items", s.handlePlaylistAddItem)
 			r.Delete("/admin/playlists/items/{itemID}", s.handlePlaylistItemDelete)
 			r.Post("/admin/playlists/items/{itemID}/move", s.handlePlaylistItemMove)
@@ -303,13 +304,44 @@ func (s *Server) handleKiosk(w http.ResponseWriter, r *http.Request) {
 	dev, _ := deviceFrom(r.Context())
 	health := s.healthVM(r.Context())
 	ticker := s.tickerItems(r.Context())
+	pip := s.pipVM(r.Context(), dev)
 	view, err := s.currentPlaylistView(r.Context(), dev)
 	if err != nil {
-		s.render(w, r, web.Kiosk(web.Grid("", nil), web.ControlsVM{}, health, ticker))
+		s.render(w, r, web.Kiosk(web.Grid("", nil), web.ControlsVM{}, health, ticker, pip))
 		return
 	}
 	body := s.renderViewComponent(r.Context(), view)
-	s.render(w, r, web.Kiosk(body, s.buildControls(r.Context(), dev, view.ID), health, ticker))
+	s.render(w, r, web.Kiosk(body, s.buildControls(r.Context(), dev, view.ID), health, ticker, pip))
+}
+
+// pipVM resolves the device's playlist corner-PiP: the configured video widget's
+// cached video ids plus its presentation. Returns nil when no PiP is set.
+func (s *Server) pipVM(ctx context.Context, dev dbgen.KioskDevice) *web.PipVM {
+	pl, ok := s.resolvePlaylist(ctx, dev)
+	if !ok || pl.PipWidgetID == 0 {
+		return nil
+	}
+	cache, err := s.store.GetWidgetCache(ctx, pl.PipWidgetID)
+	if err != nil {
+		if wgt, gerr := s.store.GetWidget(ctx, pl.PipWidgetID); gerr == nil {
+			s.bgRefresh(wgt)
+		}
+		return nil
+	}
+	typ, ok := s.registry.Get("video")
+	if !ok || typ.Decode == nil {
+		return nil
+	}
+	d, derr := typ.Decode(json.RawMessage(cache.DataJson))
+	if derr != nil {
+		return nil
+	}
+	vd, ok := d.(widget.VideoData)
+	if !ok || len(vd.IDs) == 0 {
+		return nil
+	}
+	pc := parsePipConfig(pl.PipConfigJson)
+	return &web.PipVM{IDs: vd.IDs, Corner: pc.Corner, Size: pc.Size, Muted: pc.Muted, Interval: pc.Interval}
 }
 
 // tickerItems resolves the configured global ticker widget's cached items (empty
@@ -754,7 +786,7 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 	switch {
 	case meta.HideTitle == "1":
 		vm.Title = ""
-	case vm.IframeURL != "" || vm.ImageURL != "" || vm.VideoID != "":
+	case vm.IframeURL != "" || vm.ImageURL != "" || len(vm.VideoIDs) > 0:
 		// full-bleed media: no title bar
 		vm.Title = ""
 	default:

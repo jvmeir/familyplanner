@@ -44,6 +44,8 @@ type Playlist struct {
 	Name                string `json:"name"`
 	IsDefault           int64  `json:"is_default"`
 	DefaultDwellSeconds int64  `json:"default_dwell_seconds"`
+	PipWidgetID         int64  `json:"pip_widget_id"`
+	PipConfigJson       string `json:"pip_config_json"`
 	CreatedAt           string `json:"created_at"`
 	UpdatedAt           string `json:"updated_at"`
 }

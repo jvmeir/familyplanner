@@ -52,7 +52,7 @@ func (q *Queries) ClearDefaultPlaylists(ctx context.Context) error {
 const createPlaylist = `-- name: CreatePlaylist :one
 INSERT INTO playlists (name, is_default, default_dwell_seconds)
 VALUES (?, ?, ?)
-RETURNING id, name, is_default, default_dwell_seconds, created_at, updated_at
+RETURNING id, name, is_default, default_dwell_seconds, pip_widget_id, pip_config_json, created_at, updated_at
 `
 
 type CreatePlaylistParams struct {
@@ -69,6 +69,8 @@ func (q *Queries) CreatePlaylist(ctx context.Context, arg CreatePlaylistParams) 
 		&i.Name,
 		&i.IsDefault,
 		&i.DefaultDwellSeconds,
+		&i.PipWidgetID,
+		&i.PipConfigJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -94,7 +96,7 @@ func (q *Queries) DeletePlaylistItem(ctx context.Context, id int64) error {
 }
 
 const getDefaultPlaylist = `-- name: GetDefaultPlaylist :one
-SELECT id, name, is_default, default_dwell_seconds, created_at, updated_at FROM playlists WHERE is_default = 1 ORDER BY id LIMIT 1
+SELECT id, name, is_default, default_dwell_seconds, pip_widget_id, pip_config_json, created_at, updated_at FROM playlists WHERE is_default = 1 ORDER BY id LIMIT 1
 `
 
 func (q *Queries) GetDefaultPlaylist(ctx context.Context) (Playlist, error) {
@@ -105,6 +107,8 @@ func (q *Queries) GetDefaultPlaylist(ctx context.Context) (Playlist, error) {
 		&i.Name,
 		&i.IsDefault,
 		&i.DefaultDwellSeconds,
+		&i.PipWidgetID,
+		&i.PipConfigJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -112,7 +116,7 @@ func (q *Queries) GetDefaultPlaylist(ctx context.Context) (Playlist, error) {
 }
 
 const getPlaylist = `-- name: GetPlaylist :one
-SELECT id, name, is_default, default_dwell_seconds, created_at, updated_at FROM playlists WHERE id = ?
+SELECT id, name, is_default, default_dwell_seconds, pip_widget_id, pip_config_json, created_at, updated_at FROM playlists WHERE id = ?
 `
 
 func (q *Queries) GetPlaylist(ctx context.Context, id int64) (Playlist, error) {
@@ -123,6 +127,8 @@ func (q *Queries) GetPlaylist(ctx context.Context, id int64) (Playlist, error) {
 		&i.Name,
 		&i.IsDefault,
 		&i.DefaultDwellSeconds,
+		&i.PipWidgetID,
+		&i.PipConfigJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -180,7 +186,7 @@ func (q *Queries) ListPlaylistItems(ctx context.Context, playlistID int64) ([]Pl
 }
 
 const listPlaylists = `-- name: ListPlaylists :many
-SELECT id, name, is_default, default_dwell_seconds, created_at, updated_at FROM playlists ORDER BY name
+SELECT id, name, is_default, default_dwell_seconds, pip_widget_id, pip_config_json, created_at, updated_at FROM playlists ORDER BY name
 `
 
 func (q *Queries) ListPlaylists(ctx context.Context) ([]Playlist, error) {
@@ -197,6 +203,8 @@ func (q *Queries) ListPlaylists(ctx context.Context) ([]Playlist, error) {
 			&i.Name,
 			&i.IsDefault,
 			&i.DefaultDwellSeconds,
+			&i.PipWidgetID,
+			&i.PipConfigJson,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -287,5 +295,20 @@ type UpdatePlaylistItemPositionParams struct {
 
 func (q *Queries) UpdatePlaylistItemPosition(ctx context.Context, arg UpdatePlaylistItemPositionParams) error {
 	_, err := q.db.ExecContext(ctx, updatePlaylistItemPosition, arg.Position, arg.ID)
+	return err
+}
+
+const updatePlaylistPip = `-- name: UpdatePlaylistPip :exec
+UPDATE playlists SET pip_widget_id = ?, pip_config_json = ?, updated_at = datetime('now') WHERE id = ?
+`
+
+type UpdatePlaylistPipParams struct {
+	PipWidgetID   int64  `json:"pip_widget_id"`
+	PipConfigJson string `json:"pip_config_json"`
+	ID            int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePlaylistPip(ctx context.Context, arg UpdatePlaylistPipParams) error {
+	_, err := q.db.ExecContext(ctx, updatePlaylistPip, arg.PipWidgetID, arg.PipConfigJson, arg.ID)
 	return err
 }
