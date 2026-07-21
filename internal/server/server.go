@@ -110,7 +110,9 @@ func (s *Server) routes() http.Handler {
 		})
 		r.Get("/login", func(w http.ResponseWriter, r *http.Request) { s.render(w, r, web.Login("")) })
 		r.Post("/login", s.handleLoginPost)
-		r.Get("/pair", func(w http.ResponseWriter, r *http.Request) { s.render(w, r, web.Pair("")) })
+		r.Get("/pair", func(w http.ResponseWriter, r *http.Request) {
+			s.render(w, r, web.Pair("", s.playlistRefs(r.Context())))
+		})
 		r.Post("/pair", s.handlePairPost)
 
 		r.Group(func(r chi.Router) {
@@ -255,7 +257,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePairPost(w http.ResponseWriter, r *http.Request) {
 	if !s.checkPassphrase(r.Context(), r.FormValue("passphrase")) {
 		w.WriteHeader(http.StatusUnauthorized)
-		s.render(w, r, web.Pair(i18n.T(r.Context(), "login.error")))
+		s.render(w, r, web.Pair(i18n.T(r.Context(), "login.error"), s.playlistRefs(r.Context())))
 		return
 	}
 	token, err := auth.NewToken()
@@ -263,11 +265,16 @@ func (s *Server) handlePairPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	if _, err := s.store.CreateDevice(r.Context(), dbgen.CreateDeviceParams{
+	dev, err := s.store.CreateDevice(r.Context(), dbgen.CreateDeviceParams{
 		Name: "kiosk", TokenHash: auth.HashToken(token),
-	}); err != nil {
+	})
+	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+	// Assign the playlist chosen at pairing (0 = default playlist).
+	if plID, _ := strconv.ParseInt(r.FormValue("playlist_id"), 10, 64); plID > 0 {
+		_ = s.store.SetDevicePlaylist(r.Context(), dbgen.SetDevicePlaylistParams{PlaylistID: plID, ID: dev.ID})
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "fp_kiosk",

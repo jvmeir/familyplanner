@@ -1,8 +1,12 @@
 package web
 
-import "github.com/jvmeir/familyplanner/internal/i18n"
+import (
+	"fmt"
 
-templ Pair(errMsg string) {
+	"github.com/jvmeir/familyplanner/internal/i18n"
+)
+
+templ Pair(errMsg string, playlists []PlaylistRef) {
 	@Layout(i18n.T(ctx, "kiosk.pair.title")) {
 		<main class="center">
 			<form class="card" method="post" action="/pair">
@@ -15,6 +19,17 @@ templ Pair(errMsg string) {
 					{ i18n.T(ctx, "login.passphrase") }
 					<input type="password" name="passphrase" autofocus required/>
 				</label>
+				if len(playlists) > 0 {
+					<label>
+						{ i18n.T(ctx, "kiosk.pair.playlist") }
+						<select name="playlist_id">
+							<option value="0">{ i18n.T(ctx, "kiosk.pair.playlist_default") }</option>
+							for _, p := range playlists {
+								<option value={ fmt.Sprint(p.ID) }>{ p.Name }</option>
+							}
+						</select>
+					</label>
+				}
 				<button type="submit">{ i18n.T(ctx, "kiosk.pair.submit") }</button>
 			</form>
 		</main>

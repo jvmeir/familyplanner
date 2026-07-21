@@ -194,6 +194,8 @@
   "kiosk.pair.title": "Kiosk koppelen",
   "kiosk.pair.intro": "Voer het wachtwoord in om dit scherm als kiosk te koppelen.",
   "kiosk.pair.submit": "Koppelen",
+  "kiosk.pair.playlist": "Afspeellijst voor dit scherm",
+  "kiosk.pair.playlist_default": "Standaard afspeellijst",
   "widget.stale": "Verouderd",
   "kiosk.prev": "Vorige",
   "kiosk.next": "Volgende",
