@@ -126,7 +126,7 @@ See `.env.example`. Key ones: `FP_ENV`, `FP_ADDR`, `FP_BASE_URL`, `FP_DATA_DIR`,
 **Pending / next:**
 - **CI/GHCR**: the repo is public now; wire the build workflow to actually push images (Watchtower redeploy).
 - **Tailnet HTTPS** (+ `FP_BASE_URL`) so OAuth reconnect works on the wall and (if ever wanted) a PWA could re-enable offline; production Hetzner deploy.
-- **Voice** (Dutch voice clock / announcements) — in design.
+- **Voice clock** — done: global quarter-hour chime + hourly Dutch announcement (NMBS-style), configured at `/admin/settings` (enable + quiet hours). Audio needs a user gesture or the Chromium `--autoplay-policy=no-user-gesture-required` launch flag. Further voice (spoken *commands*) still later.
 - Kiosk write-back interactions (deferred — kiosk read-only).
 - Health: no periodic all-source sweep yet (only sources used by an active widget, plus never-connected via `oauth_status`, are checked).
 - Google Photos: the Library API readonly was restricted (Mar 2025); the code exists but OneDrive is the chosen photo source.

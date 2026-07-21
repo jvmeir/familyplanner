@@ -151,6 +151,19 @@ exposure. SQLite + cached files live on a mounted `/data` volume.
 - **M3** — OAuth: MS Graph (Outlook/To Do) + OneDrive; Bring; per-link resource
   pickers. ✅
 - **Health** — OAuth token/expiry + sync monitoring, kiosk badge + admin pill. ✅
-- **M4** — polish + fun widgets. **M5** — voice (Dutch voice clock, in design).
+- **Voice clock** — global quarter-hour chime + hourly Dutch announcement
+  (NMBS-style), server-synced via SSE, quiet hours, admin toggle. ✅
+- **M4** — polish + fun widgets. **M5** — further voice (commands) later.
+
+## Global kiosk behaviours (voice clock)
+
+Some behaviours are kiosk-wide, not view content. The **voice clock** is the
+first: the SSE loop fires a `chime` event on each quarter-hour (gated by an
+`enabled` flag + quiet hours in `settings`), so all screens chime together; the
+browser (`voiceclock.js`, loaded by the kiosk shell) plays a Web-Audio station
+gong and, on the hour, speaks the Dutch time via `SpeechSynthesis` (nl-BE). The
+pure timing/phrasing/quiet-hour logic lives in `internal/voiceclock`. Audio
+needs a user gesture (or Chromium `--autoplay-policy=no-user-gesture-required`)
+to start.
 
 *(Explored and reverted: an API+SPA Go→WASM kiosk and a PWA offline layer.)*
