@@ -427,8 +427,11 @@ func buildAgenda(now time.Time, all []calEvent, cfg CalendarConfig) []CalendarEv
 	}
 	out := make([]CalendarEvent, 0, len(evs))
 	for _, e := range evs {
-		when := fmt.Sprintf("%s %d %s %02d:%02d",
-			nlWeekday[e.t.Weekday()], e.t.Day(), nlMonthShort[int(e.t.Month())-1], e.t.Hour(), e.t.Minute())
+		// All-day events show only the date; timed events prefix the start time.
+		when := fmt.Sprintf("%s %d %s", nlWeekday[e.t.Weekday()], e.t.Day(), nlMonthShort[int(e.t.Month())-1])
+		if !e.allDay {
+			when += fmt.Sprintf(" %02d:%02d", e.t.Hour(), e.t.Minute())
+		}
 		out = append(out, CalendarEvent{When: when, Title: e.title, Color: e.color, Today: sameDate(e.t, now)})
 	}
 	return out
