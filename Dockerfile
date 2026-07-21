@@ -17,10 +17,13 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/familyplanner ./c
 # ffmpeg to download YouTube videos for ad-free local playback.
 FROM debian:bookworm-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates ffmpeg python3 curl \
+    && apt-get install -y --no-install-recommends ca-certificates ffmpeg python3 curl unzip \
     && curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp \
-    && apt-get purge -y curl && apt-get autoremove -y \
+    # deno: JS runtime yt-dlp now needs to run YouTube's player challenge.
+    && curl -fsSL https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip -o /tmp/deno.zip \
+    && unzip /tmp/deno.zip -d /usr/local/bin && chmod a+rx /usr/local/bin/deno && rm /tmp/deno.zip \
+    && apt-get purge -y curl unzip && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /out/familyplanner /familyplanner
 EXPOSE 8080

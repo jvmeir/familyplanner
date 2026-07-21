@@ -81,6 +81,7 @@ func New(cfg *config.Config, store *db.Store, reg *widget.Registry, i18nSvc *i18
 	datasource.RegisterDefaults(s.dsRegistry)
 	// Video widget: downloads are cached under the data volume and served at /media.
 	widget.VideoDir = filepath.Join(cfg.DataDir, "videos")
+	widget.VideoCookies = filepath.Join(cfg.DataDir, "youtube-cookies.txt")
 	_ = os.MkdirAll(widget.VideoDir, 0o755)
 	if err := s.bootstrap(context.Background()); err != nil {
 		return nil, err

@@ -12,10 +12,13 @@ import (
 )
 
 // VideoDir is where downloaded videos are stored (and served from at /media);
-// YtdlpPath is the yt-dlp executable. Both are set at startup.
+// YtdlpPath is the yt-dlp executable; VideoCookies is an optional Netscape
+// cookies.txt (a logged-in YouTube session) that lets yt-dlp bypass YouTube's
+// "confirm you're not a bot" gate on server IPs. All set at startup.
 var (
-	VideoDir  = ""
-	YtdlpPath = "yt-dlp"
+	VideoDir     = ""
+	YtdlpPath    = "yt-dlp"
+	VideoCookies = "" // path to cookies.txt; used only if the file exists
 )
 
 // ytIDRe extracts an 11-char YouTube video id from a URL or a bare id.
@@ -110,13 +113,20 @@ func ensureVideoDownload(id string) {
 		url := "https://www.youtube.com/watch?v=" + id
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
-		cmd := exec.CommandContext(ctx, YtdlpPath,
+		args := []string{
 			"--no-playlist",
 			"-f", "bv*[height<=1080]+ba/b[height<=1080]/b",
 			"--merge-output-format", "mp4",
 			"-o", out,
-			url,
-		)
-		_ = cmd.Run()
+		}
+		// Use a logged-in YouTube cookies.txt if one has been provided, so
+		// downloads work from the server IP (bot-check / Premium source).
+		if VideoCookies != "" {
+			if _, err := os.Stat(VideoCookies); err == nil {
+				args = append(args, "--cookies", VideoCookies)
+			}
+		}
+		args = append(args, url)
+		_ = exec.CommandContext(ctx, YtdlpPath, args...).Run()
 	}()
 }
