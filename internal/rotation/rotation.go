@@ -153,9 +153,9 @@ func (m *Manager) Connect(deviceID int64, items []Item) (*State, <-chan struct{}
 	return c.state, c.notify, release
 }
 
-// Command applies a prev/next/pause/resume to a connected device. Manual
-// next/prev/pause pause auto-advance (resume re-enables it). Returns false if
-// the device has no live stream.
+// Command applies a prev/next/pause/resume to a connected device. next/prev only
+// move + reset the timer; they do NOT pause (users pause explicitly to freeze on
+// a screen). Returns false if the device has no live stream.
 func (m *Manager) Command(deviceID int64, cmd Command) bool {
 	c := m.lookup(deviceID)
 	if c == nil {
@@ -164,10 +164,8 @@ func (m *Manager) Command(deviceID int64, cmd Command) bool {
 	switch cmd {
 	case CmdNext:
 		c.state.Next()
-		c.state.SetPaused(true)
 	case CmdPrev:
 		c.state.Prev()
-		c.state.SetPaused(true)
 	case CmdPause:
 		c.state.SetPaused(true)
 	case CmdResume:

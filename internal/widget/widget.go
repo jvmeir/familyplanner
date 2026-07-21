@@ -172,22 +172,6 @@ func RegisterDefaults(r *Registry) {
 		}},
 	})
 	r.Register(Type{
-		ID:          "quote",
-		NameKey:     "widget.quote.name",
-		NewProvider: newQuote,
-		Decode:      decodeQuote,
-		Schema:      Schema{}, // no configuration
-	})
-	r.Register(Type{
-		ID:          "web",
-		NameKey:     "widget.web.name",
-		NewProvider: newWeb,
-		Decode:      decodeWeb,
-		Schema: Schema{Fields: []Field{
-			{Name: "url", LabelKey: "widget.web.field.url", Type: FieldText, Required: true},
-		}},
-	})
-	r.Register(Type{
 		ID:          "video",
 		NameKey:     "widget.video.name",
 		NewProvider: newVideo,
@@ -247,7 +231,7 @@ func RegisterDefaults(r *Registry) {
 		NameKey:        "widget.photos.name",
 		NewProvider:    newPhotos,
 		Decode:         decodePhotos,
-		AcceptsSources: []string{"google_photos", "onedrive"},
+		AcceptsSources: []string{"onedrive"},
 		Schema: Schema{Fields: []Field{
 			{Name: "mode", LabelKey: "widget.photos.field.mode", Type: FieldSelect, Options: []Option{
 				{Value: "single", LabelKey: "widget.photos.mode.single"},

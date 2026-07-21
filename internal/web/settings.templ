@@ -15,6 +15,8 @@ type SettingsVM struct {
 	HalfSound      string // sound at :30
 	HourSound      string // sound at :00
 	Announce       bool   // speak the time on the hour
+	Attention      bool   // attention chime before the spoken hour
+	AnnounceRate   string // slow | normal | fast
 	KioskScale     string // UI scale multiplier, e.g. "1.00"
 	TickerWidgets  []ViewRef    // widgets of type "ticker" (id + name)
 	TickerWidgetID int64        // selected ticker widget (0 = none)
@@ -98,7 +100,19 @@ templ SettingsPage(vm SettingsVM) {
 					<input type="checkbox" name="announce" checked?={ vm.Announce }/>
 					{ i18n.T(ctx, "settings.announce") }
 				</label>
-				<button type="button" class="btn ghost" onclick="fpTestHour(document.querySelector('[name=hour_sound]').value, document.querySelector('[name=announce]').checked)">{ i18n.T(ctx, "settings.test") }</button>
+				<label class="check">
+					<input type="checkbox" name="attention" checked?={ vm.Attention }/>
+					{ i18n.T(ctx, "settings.attention") }
+				</label>
+				<label>
+					{ i18n.T(ctx, "settings.announce_rate") }
+					<select name="announce_rate">
+						<option value="slow" selected?={ vm.AnnounceRate != "normal" && vm.AnnounceRate != "fast" }>{ i18n.T(ctx, "settings.rate.slow") }</option>
+						<option value="normal" selected?={ vm.AnnounceRate == "normal" }>{ i18n.T(ctx, "settings.rate.normal") }</option>
+						<option value="fast" selected?={ vm.AnnounceRate == "fast" }>{ i18n.T(ctx, "settings.rate.fast") }</option>
+					</select>
+				</label>
+				<button type="button" class="btn ghost" onclick="fpTestHour(document.querySelector('[name=hour_sound]').value, document.querySelector('[name=announce]').checked, document.querySelector('[name=attention]').checked, document.querySelector('[name=announce_rate]').value)">{ i18n.T(ctx, "settings.test") }</button>
 			</fieldset>
 			<fieldset class="subsection">
 				<legend>{ i18n.T(ctx, "settings.ticker") }</legend>

@@ -107,13 +107,6 @@ func RegisterDefaults(r *Registry) {
 		ResourceLabelKey: "datasource.field.calendar",
 	})
 	r.Register(Type{
-		ID:               "google_photos",
-		NameKey:          "datasource.type.google_photos",
-		CredKind:         CredOAuth2,
-		ResourceKind:     "google_albums",
-		ResourceLabelKey: "datasource.field.album",
-	})
-	r.Register(Type{
 		ID:               "onedrive",
 		NameKey:          "datasource.type.onedrive",
 		CredKind:         CredOAuth2,

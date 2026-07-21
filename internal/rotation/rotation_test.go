@@ -80,7 +80,7 @@ func TestManagerCommandsReachDevice(t *testing.T) {
 
 	require.True(t, m.Command(1, rotation.CmdNext))
 	require.Equal(t, int64(20), curID(t, state))
-	require.True(t, state.Paused(), "manual next pauses rotation")
+	require.False(t, state.Paused(), "manual next moves but does NOT pause rotation")
 
 	// the SSE loop would be woken via notify
 	select {
@@ -89,8 +89,13 @@ func TestManagerCommandsReachDevice(t *testing.T) {
 		t.Fatal("expected a notify signal after a command")
 	}
 
+	// an explicit pause freezes; resume re-enables auto-advance
+	require.True(t, m.Command(1, rotation.CmdPause))
+	require.True(t, state.Paused())
+
 	require.True(t, m.Goto(1, 30))
 	require.Equal(t, int64(30), curID(t, state))
+	require.True(t, state.Paused(), "goto to a parked view freezes")
 
 	require.True(t, m.Command(1, rotation.CmdResume))
 	require.False(t, state.Paused())

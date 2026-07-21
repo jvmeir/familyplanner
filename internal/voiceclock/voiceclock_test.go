@@ -90,11 +90,13 @@ func TestNextBoundaryAndLead(t *testing.T) {
 	require.Equal(t, at(15, 15), NextBoundary(at(15, 10)))
 	require.Equal(t, at(15, 15), NextBoundary(at(15, 0))) // strictly after
 	require.Equal(t, at(16, 0), NextBoundary(at(15, 45))) // rolls to next hour
-	// Lead: spoken time signal leads by the phrase + pips; pips-only by ~2s;
-	// other sounds play on the beat.
-	require.Equal(t, 6*time.Second, Chime{Sound: SoundTimeSignal, Announce: true}.Lead())
+	// Lead: pips-only leads ~2s; other sounds play on the beat; a spoken
+	// announcement auto-estimates a larger lead (attention chime + phrase + pips).
 	require.Equal(t, 2*time.Second, Chime{Sound: SoundTimeSignal}.Lead())
 	require.Equal(t, time.Duration(0), Chime{Sound: SoundBingBong}.Lead())
+	spoken := Chime{Sound: SoundTimeSignal, Announce: true, Attention: true, Text: "drie uur", Rate: 0.7}.Lead()
+	require.Greater(t, spoken, 8*time.Second)
+	require.Less(t, spoken, 25*time.Second)
 }
 
 func TestDecideDisabled(t *testing.T) {

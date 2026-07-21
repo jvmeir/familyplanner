@@ -6,6 +6,7 @@
 package voiceclock
 
 import (
+	"strings"
 	"time"
 )
 
@@ -51,6 +52,21 @@ type Config struct {
 	HalfSound    string `json:"halfSound"`    // sound at :30
 	HourSound    string `json:"hourSound"`    // sound at :00
 	Announce     bool   `json:"announce"`     // speak the Dutch time on the hour
+	// Hour-announcement presentation.
+	Attention    bool   `json:"attention"`    // play an attention chime before the spoken time
+	AnnounceRate string `json:"announceRate"` // speech speed: slow | normal | fast
+}
+
+// rateValue maps a speech-speed name to a SpeechSynthesis rate.
+func rateValue(name string) float64 {
+	switch name {
+	case "fast":
+		return 1.0
+	case "normal":
+		return 0.85
+	default: // slow
+		return 0.7
+	}
 }
 
 // Default is the seeded configuration: on, silent overnight; bing-bong on the
@@ -59,6 +75,7 @@ func Default() Config {
 	return Config{
 		Enabled: true, QuietStart: "22:00", QuietEnd: "07:00",
 		QuarterSound: SoundBingBong, HalfSound: SoundBingBong, HourSound: SoundTimeSignal, Announce: true,
+		Attention: true, AnnounceRate: "slow",
 	}
 }
 
@@ -78,27 +95,42 @@ func (c Config) soundForQuarter(q int) string {
 // Chime is the payload sent to the browser. The browser synthesises the sound;
 // the server only decides when + what.
 type Chime struct {
-	Sound    string `json:"sound"`          // none|bingbong|gong|pips|timesignal|westminster
-	Quarter  int    `json:"quarter"`        // 0 = top of hour, 1 = :15, 2 = :30, 3 = :45
-	Hour     int    `json:"hour"`           // 0–23 (Westminster hour strikes)
-	Announce bool   `json:"announce"`       // speak the time (top of the hour)
-	Text     string `json:"text,omitempty"` // Dutch words, e.g. "drie uur"
-	AtUnixMs int64  `json:"at,omitempty"`   // the exact beat instant (ms); the client aligns the marking pip to it
+	Sound     string  `json:"sound"`               // none|bingbong|gong|pips|timesignal|westminster
+	Quarter   int     `json:"quarter"`             // 0 = top of hour, 1 = :15, 2 = :30, 3 = :45
+	Hour      int     `json:"hour"`                // 0–23 (Westminster hour strikes)
+	Announce  bool    `json:"announce"`            // speak the time (top of the hour)
+	Text      string  `json:"text,omitempty"`      // Dutch words, e.g. "drie uur"
+	AtUnixMs  int64   `json:"at,omitempty"`        // the exact beat instant (ms); the client aligns the marking pip to it
+	Attention bool    `json:"attention,omitempty"` // play an attention chime before speaking
+	Rate      float64 `json:"rate,omitempty"`      // speech rate (SpeechSynthesis)
 }
 
 // Lead is how far BEFORE the beat this chime should be SENT so its time-marking
-// tone lands on the beat. The speaking-clock time signal has a marking pip; when
-// spoken first, we lead enough for the phrase (~4s) plus the pips (~2s) — the
-// client fine-aligns the pip to AtUnixMs, so a generous lead just needs to start
-// early enough. Everything else plays on the beat.
+// tone lands on the beat. It's auto-estimated from the enabled pieces: the pips
+// themselves (~2s to the long third pip), an optional attention chime (~3s), and
+// the spoken phrase (estimated from its word count and speech rate). The client
+// fine-aligns the pips to AtUnixMs, so over-estimating only starts the sequence
+// a little earlier — safe; under-estimating would make the pip land late.
 func (c Chime) Lead() time.Duration {
 	if c.Sound != SoundTimeSignal {
 		return 0
 	}
-	if c.Announce {
-		return 6 * time.Second
+	lead := 2 * time.Second // pips: third (marking) pip is ~2s in
+	if !c.Announce {
+		return lead
 	}
-	return 2 * time.Second // pips only: the long third pip is ~2s in
+	if c.Attention {
+		lead += 3 * time.Second // attention chime + gap before speaking
+	}
+	rate := c.Rate
+	if rate <= 0 {
+		rate = 0.85
+	}
+	// "Opgelet. Bij de derde toon is het <text>" ≈ 8 fixed words + the time words.
+	words := 8 + len(strings.Fields(c.Text))
+	speech := float64(words) * 0.6 / rate // ~0.6s per word at rate 1.0
+	lead += time.Duration(speech * float64(time.Second))
+	return lead
 }
 
 // Decide returns the chime to emit at local time t (a quarter-hour boundary), or
@@ -122,6 +154,8 @@ func (c Config) Decide(t time.Time) (Chime, bool) {
 	ch := Chime{Sound: sound, Quarter: 0, Hour: t.Hour(), Announce: c.Announce}
 	if c.Announce {
 		ch.Text = DutchHour(t.Hour())
+		ch.Attention = c.Attention
+		ch.Rate = rateValue(c.AnnounceRate)
 	}
 	return ch, true
 }

@@ -28,6 +28,8 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 		HalfSound:    voiceclock.ValidHalfSound(r.FormValue("half_sound")),
 		HourSound:    voiceclock.ValidHourSound(r.FormValue("hour_sound")),
 		Announce:     r.FormValue("announce") != "",
+		Attention:    r.FormValue("attention") != "",
+		AnnounceRate: r.FormValue("announce_rate"),
 	}
 	if js, err := json.Marshal(cfg); err == nil {
 		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "voiceclock", Value: string(js)})
@@ -83,6 +85,8 @@ func (s *Server) settingsVM(ctx context.Context, saved bool) web.SettingsVM {
 		HalfSound:      voiceclock.ValidHalfSound(cfg.HalfSound),
 		HourSound:      voiceclock.ValidHourSound(cfg.HourSound),
 		Announce:       cfg.Announce,
+		Attention:      cfg.Attention,
+		AnnounceRate:   cfg.AnnounceRate,
 		KioskScale:     strconv.FormatFloat(s.kioskScale(ctx), 'f', 2, 64),
 		TickerWidgets:  tickers,
 		TickerWidgetID: tickerID,

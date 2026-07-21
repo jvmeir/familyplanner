@@ -66,7 +66,7 @@
   // atMs — the exact beat. Because the pips fire when speech ENDS, we delay them
   // until (atMs - 2000ms) using the wall clock, self-correcting for however long
   // the phrase took; if speech overran, the pips play immediately.
-  function speakThenPips(sentence, atMs) {
+  function speakThenPips(sentence, atMs, rate) {
     var startPips = function () {
       var delay = atMs ? atMs - 2000 - Date.now() : 0;
       if (delay < 0) delay = 0;
@@ -74,7 +74,7 @@
     };
     if (!("speechSynthesis" in window)) { startPips(); return; }
     var u = new SpeechSynthesisUtterance(sentence);
-    u.lang = "nl-BE"; u.rate = 0.85;
+    u.lang = "nl-BE"; u.rate = rate || 0.7; // slower by default, to draw attention
     setVoice(u);
     u.onend = startPips;
     u.onerror = startPips;
@@ -125,7 +125,7 @@
   function speak(sentence) {
     if (!("speechSynthesis" in window) || !sentence) return;
     var u = new SpeechSynthesisUtterance(sentence);
-    u.lang = "nl-BE"; u.rate = 0.85;
+    u.lang = "nl-BE"; u.rate = 0.7; // slower, to clearly draw attention
     setVoice(u);
     window.speechSynthesis.speak(u);
   }
@@ -173,7 +173,18 @@
     // without it, just the three pips.
     if (sound === "timesignal") {
       if (d.announce && d.text) {
-        speakThenPips("Bij de derde toon is het " + d.text, d.at);
+        // Optional attention chime up front, then a (configurably slow) spoken
+        // lead-in, then the three pips whose long third pip lands exactly on the
+        // hour (aligned to d.at).
+        var delay = 0;
+        if (d.attention) {
+          bell(ac, 659.25, ac.currentTime, 1.4, 0.34);
+          bell(ac, 523.25, ac.currentTime + 0.5, 1.9, 0.34);
+          delay = 2200;
+        }
+        setTimeout(function () {
+          speakThenPips("Opgelet. Bij de derde toon is het " + d.text, d.at, d.rate);
+        }, delay);
       } else {
         timePips(ac); // fired ~2s early by the server so the long 3rd pip lands on the beat
       }
@@ -189,9 +200,13 @@
   window.fpTestQuarter = function (sound, quarter) {
     runChime({ sound: sound, quarter: quarter || 1, hour: new Date().getHours(), preview: true });
   };
-  window.fpTestHour = function (sound, announce) {
+  window.fpTestHour = function (sound, announce, attention, rate) {
     var h = new Date().getHours();
-    runChime({ sound: sound, quarter: 0, hour: h, announce: !!announce, text: dutchHour(h), preview: true });
+    var rates = { slow: 0.7, normal: 0.85, fast: 1.0 };
+    runChime({
+      sound: sound, quarter: 0, hour: h, announce: !!announce, text: dutchHour(h),
+      attention: !!attention, rate: rates[rate] || 0.7, preview: true,
+    });
   };
 
   function unlock() {
