@@ -140,7 +140,10 @@
 
   const es = new EventSource("/kiosk/stream");
   window.fpES = es; // shared so voiceclock.js can listen for "chime" without a 2nd stream
+  var beat = function () { window.__fpBeat = Date.now(); }; // watchdog heartbeat
+  es.addEventListener("open", beat);
   es.addEventListener("navigate", function (e) {
+    beat();
     var changed = e.data !== currentViewID;
     currentViewID = e.data;
     stage.dataset.viewId = e.data; // keep the DOM in sync with the active view
@@ -148,6 +151,7 @@
     loadView(currentViewID, changed);
   });
   es.addEventListener("refresh", function () {
+    beat();
     // Don't reload the view while a video is playing — reloading destroys the
     // player (restarting it) and, on a random-single screen, re-randomizes the
     // widget. The video plays to its end undisturbed; only the ticker refreshes.

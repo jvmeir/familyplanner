@@ -63,6 +63,19 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker [
 				</ul>
 			</div>
 		</div>
+		<script>
+			// Independent watchdog (runs even if kiosk.js throws): kiosk.js stamps
+			// window.__fpBeat on each SSE message; if the heartbeat goes silent for
+			// too long — a script error froze the page, or SSE died — reload to
+			// self-recover. The server pushes a "refresh" at least every 30s, so a
+			// long gap means something is genuinely stuck.
+			(function () {
+				window.__fpBeat = Date.now();
+				setInterval(function () {
+					if (Date.now() - (window.__fpBeat || 0) > 150000) location.reload();
+				}, 30000);
+			})();
+		</script>
 		<script src="/static/kiosk.js"></script>
 		<script src="/static/voiceclock.js"></script>
 		<script src="/static/yt.js"></script>

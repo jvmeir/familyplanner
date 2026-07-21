@@ -342,7 +342,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker []
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</li></ul></div></div><script src=\"/static/kiosk.js\"></script> <script src=\"/static/voiceclock.js\"></script> <script src=\"/static/yt.js\"></script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</li></ul></div></div><script>\n\t\t\t// Independent watchdog (runs even if kiosk.js throws): kiosk.js stamps\n\t\t\t// window.__fpBeat on each SSE message; if the heartbeat goes silent for\n\t\t\t// too long — a script error froze the page, or SSE died — reload to\n\t\t\t// self-recover. The server pushes a \"refresh\" at least every 30s, so a\n\t\t\t// long gap means something is genuinely stuck.\n\t\t\t(function () {\n\t\t\t\twindow.__fpBeat = Date.now();\n\t\t\t\tsetInterval(function () {\n\t\t\t\t\tif (Date.now() - (window.__fpBeat || 0) > 150000) location.reload();\n\t\t\t\t}, 30000);\n\t\t\t})();\n\t\t</script> <script src=\"/static/kiosk.js\"></script> <script src=\"/static/voiceclock.js\"></script> <script src=\"/static/yt.js\"></script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -393,7 +393,7 @@ func TickerTrack(items []string) templ.Component {
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(it)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 79, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 92, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 				if templ_7745c5c3_Err != nil {
@@ -468,7 +468,7 @@ func KioskBody(body templ.Component, health HealthVM) templ.Component {
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(health.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 94, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 107, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -486,7 +486,7 @@ func KioskBody(body templ.Component, health HealthVM) templ.Component {
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(health.Count - 1))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 96, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 109, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 				if templ_7745c5c3_Err != nil {
