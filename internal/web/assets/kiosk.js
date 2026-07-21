@@ -36,11 +36,19 @@
   let currentViewID = stage.dataset.viewId || null;
   updateViewLabel(currentViewID);
 
-  async function loadView(id) {
+  async function loadView(id, animate) {
     if (!id) return;
     try {
       const r = await fetch("/kiosk/view/" + id, { headers: { Accept: "text/html" } });
-      if (r.ok) stage.innerHTML = await r.text();
+      if (r.ok) {
+        stage.innerHTML = await r.text();
+        // Slide the new view in on a real navigation (not the periodic refresh),
+        // so data ticks don't cause a distracting re-animation every 30s.
+        if (animate) {
+          const v = stage.querySelector(".view");
+          if (v) v.classList.add("kslide");
+        }
+      }
     } catch (e) {
       // keep last-good content on any error
     }
@@ -49,12 +57,21 @@
   const es = new EventSource("/kiosk/stream");
   window.fpES = es; // shared so voiceclock.js can listen for "chime" without a 2nd stream
   es.addEventListener("navigate", function (e) {
+    var changed = e.data !== currentViewID;
     currentViewID = e.data;
     updateViewLabel(currentViewID);
-    loadView(currentViewID);
+    loadView(currentViewID, changed);
   });
   es.addEventListener("refresh", function () {
-    loadView(currentViewID);
+    loadView(currentViewID, false);
+  });
+  // Auto-reload after a redeploy: the server sends its boot id on (re)connect;
+  // EventSource reconnects when the container restarts, and a changed id means a
+  // new build is live, so reload to pick up new HTML/CSS/JS.
+  var bootID = null;
+  es.addEventListener("version", function (e) {
+    if (bootID === null) bootID = e.data;
+    else if (e.data !== bootID) location.reload();
   });
   // UI scale multiplier (set from admin; applied live on top of viewport scaling).
   es.addEventListener("scale", function (e) {

@@ -45,6 +45,7 @@ type Server struct {
 	brk        *broker.Broker
 	dsRegistry *datasource.Registry
 	now        func() time.Time
+	bootID     string // changes each server start; kiosks auto-reload when it changes
 	handler    http.Handler
 }
 
@@ -66,6 +67,7 @@ func New(cfg *config.Config, store *db.Store, reg *widget.Registry, i18nSvc *i18
 		sessions: sm,
 		rotation: rotation.NewManager(),
 		now:      func() time.Time { return time.Now().In(cfg.TimeZone) },
+		bootID:   strconv.FormatInt(time.Now().UnixNano(), 10),
 	}
 	s.brk = broker.New(store, reg, s.now, cfg.EncryptionKey, cfg.OAuthApp)
 	s.dsRegistry = datasource.NewRegistry()
@@ -388,7 +390,8 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 	if !sendCurrent() {
 		return
 	}
-	sendScale() // push the current UI scale on connect
+	sendScale()                  // push the current UI scale on connect
+	send("version", s.bootID)    // kiosks reload when this changes (i.e. after a redeploy)
 	advance := time.NewTimer(dwell())
 	defer advance.Stop()
 	refresh := time.NewTicker(30 * time.Second)

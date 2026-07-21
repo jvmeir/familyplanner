@@ -123,6 +123,15 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
   height: 100%;
   padding: var(--gap, 14px);
 }
+/* Slide + fade a newly-navigated view in from the right. */
+.view.kslide { animation: kslide .45s cubic-bezier(.22, .61, .36, 1); }
+@keyframes kslide {
+  from { opacity: 0; transform: translateX(6%); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .view.kslide { animation: none; }
+}
 .kheader, .kfooter {
   flex: 0 0 auto;
   display: flex;
