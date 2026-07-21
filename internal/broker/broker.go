@@ -84,6 +84,11 @@ func (b *Broker) RefreshWidget(ctx context.Context, wgt dbgen.Widget) {
 		return
 	}
 	data, ttl, err := prov.Fetch(ctx)
+	// Attribute the fetch outcome to the widget's non-OAuth sources so ical/rss/
+	// text/video sources get a health pill too (OAuth sources are recorded in
+	// refreshOAuth). Note: a widget aggregates its sources, so for a multi-source
+	// widget this reflects the overall fetch, not each source individually.
+	b.recordSourcesHealth(ctx, sources, err)
 	if err != nil {
 		b.markErr(ctx, wgt.ID, err.Error())
 		return
@@ -184,6 +189,7 @@ func (b *Broker) sourcesFor(ctx context.Context, widgetID int64) []widget.Source
 			Resource:            r.Resource,
 			Color:               r.Color,
 			RefreshIntervalSecs: r.RefreshIntervalSecs,
+			DataSourceID:        r.DataSourceID,
 		})
 	}
 	return out
@@ -219,6 +225,22 @@ func (b *Broker) refreshOAuth(ctx context.Context, dsType string, dsID int64, se
 	b.recordSourceHealth(ctx, dsID, expiryStr(fresh), "ok", "")
 	out, _ := json.Marshal(map[string]string{"access_token": fresh.AccessToken})
 	return out
+}
+
+// recordSourcesHealth records health for the widget's non-OAuth sources based on
+// the fetch outcome (err == nil → ok + last_sync; else error with the message).
+// OAuth sources are skipped here — their health is set during token refresh.
+func (b *Broker) recordSourcesHealth(ctx context.Context, sources []widget.SourceInput, fetchErr error) {
+	for _, s := range sources {
+		if s.DataSourceID == 0 || oauth.Known(s.Type) {
+			continue
+		}
+		if fetchErr != nil {
+			b.recordSourceHealth(ctx, s.DataSourceID, "", "error", fetchErr.Error())
+		} else {
+			b.recordSourceHealth(ctx, s.DataSourceID, "", "ok", "")
+		}
+	}
 }
 
 // recordSourceHealth persists a data source's auth health; on "ok" it also

@@ -330,10 +330,18 @@ func (s *Server) handleDataSourceRename(w http.ResponseWriter, r *http.Request) 
 }
 
 // dsHealthDisplay maps a data source's stored health into a status pill
-// (level, Dutch label). Non-OAuth sources have no auth to report.
+// (level, Dutch label).
 func dsHealthDisplay(d dbgen.DataSource, isOAuth bool, now time.Time) (level, text string) {
 	if !isOAuth {
-		return "", ""
+		// Non-OAuth sources (ical/rss/text/video/bring): report last fetch outcome.
+		switch d.Health {
+		case "ok":
+			return "ok", "Werkt"
+		case "error":
+			return "warn", "Ophalen mislukt"
+		default:
+			return "", "" // never fetched yet
+		}
 	}
 	switch {
 	case d.Health == "reconnect" || d.OauthStatus != "connected":

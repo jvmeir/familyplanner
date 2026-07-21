@@ -9,6 +9,15 @@ import (
 	"context"
 )
 
+const clearWidgetCache = `-- name: ClearWidgetCache :exec
+DELETE FROM widget_cache
+`
+
+func (q *Queries) ClearWidgetCache(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, clearWidgetCache)
+	return err
+}
+
 const getWidgetCache = `-- name: GetWidgetCache :one
 SELECT widget_id, data_json, fetched_at, expires_at, status, error_msg FROM widget_cache WHERE widget_id = ?
 `

@@ -14,6 +14,9 @@ ON CONFLICT(widget_id) DO UPDATE SET
 -- name: MarkWidgetCacheStale :exec
 UPDATE widget_cache SET status = 'stale', error_msg = ? WHERE widget_id = ?;
 
+-- name: ClearWidgetCache :exec
+DELETE FROM widget_cache;
+
 -- name: ListExpiredWidgetIDs :many
 SELECT id FROM widgets
 WHERE id NOT IN (SELECT widget_id FROM widget_cache)

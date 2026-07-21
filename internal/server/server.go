@@ -57,6 +57,8 @@ type Server struct {
 	photoMu    sync.Mutex      // guards photoOrder + photoPos
 	photoOrder map[int64][]int // photos widget ID → shuffled index order (no-repeat slideshow)
 	photoPos   map[int64]int   // photos widget ID → next position in photoOrder
+
+	authLimiter *rateLimiter // throttles passphrase attempts on /login + /pair
 }
 
 // onShowRefreshThrottle is the minimum gap between background refreshes triggered
@@ -83,6 +85,8 @@ func New(cfg *config.Config, store *db.Store, reg *widget.Registry, i18nSvc *i18
 		rotation: rotation.NewManager(),
 		now:      func() time.Time { return time.Now().In(cfg.TimeZone) },
 		bootID:   strconv.FormatInt(time.Now().UnixNano(), 10),
+		// 10 passphrase attempts per minute per IP, then 429 until the bucket refills.
+		authLimiter: newRateLimiter(10, time.Minute, func() time.Time { return time.Now() }),
 	}
 	s.brk = broker.New(store, reg, s.now, cfg.EncryptionKey, cfg.OAuthApp)
 	s.dsRegistry = datasource.NewRegistry()
@@ -119,11 +123,11 @@ func (s *Server) routes() http.Handler {
 			http.Redirect(w, r, "/admin", http.StatusSeeOther)
 		})
 		r.Get("/login", func(w http.ResponseWriter, r *http.Request) { s.render(w, r, web.Login("")) })
-		r.Post("/login", s.handleLoginPost)
+		r.With(s.authLimiter.limit).Post("/login", s.handleLoginPost)
 		r.Get("/pair", func(w http.ResponseWriter, r *http.Request) {
 			s.render(w, r, web.Pair("", s.playlistRefs(r.Context())))
 		})
-		r.Post("/pair", s.handlePairPost)
+		r.With(s.authLimiter.limit).Post("/pair", s.handlePairPost)
 
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireLogin)
@@ -1007,7 +1011,31 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, c templ.Componen
 
 // ---------- first-run bootstrap ----------
 
+// cacheSchemaVersion identifies the shape of the JSON stored in widget_cache.
+// Bump it whenever a widget's cached Data struct changes incompatibly so stale
+// rows from an older build are dropped (and re-fetched) instead of mis-decoded.
+const cacheSchemaVersion = "2" // v2: PhotosData album-only, CalendarEvent.Today
+
+// invalidateStaleCache clears widget_cache when the running build's cache schema
+// differs from what produced the stored rows.
+func (s *Server) invalidateStaleCache(ctx context.Context) {
+	cur, err := s.store.GetSetting(ctx, "cache_schema_version")
+	if err == nil && cur == cacheSchemaVersion {
+		return
+	}
+	if err := s.store.ClearWidgetCache(ctx); err != nil {
+		slog.Error("clear widget cache on schema change", "err", err)
+		return
+	}
+	_ = s.store.SetSetting(ctx, dbgen.SetSettingParams{Key: "cache_schema_version", Value: cacheSchemaVersion})
+	if err != nil { // first run (no version stored): don't log a scary message
+		return
+	}
+	slog.Info("widget cache cleared (schema version changed)", "from", cur, "to", cacheSchemaVersion)
+}
+
 func (s *Server) bootstrap(ctx context.Context) error {
+	s.invalidateStaleCache(ctx)
 	// Seed the admin passphrase from the bootstrap env var if none is stored yet.
 	if _, err := s.store.GetSetting(ctx, "passphrase_hash"); errors.Is(err, sql.ErrNoRows) {
 		if s.cfg.AdminPassphrase != "" {

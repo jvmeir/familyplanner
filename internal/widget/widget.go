@@ -36,6 +36,7 @@ type SourceInput struct {
 	// cadence (0 = use the global default). The broker caps a data-backed
 	// widget's cache TTL to the smallest non-zero interval among its sources.
 	RefreshIntervalSecs int64
+	DataSourceID        int64 // the underlying data source's id (for health reporting)
 }
 
 // FieldType is the input kind for a config field (drives the admin form widget).

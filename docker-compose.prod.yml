@@ -1,0 +1,33 @@
+# Production compose. Unlike docker-compose.yml (dev, with an inline insecure
+# key and a bind mount), this pulls the published image and takes ALL secrets
+# from a gitignored .env file next to this compose file. Never commit .env.
+#
+#   1. cp .env.example .env   and set, at minimum:
+#        FP_ENV=prod
+#        FP_ENCRYPTION_KEY=<a long random string>   # REQUIRED in prod
+#        FP_ADMIN_PASSPHRASE=<your passphrase>       # remove after first run
+#        FP_BASE_URL=https://<your-host>             # drives OAuth redirect URI
+#        FP_MS_CLIENT_ID / FP_MS_CLIENT_SECRET       # Microsoft OAuth app
+#   2. docker compose -f docker-compose.prod.yml up -d
+#
+# The app listens on :8080; terminate TLS in front of it (Tailscale serve, a
+# reverse proxy, etc.). Data (SQLite + cached files) lives in a named volume.
+services:
+  app:
+    image: ghcr.io/jvmeir/familyplanner:latest
+    container_name: familyplanner-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Sensible prod defaults; .env still wins for anything set there.
+      FP_ENV: prod
+      FP_LOCALE: nl
+      FP_TIMEZONE: Europe/Brussels
+    ports:
+      - "8080:8080"
+    volumes:
+      - familyplanner-data:/data
+
+volumes:
+  familyplanner-data:
