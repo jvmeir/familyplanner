@@ -159,13 +159,14 @@
     if (snoozed() && !d.preview) return; // manual snooze mutes live chimes
     var sound = d.sound || "none";
     var ac = audio();
-    // Speaking-clock time signal: the three pips play now (the server fires this
-    // ~2s early so the long third pip lands exactly on the beat); if the hour
-    // also reads the time aloud, speak just after the marking pip.
+    // Speaking-clock time signal. With a spoken readout, the voice leads and the
+    // three pips follow (the classic "at the third tone it will be…" countdown);
+    // without it, just the three pips.
     if (sound === "timesignal") {
-      timePips(ac);
       if (d.announce && d.text) {
-        setTimeout(function () { speak("Het is " + d.text); }, 2600);
+        speakThenPips("Bij de derde toon is het " + d.text);
+      } else {
+        timePips(ac);
       }
       return;
     }

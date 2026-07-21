@@ -105,6 +105,8 @@ func (s *Server) handleWidgetEdit(w http.ResponseWriter, r *http.Request) {
 		wgt.ID, wgt.Name, typeName,
 		s.fieldVMs(r.Context(), wgt.Type, cfg),
 		cfg["hide_title"] == "1",
+		pick(cfg["title_size"], "small", "medium", "large"),
+		pick(cfg["title_align"], "left", "center", "right"),
 		len(typ.AcceptsSources) > 0,
 		s.widgetSourceVMs(r.Context(), wgt.ID),
 		s.availableSourcesFor(r.Context(), typ),
@@ -139,6 +141,9 @@ func (s *Server) handleWidgetUpdate(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("hide_title") != "" {
 		cfg["hide_title"] = "1" // generic flag, not part of any type's schema
 	}
+	// Generic per-widget title presentation (also not part of any type schema).
+	cfg["title_size"] = r.FormValue("title_size")
+	cfg["title_align"] = r.FormValue("title_align")
 	js, _ := json.Marshal(cfg)
 	if err := s.store.UpdateWidget(r.Context(), dbgen.UpdateWidgetParams{
 		Name: name, ConfigJson: string(js), ID: id,

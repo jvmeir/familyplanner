@@ -34,7 +34,7 @@ templ WidgetsPage(types []WidgetTypeVM, initialFields []FieldVM, widgets []Widge
 }
 
 // WidgetEditPage edits an existing widget (type fixed; config fields prefilled).
-templ WidgetEditPage(id int64, name string, typeName string, fields []FieldVM, hideTitle bool, acceptsSources bool, linked []WidgetSourceVM, available []DataSourceVM) {
+templ WidgetEditPage(id int64, name string, typeName string, fields []FieldVM, hideTitle bool, titleSize string, titleAlign string, acceptsSources bool, linked []WidgetSourceVM, available []DataSourceVM) {
 	@AdminPage("widgets") {
 		<h1>{ name }</h1>
 		<form class="card form" method="post" action={ templ.SafeURL("/admin/widgets/" + fmt.Sprint(id)) }>
@@ -48,6 +48,22 @@ templ WidgetEditPage(id int64, name string, typeName string, fields []FieldVM, h
 			<label class="check">
 				<input type="checkbox" name="hide_title" checked?={ hideTitle }/>
 				{ i18n.T(ctx, "widget.hide_title") }
+			</label>
+			<label>
+				{ i18n.T(ctx, "widget.title_size") }
+				<select name="title_size">
+					<option value="small" selected?={ titleSize == "small" }>{ i18n.T(ctx, "widget.title_size.small") }</option>
+					<option value="medium" selected?={ titleSize == "medium" }>{ i18n.T(ctx, "widget.title_size.medium") }</option>
+					<option value="large" selected?={ titleSize == "large" }>{ i18n.T(ctx, "widget.title_size.large") }</option>
+				</select>
+			</label>
+			<label>
+				{ i18n.T(ctx, "widget.title_align") }
+				<select name="title_align">
+					<option value="left" selected?={ titleAlign == "left" }>{ i18n.T(ctx, "widget.title_align.left") }</option>
+					<option value="center" selected?={ titleAlign == "center" }>{ i18n.T(ctx, "widget.title_align.center") }</option>
+					<option value="right" selected?={ titleAlign == "right" }>{ i18n.T(ctx, "widget.title_align.right") }</option>
+				</select>
 			</label>
 			<div class="btn-row">
 				<button type="submit">{ i18n.T(ctx, "admin.save") }</button>

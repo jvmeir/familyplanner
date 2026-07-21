@@ -663,7 +663,9 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 	// uniformly, unless the generic per-widget "hide title" flag (config_json
 	// hide_title) is set. Full-bleed media (web page / photo) has no title bar.
 	var meta struct {
-		HideTitle string `json:"hide_title"`
+		HideTitle  string `json:"hide_title"`
+		TitleSize  string `json:"title_size"`
+		TitleAlign string `json:"title_align"`
 	}
 	_ = json.Unmarshal([]byte(wgt.ConfigJson), &meta)
 	switch {
@@ -675,7 +677,19 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 	default:
 		vm.Title = wgt.Name
 	}
+	vm.TitleSize = pick(meta.TitleSize, "small", "medium", "large")  // default small
+	vm.TitleAlign = pick(meta.TitleAlign, "left", "center", "right") // default left
 	return vm
+}
+
+// pick returns v if it's one of the allowed values, else the first (default).
+func pick(v string, allowed ...string) string {
+	for _, a := range allowed {
+		if v == a {
+			return v
+		}
+	}
+	return allowed[0]
 }
 
 // bgRefresh fetches a widget's data in the background (detached context),

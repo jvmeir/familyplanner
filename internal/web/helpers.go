@@ -42,6 +42,8 @@ func colorOrDefault(c string) string {
 type CellVM struct {
 	Kind          string
 	Title         string
+	TitleSize     string // small | medium | large (title font scale)
+	TitleAlign    string // left | center | right
 	Big           string
 	Sub           string
 	Body          string          // paragraph text (e.g. a quote)

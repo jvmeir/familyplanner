@@ -3,6 +3,7 @@ package widget
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -12,14 +13,16 @@ type TodoData struct {
 }
 
 type todoProvider struct {
-	sources []SourceInput
-	scope   string // "" / "all" = all open tasks; "today_overdue" = due today or earlier
-	now     NowFunc
+	sources   []SourceInput
+	scope     string // "" / "all" = all open tasks; "today_overdue" = due today or earlier
+	hideNoDue bool   // drop tasks that have no due date
+	now       NowFunc
 }
 
 func newTodo(raw json.RawMessage, sources []SourceInput, now NowFunc) (Provider, error) {
 	var cfg struct {
-		Scope string `json:"scope"`
+		Scope     string `json:"scope"`
+		HideNoDue string `json:"hide_no_due"`
 	}
 	if len(raw) > 0 {
 		_ = json.Unmarshal(raw, &cfg)
@@ -27,7 +30,24 @@ func newTodo(raw json.RawMessage, sources []SourceInput, now NowFunc) (Provider,
 	if now == nil {
 		now = time.Now
 	}
-	return todoProvider{sources: sources, scope: cfg.Scope, now: now}, nil
+	return todoProvider{sources: sources, scope: cfg.Scope, hideNoDue: cfg.HideNoDue == "yes", now: now}, nil
+}
+
+// todoDueLabel renders a task's due date as a short Dutch status: "te laat"
+// (overdue), "vandaag" (today), or a short date; "" when there is no due date.
+func todoDueLabel(due, now time.Time) string {
+	if due.IsZero() {
+		return ""
+	}
+	today, dd := dateOf(now), dateOf(due)
+	switch {
+	case dd.Before(today):
+		return "te laat"
+	case dd.Equal(today):
+		return "vandaag"
+	default:
+		return fmt.Sprintf("%s %d %s", nlWeekday[due.Weekday()], due.Day(), nlMonthShort[int(due.Month())-1])
+	}
 }
 
 func decodeTodo(raw json.RawMessage) (Data, error) {
@@ -81,13 +101,21 @@ func (p todoProvider) Fetch(ctx context.Context) (Data, time.Duration, error) {
 			continue
 		}
 		for _, t := range tasks {
+			if p.hideNoDue && t.Due.IsZero() {
+				continue // caller only wants dated tasks
+			}
 			if p.scope == "today_overdue" {
 				// Only tasks with a due date at/before end of today.
 				if t.Due.IsZero() || t.Due.After(endOfToday) {
 					continue
 				}
 			}
-			items = append(items, t.Title)
+			// Suffix a short due label ("· vandaag" / "· te laat" / "· di 22 jul").
+			if label := todoDueLabel(t.Due, now); label != "" {
+				items = append(items, t.Title+" · "+label)
+			} else {
+				items = append(items, t.Title)
+			}
 		}
 		ok++
 	}

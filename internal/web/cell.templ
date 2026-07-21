@@ -20,9 +20,9 @@ templ widgetCell(c CellVM) {
 			<img class="w-photo" src={ templ.SafeURL(c.ImageURL) } alt=""/>
 		</div>
 	} else {
-		<div class="widget">
+		<div class={ "widget", "kind-" + c.Kind }>
 			if c.Title != "" {
-				<div class="w-title">{ c.Title }</div>
+				<div class={ "w-title", "tsize-" + c.TitleSize, "talign-" + c.TitleAlign }>{ c.Title }</div>
 			}
 			if c.CountdownTo > 0 {
 				<div class="w-big countdown-live" data-target={ fmt.Sprint(c.CountdownTo) }>{ c.Big }</div>

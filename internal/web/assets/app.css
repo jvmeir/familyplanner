@@ -224,7 +224,24 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 /* Widget text is sized relative to its own cell (container query units) so it
    fits in multi-widget layouts without clipping, times the admin scale slider.
    (.widget sets container-type: size.) */
-.w-title { color: var(--text-muted); font-weight: 600; font-size: calc(6.5cqmin * var(--kiosk-scale, 1)); }
+/* Widget title = a compact corner header (not a giant centered heading), so a
+   single full-screen widget doesn't get an oversized title. Absolutely placed
+   so it never pushes the centered content; size + alignment are configurable. */
+.w-title {
+  position: absolute;
+  top: 0.5em;
+  left: 0.8em;
+  right: 0.8em;
+  z-index: 1;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-align: left;
+  font-size: clamp(0.7rem, calc(3.2cqmin * var(--kiosk-scale, 1)), 1.4rem);
+}
+.w-title.tsize-medium { font-size: clamp(0.9rem, calc(4.6cqmin * var(--kiosk-scale, 1)), 2.1rem); }
+.w-title.tsize-large { font-size: clamp(1.1rem, calc(6.5cqmin * var(--kiosk-scale, 1)), 3rem); }
+.w-title.talign-center { text-align: center; }
+.w-title.talign-right { text-align: right; }
 .w-big { font-weight: 800; line-height: 1; color: var(--accent); font-size: calc(20cqmin * var(--kiosk-scale, 1)); }
 /* The live dhms countdown ("5d 03:12:45") is a long string, not a single big
    number — size it to fit the cell width and keep the digits monospaced. */
@@ -240,8 +257,17 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
   text-overflow: ellipsis;
 }
 /* agenda-style widgets read better top-aligned */
-.kind-calendar .widget { justify-content: flex-start; align-items: stretch; }
-.kind-calendar .w-title { text-align: left; }
+.kind-calendar .widget, .widget.kind-calendar { justify-content: flex-start; align-items: stretch; }
+/* The calendar keeps its title in normal flow (above the grid) so the absolute
+   corner-title default doesn't overlap the month/week table. */
+.kind-calendar .w-title {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  text-align: left;
+  margin-bottom: 0.2em;
+}
 
 /* month grid */
 .w-month { width: 100%; height: 100%; display: flex; flex-direction: column; }
