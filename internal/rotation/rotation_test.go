@@ -39,7 +39,20 @@ func TestGoto(t *testing.T) {
 	s := rotation.NewState(items())
 	require.True(t, s.Goto(30))
 	require.Equal(t, int64(30), curID(t, s))
-	require.False(t, s.Goto(999))
+	// A view not in the playlist (e.g. a parked view from "all views") is shown
+	// as an override; Next clears it and resumes the playlist.
+	require.True(t, s.Goto(999))
+	require.Equal(t, int64(999), curID(t, s))
+	s.Next()
+	require.NotEqual(t, int64(999), curID(t, s))
+}
+
+func TestSetItemsPicksUpEdits(t *testing.T) {
+	s := rotation.NewState(items())
+	s.SetItems([]rotation.Item{{ViewID: 77}})
+	require.Equal(t, int64(77), curID(t, s))
+	require.True(t, s.Goto(77))
+	require.Equal(t, int64(77), curID(t, s))
 }
 
 func TestPause(t *testing.T) {

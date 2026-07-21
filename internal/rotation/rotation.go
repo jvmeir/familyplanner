@@ -20,19 +20,36 @@ type Item struct {
 // State is the playback cursor over a playlist. All methods are safe for
 // concurrent use (the SSE loop reads while a control request mutates).
 type State struct {
-	mu     sync.Mutex
-	items  []Item
-	index  int
-	paused bool
+	mu       sync.Mutex
+	items    []Item
+	index    int
+	paused   bool
+	override int64 // a view to show that isn't in the playlist (goto to a parked view); 0 = none
 }
 
 // NewState creates playback state for the given (ordered) items.
 func NewState(items []Item) *State { return &State{items: items} }
 
-// Current returns the item at the cursor (false if the playlist is empty).
+// SetItems replaces the playlist items (e.g. after the playlist was edited),
+// keeping the cursor in range. Called periodically by the live stream so edits
+// are picked up without reconnecting.
+func (s *State) SetItems(items []Item) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.items = items
+	if s.index >= len(items) {
+		s.index = 0
+	}
+}
+
+// Current returns the item to show: an explicit goto override if set, else the
+// item at the cursor (false only if there's nothing to show at all).
 func (s *State) Current() (Item, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.override != 0 {
+		return Item{ViewID: s.override}, true
+	}
 	if len(s.items) == 0 {
 		return Item{}, false
 	}
@@ -42,35 +59,41 @@ func (s *State) Current() (Item, bool) {
 	return s.items[s.index], true
 }
 
-// Next advances the cursor (wrapping).
+// Next advances the cursor (wrapping), clearing any goto override.
 func (s *State) Next() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.override = 0
 	if len(s.items) > 0 {
 		s.index = (s.index + 1) % len(s.items)
 	}
 }
 
-// Prev moves the cursor back (wrapping).
+// Prev moves the cursor back (wrapping), clearing any goto override.
 func (s *State) Prev() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.override = 0
 	if len(s.items) > 0 {
 		s.index = (s.index - 1 + len(s.items)) % len(s.items)
 	}
 }
 
-// Goto jumps to the item with viewID. Returns false if it isn't in the playlist.
+// Goto jumps to viewID. If it's in the playlist the cursor moves there;
+// otherwise (a parked view from "all views") it's shown as an override. Always
+// succeeds.
 func (s *State) Goto(viewID int64) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, it := range s.items {
 		if it.ViewID == viewID {
 			s.index = i
+			s.override = 0
 			return true
 		}
 	}
-	return false
+	s.override = viewID
+	return true
 }
 
 // SetPaused sets the paused flag.

@@ -453,6 +453,7 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 			}
 			reset(advance, dwell())
 		case <-refresh.C: // periodic in-view data refresh (e.g. the clock) + scale sync
+			state.SetItems(s.deviceItems(r.Context(), dev)) // pick up playlist edits live
 			if !send("refresh", "tick") {
 				return
 			}
