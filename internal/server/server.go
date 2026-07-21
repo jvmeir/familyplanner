@@ -442,6 +442,7 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 			"scale":      s.kioskScale(r.Context()),
 			"tickerSecs": s.tickerSpeed(r.Context()),
 			"dateFmt":    s.bannerDate(r.Context()),
+			"transition": s.kioskTransition(r.Context()),
 		})
 		return send("config", string(b))
 	}

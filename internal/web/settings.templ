@@ -20,6 +20,7 @@ type SettingsVM struct {
 	TickerWidgetID int64        // selected ticker widget (0 = none)
 	TickerSpeed    string       // seconds per ticker scroll loop
 	BannerDate     string       // none | short | long
+	Transition     bool         // slide animation on screen change
 	Themes         []ThemeOptVM // available themes
 	Theme          string       // selected global theme id
 	Saved          bool
@@ -123,6 +124,10 @@ templ SettingsPage(vm SettingsVM) {
 					<option value="short" selected?={ vm.BannerDate == "short" }>{ i18n.T(ctx, "settings.date.short") }</option>
 					<option value="none" selected?={ vm.BannerDate == "none" }>{ i18n.T(ctx, "settings.date.none") }</option>
 				</select>
+			</label>
+			<label class="check">
+				<input type="checkbox" name="transition" checked?={ vm.Transition }/>
+				{ i18n.T(ctx, "settings.transition") }
 			</label>
 			<label>
 				{ i18n.T(ctx, "settings.theme") }

@@ -52,6 +52,12 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 	if v := r.FormValue("banner_date"); v != "" {
 		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "banner_date", Value: v})
 	}
+	// Slide transition when rotating to a new screen (checkbox; default on).
+	transition := "0"
+	if r.FormValue("transition") != "" {
+		transition = "1"
+	}
+	_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "kiosk_transition", Value: transition})
 	s.render(w, r, web.SettingsPage(s.settingsVM(r.Context(), true)))
 }
 
@@ -82,6 +88,7 @@ func (s *Server) settingsVM(ctx context.Context, saved bool) web.SettingsVM {
 		TickerWidgetID: tickerID,
 		TickerSpeed:    strconv.Itoa(s.tickerSpeed(ctx)),
 		BannerDate:     s.bannerDate(ctx),
+		Transition:     s.kioskTransition(ctx),
 		Themes:         s.themeOpts(),
 		Theme:          s.defaultTheme(ctx),
 		Saved:          saved,
@@ -115,6 +122,13 @@ func (s *Server) bannerDate(ctx context.Context) string {
 	default:
 		return "long"
 	}
+}
+
+// kioskTransition reports whether the slide animation plays on screen changes
+// (default on; only "0" disables it).
+func (s *Server) kioskTransition(ctx context.Context) bool {
+	v, err := s.store.GetSetting(ctx, "kiosk_transition")
+	return err != nil || v != "0"
 }
 
 // kioskScale is the kiosk UI scale multiplier (default 1.0, clamped 0.5–2.0).

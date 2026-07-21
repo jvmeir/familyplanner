@@ -54,6 +54,7 @@
 
   // ---- SSE: follow the server's current view ----
   let currentViewID = stage.dataset.viewId || null;
+  let transitionOn = true; // slide animation on screen change (toggled via config)
   updateViewLabel(currentViewID);
 
   async function loadView(id, animate) {
@@ -64,7 +65,7 @@
         stage.innerHTML = await r.text();
         // Slide the new view in on a real navigation (not the periodic refresh),
         // so data ticks don't cause a distracting re-animation every 30s.
-        if (animate) {
+        if (animate && transitionOn) {
           const v = stage.querySelector(".view");
           if (v) v.classList.add("kslide");
         }
@@ -159,6 +160,7 @@
     if (c.scale) document.documentElement.style.setProperty("--kiosk-scale", c.scale);
     if (c.tickerSecs) document.documentElement.style.setProperty("--kticker-secs", c.tickerSecs + "s");
     if (c.dateFmt) { dateFmt = c.dateFmt; fmtDate = new Intl.DateTimeFormat("nl-BE", dateOpts(dateFmt)); tick(); }
+    if ("transition" in c) transitionOn = !!c.transition;
   });
 
   // ---- controls (also reachable from a phone remote later) ----

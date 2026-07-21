@@ -51,6 +51,7 @@
   "settings.sound.timesignal": "Tijdsein (3 tonen, sprekende klok)",
   "settings.sound.westminster": "Westminster (Big Ben)",
   "settings.test": "Test",
+  "settings.transition": "Schuifovergang bij wisselen van scherm",
   "settings.ticker": "Nieuwsbalk (scrollende balk)",
   "settings.ticker_help": "Kies een Nieuwsbalk-widget (met RSS- en/of tekstlijst-bronnen) om onderaan te laten scrollen.",
   "settings.ticker_widget": "Nieuwsbalk-widget",
