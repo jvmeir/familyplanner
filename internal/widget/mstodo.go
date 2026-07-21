@@ -2,7 +2,6 @@ package widget
 
 import (
 	"context"
-	"net/url"
 	"time"
 )
 
@@ -31,13 +30,15 @@ func GraphListTodoLists(ctx context.Context, token string) ([]ResourceOption, er
 }
 
 // GraphTodoTasks returns the open (not completed) tasks in a To Do list, with
-// their due dates so callers can filter by "today / overdue".
+// their due dates so callers can filter by "today / overdue". We fetch plainly
+// (no $select/$filter — that combination can 400 on the todoTask endpoint) and
+// drop completed tasks client-side.
 func GraphTodoTasks(ctx context.Context, token, listID string) ([]TodoTask, error) {
-	u := graphBase + "/me/todo/lists/" + listID + "/tasks?$top=100" +
-		"&$select=title,dueDateTime,status&$filter=" + url.QueryEscape("status ne 'completed'")
+	u := graphBase + "/me/todo/lists/" + listID + "/tasks?$top=100"
 	var body struct {
 		Value []struct {
 			Title       string `json:"title"`
+			Status      string `json:"status"`
 			DueDateTime *struct {
 				DateTime string `json:"dateTime"`
 				TimeZone string `json:"timeZone"`
@@ -49,6 +50,9 @@ func GraphTodoTasks(ctx context.Context, token, listID string) ([]TodoTask, erro
 	}
 	out := make([]TodoTask, 0, len(body.Value))
 	for _, t := range body.Value {
+		if t.Status == "completed" {
+			continue
+		}
 		task := TodoTask{Title: t.Title}
 		if t.DueDateTime != nil && t.DueDateTime.DateTime != "" {
 			// Graph returns e.g. "2026-07-21T00:00:00.0000000"; parse leniently.
