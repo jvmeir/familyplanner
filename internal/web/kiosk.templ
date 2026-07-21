@@ -49,6 +49,20 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker [
 			</span>
 		</footer>
 		<div class="kprogress"><div class="kprogress-fill" id="kprogress"></div></div>
+		<div id="kshortcuts" class="kshortcuts" hidden>
+			<div class="kshortcuts-card">
+				<h2>{ i18n.T(ctx, "kiosk.shortcuts") }</h2>
+				<ul>
+					<li><kbd>←</kbd> / <kbd>→</kbd> — { i18n.T(ctx, "kiosk.sc.prevnext") }</li>
+					<li><kbd>↑</kbd> — { i18n.T(ctx, "kiosk.sc.pause") }</li>
+					<li><kbd>↓</kbd> — { i18n.T(ctx, "kiosk.sc.mute") }</li>
+					<li><kbd>⇧</kbd>+<kbd>←</kbd> / <kbd>→</kbd> — { i18n.T(ctx, "kiosk.sc.pipnav") }</li>
+					<li><kbd>⇧</kbd>+<kbd>↑</kbd> — { i18n.T(ctx, "kiosk.sc.pippause") }</li>
+					<li><kbd>⇧</kbd>+<kbd>↓</kbd> — { i18n.T(ctx, "kiosk.sc.piptoggle") }</li>
+					<li><kbd>i</kbd> — { i18n.T(ctx, "kiosk.sc.help") }</li>
+				</ul>
+			</div>
+		</div>
 		<script src="/static/kiosk.js"></script>
 		<script src="/static/voiceclock.js"></script>
 		<script src="/static/yt.js"></script>

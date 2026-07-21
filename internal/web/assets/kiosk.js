@@ -200,8 +200,28 @@
 
   // Keyboard remote (e.g. a presentation clicker or a keyboard on the kiosk):
   // ←/→ previous/next screen, ↑ pause/resume, ↓ mute/unmute the voice clock.
+  // Plain arrows drive the playlist / voice clock; Shift+arrows drive the corner
+  // PiP video. Shift+arrow is only text-selection in a browser (nothing on a
+  // kiosk) and isn't an OS global shortcut, so there's no clash.
   var kbPaused = false;
   document.addEventListener("keydown", function (e) {
+    if (e.key === "i" || e.key === "I") {
+      var sc = document.getElementById("kshortcuts");
+      if (sc) sc.hidden = !sc.hidden;
+      e.preventDefault();
+      return;
+    }
+    if (e.shiftKey) {
+      switch (e.key) {
+        case "ArrowUp": if (window.fpPip) fpPip.playPause(); break;   // pause/resume PiP
+        case "ArrowDown": if (window.fpPip) fpPip.toggle(); break;     // show/hide PiP
+        case "ArrowRight": if (window.fpPip) fpPip.next(); break;      // next PiP video
+        case "ArrowLeft": if (window.fpPip) fpPip.prev(); break;       // previous PiP video
+        default: return;
+      }
+      e.preventDefault();
+      return;
+    }
     switch (e.key) {
       case "ArrowLeft": fpCtl("prev"); break;
       case "ArrowRight": fpCtl("next"); break;
