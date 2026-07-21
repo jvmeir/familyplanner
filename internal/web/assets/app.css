@@ -253,6 +253,18 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 .w-title.talign-center { text-align: center; }
 .w-title.talign-right { text-align: right; }
 .w-big { font-weight: 800; line-height: 1; color: var(--accent); font-size: calc(20cqmin * var(--kiosk-scale, 1)); }
+.w-icon { font-weight: 400; margin-right: 0.15em; }
+/* Weather forecast strip: one column per day (label / icon / hi-lo). */
+.w-forecast { display: flex; gap: 2cqmin; justify-content: center; align-items: flex-start; flex-wrap: wrap; margin-top: 2cqmin; width: 100%; }
+.w-fc-day { display: flex; flex-direction: column; align-items: center; gap: 0.3cqmin; min-width: 12cqmin; }
+.w-fc-label { font-size: calc(3.2cqmin * var(--kiosk-scale, 1)); font-weight: 700; text-transform: capitalize; color: var(--text-muted); }
+.w-fc-icon { font-size: calc(6cqmin * var(--kiosk-scale, 1)); line-height: 1; }
+.w-fc-temp { font-size: calc(3.4cqmin * var(--kiosk-scale, 1)); white-space: nowrap; }
+.w-fc-temp b { color: var(--accent); }
+/* Inline per-item interval editor on the playlist detail row. */
+.pl-item-dwell { display: inline-flex; align-items: center; gap: 0.25rem; }
+.pl-item-dwell input { width: 4.5rem; }
+.pl-dwell-unit { color: var(--text-muted); }
 /* The live dhms countdown ("5d 03:12:45") is a long string, not a single big
    number — size it to fit the cell width and keep the digits monospaced. */
 .w-big.countdown-live { font-size: calc(8cqmin * var(--kiosk-scale, 1)); white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: .02em; }

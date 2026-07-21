@@ -36,10 +36,26 @@ templ widgetCell(c CellVM) {
 			if c.CountdownTo > 0 {
 				<div class="w-big countdown-live" data-target={ fmt.Sprint(c.CountdownTo) }>{ c.Big }</div>
 			} else if c.Big != "" {
-				<div class="w-big">{ c.Big }</div>
+				<div class="w-big">
+					if c.Icon != "" {
+						<span class="w-icon">{ c.Icon }</span>
+					}
+					{ c.Big }
+				</div>
 			}
 			if c.Sub != "" {
 				<div class="w-sub">{ c.Sub }</div>
+			}
+			if len(c.Forecast) > 0 {
+				<div class="w-forecast">
+					for _, day := range c.Forecast {
+						<div class="w-fc-day">
+							<span class="w-fc-label">{ day.Label }</span>
+							<span class="w-fc-icon">{ day.Icon }</span>
+							<span class="w-fc-temp"><b>{ day.Hi }</b> { day.Lo }</span>
+						</div>
+					}
+				</div>
 			}
 			if c.Body != "" {
 				<p class="w-body">{ c.Body }</p>

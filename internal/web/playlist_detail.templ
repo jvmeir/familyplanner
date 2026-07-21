@@ -101,13 +101,20 @@ templ PlaylistItems(d PlaylistDetailVM) {
 			for i, it := range d.Items {
 				<div class="row">
 					<span class="row-name">{ it.ViewName }</span>
-					<span class="row-type">
-						if it.Dwell == 0 {
-							{ i18n.T(ctx, "admin.none") }
-						} else {
-							{ fmt.Sprint(it.Dwell) }s
-						}
-					</span>
+					<label class="pl-item-dwell" title={ i18n.T(ctx, "playlist.item_dwell_hint") }>
+						<input
+							type="number"
+							name="dwell"
+							value={ fmt.Sprint(it.Dwell) }
+							min="0"
+							hx-post={ "/admin/playlists/items/" + fmt.Sprint(it.ID) + "/dwell" }
+							hx-target="#pl-items"
+							hx-swap="outerHTML"
+							hx-trigger="change"
+							aria-label={ i18n.T(ctx, "playlist.item_dwell") }
+						/>
+						<span class="pl-dwell-unit">s</span>
+					</label>
 					<button class="btn ghost" hx-post={ "/admin/playlists/items/" + fmt.Sprint(it.ID) + "/move?dir=up" } hx-target="#pl-items" hx-swap="outerHTML" disabled?={ i == 0 }>↑</button>
 					<button class="btn ghost" hx-post={ "/admin/playlists/items/" + fmt.Sprint(it.ID) + "/move?dir=down" } hx-target="#pl-items" hx-swap="outerHTML" disabled?={ i == len(d.Items)-1 }>↓</button>
 					<button class="btn ghost" hx-delete={ "/admin/playlists/items/" + fmt.Sprint(it.ID) } hx-target="#pl-items" hx-swap="outerHTML">×</button>

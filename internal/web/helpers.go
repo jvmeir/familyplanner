@@ -90,6 +90,8 @@ type CellVM struct {
 	TitleAlign    string // left | center | right
 	Big           string
 	Sub           string
+	Icon          string          // leading glyph/emoji for Big+Sub (e.g. weather)
+	Forecast      []ForecastDayVM // weather: per-day strip (label, icon, hi/lo)
 	Body          string          // paragraph text (e.g. a quote)
 	Lines         []string        // plain list rows (e.g. shopping, to-do)
 	Agenda        []EvVM          // calendar agenda rows (colour-coded)
@@ -104,6 +106,14 @@ type CellVM struct {
 	CountdownTo   int64           // >0: render a live dhms countdown to this Unix time
 	Stale         bool
 	Style         templ.SafeCSS
+}
+
+// ForecastDayVM is one day in the weather widget's forecast strip.
+type ForecastDayVM struct {
+	Label string // "Vandaag" or short weekday
+	Icon  string // condition emoji
+	Hi    string // high, e.g. "24°"
+	Lo    string // low, e.g. "13°"
 }
 
 // EvVM is one rendered calendar line; Color is the source's colour ("" = none).
@@ -460,7 +470,20 @@ func init() {
 
 	RegisterFormatter("weather", func(_ context.Context, data any) CellVM {
 		d, _ := data.(widget.WeatherData)
-		return CellVM{Big: strconv.FormatFloat(d.TempC, 'f', 0, 64) + "°", Sub: wmoNL(d.Code)}
+		vm := CellVM{
+			Big:  strconv.FormatFloat(d.TempC, 'f', 0, 64) + "°",
+			Sub:  wmoNL(d.Code),
+			Icon: wmoIcon(d.Code),
+		}
+		for _, day := range d.Days {
+			vm.Forecast = append(vm.Forecast, ForecastDayVM{
+				Label: day.Label,
+				Icon:  wmoIcon(day.Code),
+				Hi:    strconv.FormatFloat(day.Max, 'f', 0, 64) + "°",
+				Lo:    strconv.FormatFloat(day.Min, 'f', 0, 64) + "°",
+			})
+		}
+		return vm
 	})
 
 	RegisterFormatter("video", func(_ context.Context, data any) CellVM {
@@ -499,6 +522,32 @@ func init() {
 		}
 		return CellVM{ImageURL: d.URLs[idx]}
 	})
+}
+
+// wmoIcon maps WMO weather codes to a condition emoji.
+func wmoIcon(code int) string {
+	switch {
+	case code == 0:
+		return "☀️"
+	case code <= 2:
+		return "🌤️"
+	case code == 3:
+		return "☁️"
+	case code >= 45 && code <= 48:
+		return "🌫️"
+	case code >= 51 && code <= 67:
+		return "🌧️"
+	case code >= 71 && code <= 77:
+		return "❄️"
+	case code >= 80 && code <= 82:
+		return "🌦️"
+	case code >= 85 && code <= 86:
+		return "🌨️"
+	case code >= 95:
+		return "⛈️"
+	default:
+		return ""
+	}
 }
 
 // wmoNL maps WMO weather codes to short Dutch descriptions.

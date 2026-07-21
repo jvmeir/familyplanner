@@ -164,6 +164,7 @@ func (s *Server) routes() http.Handler {
 			r.Post("/admin/playlists/{id}/items", s.handlePlaylistAddItem)
 			r.Delete("/admin/playlists/items/{itemID}", s.handlePlaylistItemDelete)
 			r.Post("/admin/playlists/items/{itemID}/move", s.handlePlaylistItemMove)
+			r.Post("/admin/playlists/items/{itemID}/dwell", s.handlePlaylistItemDwell)
 
 			r.Get("/admin/settings", s.handleSettings)
 			r.Post("/admin/settings", s.handleSettingsSave)
@@ -1018,7 +1019,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, c templ.Componen
 // cacheSchemaVersion identifies the shape of the JSON stored in widget_cache.
 // Bump it whenever a widget's cached Data struct changes incompatibly so stale
 // rows from an older build are dropped (and re-fetched) instead of mis-decoded.
-const cacheSchemaVersion = "4" // v4: agenda look-back to week start, look-ahead rolls from today
+const cacheSchemaVersion = "5" // v5: weather forecast (hi/lo + N-day) data shape
 
 // invalidateStaleCache clears widget_cache when the running build's cache schema
 // differs from what produced the stored rows.

@@ -172,8 +172,10 @@ func RegisterDefaults(r *Registry) {
 		NewProvider: newWeather,
 		Decode:      decodeWeather,
 		Schema: Schema{Fields: []Field{
+			{Name: "location", LabelKey: "widget.weather.field.location", Type: FieldText},
 			{Name: "lat", LabelKey: "widget.weather.field.lat", Type: FieldText},
 			{Name: "lon", LabelKey: "widget.weather.field.lon", Type: FieldText},
+			{Name: "days", LabelKey: "widget.weather.field.days", Type: FieldNumber},
 		}},
 	})
 	r.Register(Type{

@@ -179,6 +179,30 @@ func (s *Server) handlePlaylistItemMove(w http.ResponseWriter, r *http.Request) 
 	s.renderPlaylistItems(w, r, item.PlaylistID)
 }
 
+// handlePlaylistItemDwell updates one playlist item's per-view interval (0 = use
+// the playlist default). Only reachable once the item exists (it's edited from
+// the item row), which is exactly the "configurable after adding" behaviour.
+func (s *Server) handlePlaylistItemDwell(w http.ResponseWriter, r *http.Request) {
+	itemID, err := strconv.ParseInt(chi.URLParam(r, "itemID"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	item, err := s.store.GetPlaylistItem(r.Context(), itemID)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	dwell := parseIntDefault(r.FormValue("dwell"), 0)
+	if dwell < 0 {
+		dwell = 0
+	}
+	_ = s.store.UpdatePlaylistItemDwell(r.Context(), dbgen.UpdatePlaylistItemDwellParams{
+		DwellSeconds: int64(dwell), ID: itemID,
+	})
+	s.renderPlaylistItems(w, r, item.PlaylistID)
+}
+
 func (s *Server) renderPlaylistItems(w http.ResponseWriter, r *http.Request, playlistID int64) {
 	vm, ok := s.playlistDetailVM(r.Context(), playlistID)
 	if !ok {
