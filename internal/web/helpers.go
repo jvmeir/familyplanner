@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/a-h/templ"
@@ -43,6 +44,24 @@ func pipClass(corner, size string) string {
 		return "kpip kpip-dock kpip-dock-" + corner + " kpip-" + size
 	}
 	return "kpip kpip-" + corner + " kpip-" + size
+}
+
+// listIsHeader reports whether a shopping-list line is a category header.
+func listIsHeader(l string) bool {
+	return widget.ShoppingHeaderPrefix != "" && strings.HasPrefix(l, widget.ShoppingHeaderPrefix)
+}
+
+// listText strips the header marker from a line (a no-op for item lines).
+func listText(l string) string { return strings.TrimPrefix(l, widget.ShoppingHeaderPrefix) }
+
+// anyListHeader reports whether any line is a category header (grouped list).
+func anyListHeader(ls []string) bool {
+	for _, l := range ls {
+		if listIsHeader(l) {
+			return true
+		}
+	}
+	return false
 }
 
 // boolAttr renders a bool as "1"/"0" for a data attribute.

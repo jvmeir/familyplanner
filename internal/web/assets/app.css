@@ -266,6 +266,10 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
    its time + coloured accent instead. */
 .w-list li::before { content: "•"; color: var(--accent); margin-right: 0.5em; font-weight: 700; }
 .w-agenda li::before { content: none; margin: 0; }
+/* Grouped shopping list: category header (no bullet, bold) + indented items. */
+.w-list li.w-head { list-style: none; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--text-muted); margin-top: .35em; }
+.w-list li.w-head::before { content: none; margin: 0; }
+.w-list.grouped li.w-item { padding-left: 1.4em; }
 /* agenda-style widgets read better top-aligned */
 .kind-calendar .widget, .widget.kind-calendar { justify-content: flex-start; align-items: stretch; }
 /* The calendar keeps its title in normal flow (above the grid) so the absolute

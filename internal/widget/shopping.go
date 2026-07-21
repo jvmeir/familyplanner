@@ -6,7 +6,13 @@ import (
 	"time"
 )
 
-// ShoppingData is the normalized render data (a flat item list).
+// ShoppingHeaderPrefix marks a category-header line in a grouped shopping list
+// (an otherwise plain string item); the renderer shows it as a header and
+// indents the items beneath it.
+const ShoppingHeaderPrefix = ""
+
+// ShoppingData is the normalized render data (a flat item list; grouped lists
+// carry ShoppingHeaderPrefix-marked header lines between the groups).
 type ShoppingData struct {
 	Items []string `json:"items"`
 }

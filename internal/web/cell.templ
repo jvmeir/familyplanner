@@ -45,9 +45,13 @@ templ widgetCell(c CellVM) {
 				<p class="w-body">{ c.Body }</p>
 			}
 			if len(c.Lines) > 0 {
-				<ul class="w-list cell-scroll" style={ listVars(len(c.Lines)) }>
+				<ul class={ "w-list", "cell-scroll", templ.KV("grouped", anyListHeader(c.Lines)) } style={ listVars(len(c.Lines)) }>
 					for _, l := range c.Lines {
-						<li>{ l }</li>
+						if listIsHeader(l) {
+							<li class="w-head">{ listText(l) }</li>
+						} else {
+							<li class="w-item">{ l }</li>
+						}
 					}
 				</ul>
 			}

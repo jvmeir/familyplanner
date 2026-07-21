@@ -259,7 +259,7 @@ func bringItems(ctx context.Context, auth bringAuth, listUUID string, group bool
 	var out []string
 	emit := func(sec string) {
 		if its := groups[sec]; len(its) > 0 {
-			out = append(out, strings.ToUpper(sec))
+			out = append(out, ShoppingHeaderPrefix+strings.ToUpper(sec))
 			out = append(out, its...)
 			delete(groups, sec)
 		}
