@@ -418,22 +418,28 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 		return true
 	}
+	// displayDwell is the configured dwell (never the on_end safety cap); it's what
+	// the client sees, drives the progress bar, and uses as the on_end fallback.
+	displayDwell := func() time.Duration {
+		if it, ok := state.Current(); ok && it.Dwell > 0 {
+			return it.Dwell
+		}
+		return 30 * time.Second
+	}
 	dwell := func() time.Duration {
 		it, ok := state.Current()
 		if !ok {
 			return 30 * time.Second
 		}
 		// "Advance on end" screens with an end-capable widget (video) suspend the
-		// timer — the client advances when the video finishes. A generous safety
-		// cap still advances if the player never reports ENDED (e.g. it errored).
+		// server timer — the CLIENT advances (on video-end, or after the display
+		// dwell when the rendered widget isn't a video, e.g. random-single). A
+		// generous safety cap still advances if the client never reports back.
 		if v, err := s.store.GetView(r.Context(), it.ViewID); err == nil &&
 			v.AdvanceMode == "on_end" && s.viewHasEndWidget(r.Context(), v) {
 			return 30 * time.Minute
 		}
-		if it.Dwell > 0 {
-			return it.Dwell
-		}
-		return 30 * time.Second
+		return displayDwell()
 	}
 	sendCurrent := func() bool {
 		it, ok := state.Current()
@@ -445,7 +451,7 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 		}
 		secs := 0 // 0 = paused / no countdown
 		if !state.Paused() {
-			secs = int(dwell().Seconds())
+			secs = int(displayDwell().Seconds())
 		}
 		return send("dwell", strconv.Itoa(secs))
 	}
@@ -569,7 +575,10 @@ func (s *Server) voiceClockConfig(ctx context.Context) voiceclock.Config {
 // renderViewComponent renders a view's body: the recursive layout tree if the
 // view has one, otherwise the legacy fixed grid.
 func (s *Server) renderViewComponent(ctx context.Context, view dbgen.View) templ.Component {
-	onEnd := view.AdvanceMode == "on_end" // client advances when end-widgets finish
+	// The client owns advancement only when the server actually suspends its timer
+	// (on_end AND the view has a video). Then the client advances on video-end, or
+	// after the dwell when the rendered widget isn't a video (random-single).
+	onEnd := view.AdvanceMode == "on_end" && s.viewHasEndWidget(ctx, view)
 	// Random-single mode: show one of the screen's widgets, chosen at random each
 	// time it's rendered; the grid/split layout is ignored.
 	if view.RenderMode == "random_single" {

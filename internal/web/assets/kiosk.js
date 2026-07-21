@@ -55,6 +55,7 @@
   // ---- SSE: follow the server's current view ----
   let currentViewID = stage.dataset.viewId || null;
   let transitionOn = true; // slide animation on screen change (toggled via config)
+  let lastDwellSecs = 30;  // most recent dwell (for the on_end no-video fallback)
   updateViewLabel(currentViewID);
 
   async function loadView(id, animate) {
@@ -71,9 +72,25 @@
         }
         setupCellScroll();
         if (window.fpSetupVideos) window.fpSetupVideos();
+        scheduleEndFallback();
       }
     } catch (e) {
       // keep last-good content on any error
+    }
+  }
+
+  // On an "advance-on-end" screen the server suspends its timer, so the client
+  // must advance. Videos advance on their ENDED event (yt.js); if the rendered
+  // widget isn't a video (e.g. a random-single screen showed a calendar), fall
+  // back to advancing after the normal dwell so rotation never gets stuck.
+  var endFallback = null;
+  function scheduleEndFallback() {
+    if (endFallback) { clearTimeout(endFallback); endFallback = null; }
+    const v = stage.querySelector(".view");
+    const onEnd = !!(v && v.dataset.advanceOnEnd === "1");
+    if (onEnd && !stage.querySelector(".w-yt")) {
+      const secs = lastDwellSecs > 0 ? lastDwellSecs : 30;
+      endFallback = setTimeout(function () { if (window.fpCtl) fpCtl("next"); }, secs * 1000);
     }
   }
 
@@ -97,6 +114,7 @@
     });
   }
   setupCellScroll();
+  scheduleEndFallback(); // cover the initial (inline-rendered) screen
 
   const es = new EventSource("/kiosk/stream");
   window.fpES = es; // shared so voiceclock.js can listen for "chime" without a 2nd stream
@@ -147,8 +165,9 @@
   // navigate; drive the full-width progress bar under the bar.
   var progEl = document.getElementById("kprogress");
   es.addEventListener("dwell", function (e) {
-    if (!progEl) return;
     var secs = parseInt(e.data, 10) || 0;
+    lastDwellSecs = secs;
+    if (!progEl) return;
     progEl.style.transition = "none";
     progEl.style.width = "0%";
     void progEl.offsetWidth; // reflow so the reset applies before animating
@@ -177,4 +196,18 @@
     if (!id) return;
     fetch("/kiosk/control/goto?view=" + encodeURIComponent(id), { method: "POST" }).catch(function () {});
   };
+
+  // Keyboard remote (e.g. a presentation clicker or a keyboard on the kiosk):
+  // ←/→ previous/next screen, ↑ pause/resume, ↓ mute/unmute the voice clock.
+  var kbPaused = false;
+  document.addEventListener("keydown", function (e) {
+    switch (e.key) {
+      case "ArrowLeft": fpCtl("prev"); break;
+      case "ArrowRight": fpCtl("next"); break;
+      case "ArrowUp": kbPaused = !kbPaused; fpCtl(kbPaused ? "pause" : "resume"); break;
+      case "ArrowDown": if (window.fpSnooze) fpSnooze(); break;
+      default: return;
+    }
+    e.preventDefault();
+  });
 })();
