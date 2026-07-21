@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"strings"
@@ -62,9 +63,15 @@ func (p tickerProvider) Fetch(ctx context.Context) (Data, time.Duration, error) 
 			}
 			_ = json.Unmarshal(s.Config, &c)
 			if c.URL != "" {
-				if titles, err := fetchRSS(ctx, c.URL); err == nil {
-					items = append(items, titles...)
+				titles, err := fetchRSS(ctx, c.URL)
+				if err != nil {
+					// Don't let one bad feed kill the ticker; log so a wrong URL
+					// (e.g. one returning HTML, not RSS) is diagnosable.
+					slog.Warn("ticker: RSS feed failed", "url", c.URL, "err", err)
+				} else if len(titles) == 0 {
+					slog.Warn("ticker: RSS feed returned no items (not a valid feed?)", "url", c.URL)
 				}
+				items = append(items, titles...)
 			}
 		}
 	}
@@ -98,6 +105,9 @@ func fetchRSS(ctx context.Context, rawURL string) ([]string, error) {
 		Items []struct {
 			Title string `xml:"title"`
 		} `xml:"channel>item"`
+		RDFItems []struct {
+			Title string `xml:"title"`
+		} `xml:"item"` // RSS 1.0 / RDF: <item> is a top-level element, not under <channel>
 		Entries []struct {
 			Title string `xml:"title"`
 		} `xml:"entry"`
@@ -110,6 +120,11 @@ func fetchRSS(ctx context.Context, rawURL string) ([]string, error) {
 	}
 	var out []string
 	for _, it := range feed.Items {
+		if t := strings.TrimSpace(it.Title); t != "" {
+			out = append(out, t)
+		}
+	}
+	for _, it := range feed.RDFItems {
 		if t := strings.TrimSpace(it.Title); t != "" {
 			out = append(out, t)
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -149,7 +150,11 @@ func (s *Server) listResources(ctx context.Context, ds dbgen.DataSource) ([]widg
 		if err != nil {
 			return nil, err
 		}
-		if albums, aerr := widget.GraphListAlbums(ctx, tok); aerr == nil {
+		if albums, aerr := widget.GraphListAlbums(ctx, tok); aerr != nil {
+			// Albums (bundles) are a personal-OneDrive feature; OneDrive for
+			// Business returns an error here. Log it so "no albums" is diagnosable.
+			slog.Warn("onedrive: list albums failed (likely OneDrive for Business, which has no albums)", "source", ds.ID, "err", aerr)
+		} else {
 			for _, a := range albums {
 				opts = append(opts, widget.ResourceOption{ID: a.ID, Name: "📷 " + a.Name})
 			}
