@@ -12,6 +12,9 @@ services:
       FP_ADMIN_PASSPHRASE: changeme
       FP_TIMEZONE: Europe/Brussels
       FP_LOCALE: nl
+      # Tailnet HTTPS URL (tailscale serve terminates TLS on this name -> :8080).
+      # Drives absolute links + the OAuth redirect URI.
+      FP_BASE_URL: https://planner.tail8bbe4.ts.net
     volumes:
       # VM path (dev VM), not a Windows path. SQLite + cached files live here.
       - /root/familyplanner/data:/data
