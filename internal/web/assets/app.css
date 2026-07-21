@@ -252,13 +252,22 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
   vertical-align: top;
   padding: 3px 5px;
   overflow: hidden;
+  position: relative; /* anchor the fill-the-cell events area */
 }
 .wm-day.out { opacity: .35; }
 .wm-day.today { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .wm-num { display: block; font-size: calc(2.6cqmin * var(--kiosk-scale, 1)); font-weight: 700; }
-/* Per-day events area: clipped and auto-scrolled by kiosk.js when it overflows,
-   so a busy day shows every event without shrinking the text. */
-.wm-events { display: block; overflow: hidden; max-height: calc(13cqmin * var(--kiosk-scale, 1)); }
+/* Per-day events area fills the whole square below the day number; clipped and
+   auto-scrolled by kiosk.js when it overflows, so a busy day shows every event
+   (using the full cell height) without shrinking the text. */
+.wm-events {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: calc(3.4cqmin * var(--kiosk-scale, 1) + 6px);
+  bottom: 4px;
+  overflow: hidden;
+}
 .wm-ev { display: block; font-size: calc(2.3cqmin * var(--kiosk-scale, 1)); line-height: 1.2; white-space: normal; overflow-wrap: anywhere; color: var(--accent); margin-bottom: 2px; }
 .wm-more { font-size: calc(2cqmin * var(--kiosk-scale, 1)); color: var(--text-muted); }
 /* Hide scrollbars on any auto-scrolled cell (movement is driven by JS). */

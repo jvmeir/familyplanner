@@ -11,12 +11,10 @@ type SettingsVM struct {
 	VoiceEnabled   bool
 	QuietStart     string // "HH:MM"
 	QuietEnd       string
-	QuarterSound   string // sound at :15/:30/:45
+	QuarterSound   string // sound at :15 and :45
+	HalfSound      string // sound at :30
 	HourSound      string // sound at :00
 	Announce       bool   // speak the time on the hour
-	ChimeAt15      bool   // chime on the :15 beat
-	ChimeAt30      bool   // chime on the :30 beat
-	ChimeAt45      bool   // chime on the :45 beat
 	KioskScale     string // UI scale multiplier, e.g. "1.00"
 	TickerWidgets  []ViewRef    // widgets of type "ticker" (id + name)
 	TickerWidgetID int64        // selected ticker widget (0 = none)
@@ -27,15 +25,9 @@ type SettingsVM struct {
 	Saved          bool
 }
 
-// soundOptions lists the selectable chime sounds (value + i18n key).
-var quarterSounds = []struct{ Val, Key string }{
-	{"none", "settings.sound.none"},
-	{"bingbong", "settings.sound.bingbong"},
-	{"gong", "settings.sound.gong"},
-	{"pips", "settings.sound.pips"},
-	{"westminster", "settings.sound.westminster"},
-}
-var hourSounds = []struct{ Val, Key string }{
+// chimeSounds lists every selectable chime sound (value + i18n key). Any beat
+// (hour / half / quarter) may use any of them; "none" silences that beat.
+var chimeSounds = []struct{ Val, Key string }{
 	{"none", "settings.sound.none"},
 	{"bingbong", "settings.sound.bingbong"},
 	{"gong", "settings.sound.gong"},
@@ -72,38 +64,31 @@ templ SettingsPage(vm SettingsVM) {
 				<label>
 					{ i18n.T(ctx, "settings.sound") }
 					<select name="quarter_sound">
-						for _, o := range quarterSounds {
+						for _, o := range chimeSounds {
 							<option value={ o.Val } selected?={ o.Val == vm.QuarterSound }>{ i18n.T(ctx, o.Key) }</option>
 						}
 					</select>
 				</label>
-				<div class="check-row">
-					<label class="check">
-						<input type="checkbox" name="chime_15" checked?={ vm.ChimeAt15 }/>
-						{ i18n.T(ctx, "settings.chime_15") }
-					</label>
-					<label class="check">
-						<input type="checkbox" name="chime_30" checked?={ vm.ChimeAt30 }/>
-						{ i18n.T(ctx, "settings.chime_30") }
-					</label>
-					<label class="check">
-						<input type="checkbox" name="chime_45" checked?={ vm.ChimeAt45 }/>
-						{ i18n.T(ctx, "settings.chime_45") }
-					</label>
-				</div>
-				<p class="muted">{ i18n.T(ctx, "settings.chime_gap_help") }</p>
-				<div class="btn-row">
-					<button type="button" class="btn ghost" onclick="fpTestQuarter(document.querySelector('[name=quarter_sound]').value,1)">:15</button>
-					<button type="button" class="btn ghost" onclick="fpTestQuarter(document.querySelector('[name=quarter_sound]').value,2)">:30</button>
-					<button type="button" class="btn ghost" onclick="fpTestQuarter(document.querySelector('[name=quarter_sound]').value,3)">:45</button>
-				</div>
+				<button type="button" class="btn ghost" onclick="fpTestQuarter(document.querySelector('[name=quarter_sound]').value,1)">{ i18n.T(ctx, "settings.test") }</button>
+			</fieldset>
+			<fieldset class="subsection">
+				<legend>{ i18n.T(ctx, "settings.half") }</legend>
+				<label>
+					{ i18n.T(ctx, "settings.sound") }
+					<select name="half_sound">
+						for _, o := range chimeSounds {
+							<option value={ o.Val } selected?={ o.Val == vm.HalfSound }>{ i18n.T(ctx, o.Key) }</option>
+						}
+					</select>
+				</label>
+				<button type="button" class="btn ghost" onclick="fpTestQuarter(document.querySelector('[name=half_sound]').value,2)">{ i18n.T(ctx, "settings.test") }</button>
 			</fieldset>
 			<fieldset class="subsection">
 				<legend>{ i18n.T(ctx, "settings.hour") }</legend>
 				<label>
 					{ i18n.T(ctx, "settings.sound") }
 					<select name="hour_sound">
-						for _, o := range hourSounds {
+						for _, o := range chimeSounds {
 							<option value={ o.Val } selected?={ o.Val == vm.HourSound }>{ i18n.T(ctx, o.Key) }</option>
 						}
 					</select>

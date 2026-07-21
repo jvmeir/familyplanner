@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/a-h/templ"
@@ -47,6 +48,9 @@ type Server struct {
 	now        func() time.Time
 	bootID     string // changes each server start; kiosks auto-reload when it changes
 	handler    http.Handler
+
+	refMu      sync.Mutex     // guards refreshing
+	refreshing map[int64]bool // widget IDs with an in-flight background refresh (de-dupe)
 }
 
 // New builds a Server: configures sessions, runs first-run bootstrap, wires routes.
@@ -441,6 +445,18 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 		})
 		return send("config", string(b))
 	}
+	// sendNames pushes the id->name map for ALL views so the banner can always
+	// label the current screen, even ones created after the kiosk connected.
+	sendNames := func() bool {
+		names := map[string]string{}
+		if all, err := s.store.ListViews(r.Context()); err == nil {
+			for _, v := range all {
+				names[strconv.FormatInt(v.ID, 10)] = v.Name
+			}
+		}
+		b, _ := json.Marshal(names)
+		return send("names", string(b))
+	}
 	reset := func(t *time.Timer, d time.Duration) {
 		if !t.Stop() {
 			select {
@@ -455,13 +471,18 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sendConfig()              // push scale + ticker speed + date format on connect
+	sendNames()               // push the view-name map (banner labels)
 	send("version", s.bootID) // kiosks reload when this changes (i.e. after a redeploy)
 	advance := time.NewTimer(dwell())
 	defer advance.Stop()
 	refresh := time.NewTicker(30 * time.Second)
 	defer refresh.Stop()
-	// Global voice clock: fire on each quarter-hour so every screen chimes in sync.
-	chime := time.NewTimer(voiceclock.UntilNextQuarter(s.now()))
+	// Global voice clock: fire on each quarter-hour so every screen chimes in
+	// sync. beat is the boundary the pending timer is aiming at; the timer fires
+	// slightly early when that beat's sound has a marking tone (speaking-clock
+	// pips) so the tone lands exactly on the boundary.
+	beat := voiceclock.NextBoundary(s.now())
+	chime := time.NewTimer(s.chimeDelay(r.Context(), s.now(), beat))
 	defer chime.Stop()
 
 	for {
@@ -479,6 +500,7 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			sendConfig()
+			sendNames() // keep banner labels current as screens are added/renamed
 		case <-advance.C: // dwell elapsed -> advance unless paused
 			if !state.Paused() {
 				state.Next()
@@ -488,16 +510,31 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 			}
 			reset(advance, dwell())
 		case <-chime.C: // quarter-hour voice-clock chime (gated by config + quiet hours)
-			if ch, ok := s.voiceClockConfig(r.Context()).Decide(s.now()); ok {
+			if ch, ok := s.voiceClockConfig(r.Context()).Decide(beat); ok {
 				if payload, err := json.Marshal(ch); err == nil {
 					if !send("chime", string(payload)) {
 						return
 					}
 				}
 			}
-			chime.Reset(voiceclock.UntilNextQuarter(s.now()))
+			beat = voiceclock.NextBoundary(beat) // the boundary strictly after this one
+			chime.Reset(s.chimeDelay(r.Context(), s.now(), beat))
 		}
 	}
+}
+
+// chimeDelay is how long to wait before firing the chime timer for the given
+// beat: the time until the beat, minus any lead so a speaking-clock marking tone
+// lands exactly on the beat. Never negative.
+func (s *Server) chimeDelay(ctx context.Context, now, beat time.Time) time.Duration {
+	d := beat.Sub(now)
+	if ch, ok := s.voiceClockConfig(ctx).Decide(beat); ok {
+		d -= voiceclock.MarkLead(ch.Sound)
+	}
+	if d < 0 {
+		d = 0
+	}
+	return d
 }
 
 // voiceClockConfig loads the global voice-clock setting (seeded default if unset).
@@ -592,17 +629,24 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 		return web.FormatCell(ctx, wgt.Type, nil, true, style)
 	}
 
-	// Lazy on-show refresh: pull the source (incl. API) when this widget is
-	// rendered onto a screen and its cache is missing or past its TTL. Bounded by
-	// each widget's TTL (expires_at), so a shown screen is fresh without hammering
-	// the source on every rotation tick.
+	// Lazy on-show refresh, done in the BACKGROUND so rendering never blocks on a
+	// slow/failing feed (a synchronous fetch here stalled the /kiosk/view fragment
+	// during rotation — the calendar "failed to load"). We render whatever is
+	// cached immediately; the background fetch makes the next tick fresh.
 	cache, err := s.store.GetWidgetCache(ctx, widgetID)
-	if err != nil || cacheExpired(cache.ExpiresAt, s.now()) {
-		s.brk.RefreshWidget(ctx, wgt)
-		cache, err = s.store.GetWidgetCache(ctx, widgetID)
-		if err != nil {
-			return web.FormatCell(ctx, wgt.Type, nil, true, style)
+	if err != nil {
+		// Never fetched yet: do a bounded synchronous fetch so the first paint
+		// isn't empty, but cap it (2s) so a slow feed can't stall rotation for
+		// long; if it doesn't finish, show a placeholder and keep trying in bg.
+		fctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		s.brk.RefreshWidget(fctx, wgt)
+		cancel()
+		if cache, err = s.store.GetWidgetCache(ctx, widgetID); err != nil {
+			s.bgRefresh(wgt)
+			return web.FormatCell(ctx, wgt.Type, nil, false, style)
 		}
+	} else if cacheExpired(cache.ExpiresAt, s.now()) {
+		s.bgRefresh(wgt) // stale: render current cache now, refresh for next time
 	}
 
 	var data any
@@ -615,8 +659,9 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 		}
 	}
 	vm := web.FormatCell(ctx, wgt.Type, data, stale, style)
-	// Generic per-widget "hide title" flag (saved in config_json as hide_title),
-	// available on every widget type to save vertical space on the kiosk.
+	// Standardized widget title: every widget shows its own name as the header,
+	// uniformly, unless the generic per-widget "hide title" flag (config_json
+	// hide_title) is set. Full-bleed media (web page / photo) has no title bar.
 	var meta struct {
 		HideTitle string `json:"hide_title"`
 	}
@@ -624,10 +669,37 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 	switch {
 	case meta.HideTitle == "1":
 		vm.Title = ""
-	case vm.Title == "" && vm.IframeURL == "" && vm.ImageURL == "":
-		vm.Title = wgt.Name // fall back to the widget's name (e.g. "Schoolagenda")
+	case vm.IframeURL != "" || vm.ImageURL != "":
+		// full-bleed media: no title bar
+		vm.Title = ""
+	default:
+		vm.Title = wgt.Name
 	}
 	return vm
+}
+
+// bgRefresh fetches a widget's data in the background (detached context),
+// de-duplicating concurrent refreshes of the same widget so a busy rotation
+// can't stampede a slow source.
+func (s *Server) bgRefresh(wgt dbgen.Widget) {
+	s.refMu.Lock()
+	if s.refreshing == nil {
+		s.refreshing = map[int64]bool{}
+	}
+	if s.refreshing[wgt.ID] {
+		s.refMu.Unlock()
+		return
+	}
+	s.refreshing[wgt.ID] = true
+	s.refMu.Unlock()
+	go func() {
+		defer func() {
+			s.refMu.Lock()
+			delete(s.refreshing, wgt.ID)
+			s.refMu.Unlock()
+		}()
+		s.brk.RefreshWidget(context.Background(), wgt)
+	}()
 }
 
 // cacheExpired reports whether a widget_cache expiry (SQLite UTC timestamp

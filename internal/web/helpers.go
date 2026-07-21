@@ -52,6 +52,7 @@ type CellVM struct {
 	ScheduleTable bool            // render Schedule as a table (days_table) vs list (days)
 	IframeURL     string          // embedded web page
 	ImageURL      string          // single photo
+	CountdownTo   int64           // >0: render a live dhms countdown to this Unix time
 	Stale         bool
 	Style         templ.SafeCSS
 }
@@ -339,6 +340,13 @@ func init() {
 	RegisterFormatter("countdown", func(ctx context.Context, data any) CellVM {
 		d, _ := data.(widget.CountdownData)
 		vm := CellVM{Title: d.Title}
+		// Live days/hours/minutes/seconds ticker (client-side): the template emits
+		// a data-target and kiosk.js updates it every second.
+		if d.Precision == "dhms" {
+			vm.CountdownTo = d.TargetUnix
+			vm.Big = strconv.Itoa(d.DaysLeft) // server-side fallback if JS is off
+			return vm
+		}
 		if d.Today {
 			vm.Big = i18n.T(ctx, "countdown.today")
 		} else {

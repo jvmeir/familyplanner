@@ -25,12 +25,9 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 		QuietStart:   r.FormValue("quiet_start"),
 		QuietEnd:     r.FormValue("quiet_end"),
 		QuarterSound: voiceclock.ValidQuarterSound(r.FormValue("quarter_sound")),
+		HalfSound:    voiceclock.ValidHalfSound(r.FormValue("half_sound")),
 		HourSound:    voiceclock.ValidHourSound(r.FormValue("hour_sound")),
 		Announce:     r.FormValue("announce") != "",
-		// Checkboxes are "chime at :15/:30/:45"; store the inverse (mute).
-		MuteAt15: r.FormValue("chime_15") == "",
-		MuteAt30: r.FormValue("chime_30") == "",
-		MuteAt45: r.FormValue("chime_45") == "",
 	}
 	if js, err := json.Marshal(cfg); err == nil {
 		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "voiceclock", Value: string(js)})
@@ -77,11 +74,9 @@ func (s *Server) settingsVM(ctx context.Context, saved bool) web.SettingsVM {
 		QuietStart:     cfg.QuietStart,
 		QuietEnd:       cfg.QuietEnd,
 		QuarterSound:   voiceclock.ValidQuarterSound(cfg.QuarterSound),
+		HalfSound:      voiceclock.ValidHalfSound(cfg.HalfSound),
 		HourSound:      voiceclock.ValidHourSound(cfg.HourSound),
 		Announce:       cfg.Announce,
-		ChimeAt15:      !cfg.MuteAt15,
-		ChimeAt30:      !cfg.MuteAt30,
-		ChimeAt45:      !cfg.MuteAt45,
 		KioskScale:     strconv.FormatFloat(s.kioskScale(ctx), 'f', 2, 64),
 		TickerWidgets:  tickers,
 		TickerWidgetID: tickerID,

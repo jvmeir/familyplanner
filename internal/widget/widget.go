@@ -126,8 +126,12 @@ func RegisterDefaults(r *Registry) {
 		NewProvider: newCountdown,
 		Decode:      decodeCountdown,
 		Schema: Schema{Fields: []Field{
-			{Name: "title", LabelKey: "widget.countdown.field.title", Type: FieldText, Required: true},
 			{Name: "date", LabelKey: "widget.countdown.field.date", Type: FieldDate, Required: true},
+			{Name: "time", LabelKey: "widget.countdown.field.time", Type: FieldText},
+			{Name: "precision", LabelKey: "widget.countdown.field.precision", Type: FieldSelect, Options: []Option{
+				{Value: "days", LabelKey: "widget.countdown.precision.days"},
+				{Value: "dhms", LabelKey: "widget.countdown.precision.dhms"},
+			}},
 		}},
 	})
 	r.Register(Type{

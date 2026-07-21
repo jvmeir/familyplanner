@@ -60,7 +60,17 @@ func (p todoProvider) Fetch(ctx context.Context) (Data, time.Duration, error) {
 		if s.Resource != "" {
 			listID = s.Resource
 		}
-		if sec.AccessToken == "" || listID == "" {
+		if sec.AccessToken == "" {
+			continue
+		}
+		// No list picked: fall back to the account's default To Do list so a
+		// freshly-linked widget still shows tasks without extra configuration.
+		if listID == "" {
+			if lists, err := GraphListTodoLists(ctx, sec.AccessToken); err == nil && len(lists) > 0 {
+				listID = lists[0].ID
+			}
+		}
+		if listID == "" {
 			continue
 		}
 		tasks, err := GraphTodoTasks(ctx, sec.AccessToken, listID)

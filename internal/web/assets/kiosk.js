@@ -22,9 +22,27 @@
     const now = new Date();
     if (dateEl) dateEl.textContent = dateFmt === "none" ? "" : fmtDate.format(now);
     if (timeEl) timeEl.textContent = fmtTime.format(now);
+    tickCountdowns();
   }
   tick();
   setInterval(tick, 1000);
+
+  // Live "days, hours, minutes, seconds" countdown widgets (Precision=dhms).
+  function tickCountdowns() {
+    document.querySelectorAll(".countdown-live[data-target]").forEach(function (el) {
+      const t = parseInt(el.dataset.target, 10);
+      if (!isNaN(t)) el.textContent = fmtCountdown(t);
+    });
+  }
+  function fmtCountdown(target) {
+    let s = target - Math.floor(Date.now() / 1000);
+    if (s < 0) s = 0;
+    const d = Math.floor(s / 86400); s %= 86400;
+    const h = Math.floor(s / 3600); s %= 3600;
+    const m = Math.floor(s / 60), sec = s % 60;
+    const p = (n) => (n < 10 ? "0" : "") + n;
+    return d + "d " + p(h) + ":" + p(m) + ":" + p(sec);
+  }
 
   // ---- footer view label (name looked up from the id->name map) ----
   const viewEl = document.getElementById("kview");
@@ -90,6 +108,11 @@
   es.addEventListener("refresh", function () {
     loadView(currentViewID, false);
     loadTicker();
+  });
+  // Fresh id->name map (covers screens added/renamed after page load).
+  es.addEventListener("names", function (e) {
+    try { viewNames = JSON.parse(e.data); } catch (_) {}
+    updateViewLabel(currentViewID);
   });
 
   // The ticker lives in the persistent bar (not swapped with the view), so

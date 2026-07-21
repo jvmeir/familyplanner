@@ -61,13 +61,37 @@ func TestDecideNoneSounds(t *testing.T) {
 
 func TestValidSoundsAndDefaults(t *testing.T) {
 	require.Equal(t, SoundBingBong, ValidQuarterSound(""))
-	require.Equal(t, SoundBingBong, ValidQuarterSound("timesignal")) // not allowed for quarters
+	require.Equal(t, SoundTimeSignal, ValidQuarterSound("timesignal")) // any sound allowed per beat now
 	require.Equal(t, SoundWestminster, ValidQuarterSound(SoundWestminster))
+	require.Equal(t, SoundBingBong, ValidHalfSound(""))
 	require.Equal(t, SoundTimeSignal, ValidHourSound(""))
 	require.Equal(t, SoundTimeSignal, ValidHourSound("bogus"))
 	require.Equal(t, SoundGong, ValidHourSound(SoundGong))
 	require.Equal(t, SoundBingBong, Default().QuarterSound)
+	require.Equal(t, SoundBingBong, Default().HalfSound)
 	require.Equal(t, SoundTimeSignal, Default().HourSound)
+}
+
+func TestDecideHalfHourUsesHalfSound(t *testing.T) {
+	cfg := Config{Enabled: true, QuarterSound: SoundBingBong, HalfSound: SoundGong, HourSound: SoundTimeSignal}
+	ch, ok := cfg.Decide(at(15, 30))
+	require.True(t, ok)
+	require.Equal(t, SoundGong, ch.Sound) // :30 uses the dedicated half-hour sound
+	require.Equal(t, 2, ch.Quarter)
+	// A half-hour sound of "none" silences only :30.
+	cfg.HalfSound = SoundNone
+	_, ok = cfg.Decide(at(15, 30))
+	require.False(t, ok)
+	_, ok = cfg.Decide(at(15, 15)) // quarters still chime
+	require.True(t, ok)
+}
+
+func TestNextBoundaryAndMarkLead(t *testing.T) {
+	require.Equal(t, at(15, 15), NextBoundary(at(15, 10)))
+	require.Equal(t, at(15, 15), NextBoundary(at(15, 0))) // strictly after
+	require.Equal(t, at(16, 0), NextBoundary(at(15, 45))) // rolls to next hour
+	require.Equal(t, 2*time.Second, MarkLead(SoundTimeSignal))
+	require.Equal(t, time.Duration(0), MarkLead(SoundBingBong))
 }
 
 func TestDecideDisabled(t *testing.T) {

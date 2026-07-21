@@ -24,7 +24,9 @@ templ widgetCell(c CellVM) {
 			if c.Title != "" {
 				<div class="w-title">{ c.Title }</div>
 			}
-			if c.Big != "" {
+			if c.CountdownTo > 0 {
+				<div class="w-big countdown-live" data-target={ fmt.Sprint(c.CountdownTo) }>{ c.Big }</div>
+			} else if c.Big != "" {
 				<div class="w-big">{ c.Big }</div>
 			}
 			if c.Sub != "" {

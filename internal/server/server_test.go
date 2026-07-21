@@ -117,5 +117,5 @@ func TestLoginThenAdminThenKiosk(t *testing.T) {
 	body, _ = io.ReadAll(resp.Body)
 	resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Contains(t, string(body), "Kerstmis")
+	require.Contains(t, string(body), "Kerst") // title is standardized to the widget name
 }

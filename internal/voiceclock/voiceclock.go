@@ -19,8 +19,11 @@ const (
 	SoundWestminster = "westminster" // Big Ben quarter chimes (public domain)
 )
 
-func validSound(s, def string, allowed ...string) string {
-	for _, a := range allowed {
+// allSounds is every selectable sound (any beat may use any of them).
+var allSounds = []string{SoundNone, SoundBingBong, SoundGong, SoundPips, SoundTimeSignal, SoundWestminster}
+
+func validSound(s, def string) string {
+	for _, a := range allSounds {
 		if s == a {
 			return s
 		}
@@ -28,51 +31,47 @@ func validSound(s, def string, allowed ...string) string {
 	return def
 }
 
-// ValidQuarterSound normalises the :15/:30/:45 sound (default bing-bong).
-func ValidQuarterSound(s string) string {
-	return validSound(s, SoundBingBong, SoundNone, SoundBingBong, SoundGong, SoundPips, SoundWestminster)
-}
+// ValidQuarterSound normalises the :15/:45 sound (default bing-bong).
+func ValidQuarterSound(s string) string { return validSound(s, SoundBingBong) }
+
+// ValidHalfSound normalises the :30 sound (default bing-bong).
+func ValidHalfSound(s string) string { return validSound(s, SoundBingBong) }
 
 // ValidHourSound normalises the :00 sound (default time-signal).
-func ValidHourSound(s string) string {
-	return validSound(s, SoundTimeSignal, SoundNone, SoundBingBong, SoundGong, SoundPips, SoundTimeSignal, SoundWestminster)
-}
+func ValidHourSound(s string) string { return validSound(s, SoundTimeSignal) }
 
-// Config is the (JSON-persisted) voice-clock setting. The quarter (:15/:30/:45)
-// and the hour (:00) each have their own sound; the hour may also speak the time.
+// Config is the (JSON-persisted) voice-clock setting. Each beat type has its own
+// sound (set to "none" to silence it): the hour (:00), the half hour (:30) and
+// the quarters (:15/:45). The hour may additionally read the time aloud.
 type Config struct {
 	Enabled      bool   `json:"enabled"`
 	QuietStart   string `json:"quietStart"`   // "HH:MM", inclusive
 	QuietEnd     string `json:"quietEnd"`     // "HH:MM", exclusive (wraps past midnight)
-	QuarterSound string `json:"quarterSound"` // sound at :15/:30/:45
+	QuarterSound string `json:"quarterSound"` // sound at :15 and :45
+	HalfSound    string `json:"halfSound"`    // sound at :30
 	HourSound    string `json:"hourSound"`    // sound at :00
 	Announce     bool   `json:"announce"`     // speak the Dutch time on the hour
-	// Per-quarter mutes. Stored inverted (false = chime plays) so configs saved
-	// before this option keep chiming on every quarter.
-	MuteAt15 bool `json:"muteAt15"`
-	MuteAt30 bool `json:"muteAt30"`
-	MuteAt45 bool `json:"muteAt45"`
-}
-
-// quarterMuted reports whether the quarter beat q (1=:15, 2=:30, 3=:45) is muted.
-func (c Config) quarterMuted(q int) bool {
-	switch q {
-	case 1:
-		return c.MuteAt15
-	case 2:
-		return c.MuteAt30
-	case 3:
-		return c.MuteAt45
-	}
-	return false
 }
 
 // Default is the seeded configuration: on, silent overnight; bing-bong on the
-// quarters, time-signal + spoken time on the hour (the speaking-clock feel).
+// quarters + half hour, time-signal + spoken time on the hour.
 func Default() Config {
 	return Config{
 		Enabled: true, QuietStart: "22:00", QuietEnd: "07:00",
-		QuarterSound: SoundBingBong, HourSound: SoundTimeSignal, Announce: true,
+		QuarterSound: SoundBingBong, HalfSound: SoundBingBong, HourSound: SoundTimeSignal, Announce: true,
+	}
+}
+
+// soundForQuarter returns the configured sound for beat q (0=:00, 1=:15, 2=:30,
+// 3=:45), normalised.
+func (c Config) soundForQuarter(q int) string {
+	switch q {
+	case 0:
+		return ValidHourSound(c.HourSound)
+	case 2:
+		return ValidHalfSound(c.HalfSound)
+	default:
+		return ValidQuarterSound(c.QuarterSound)
 	}
 }
 
@@ -93,15 +92,14 @@ func (c Config) Decide(t time.Time) (Chime, bool) {
 		return Chime{}, false
 	}
 	q := (t.Minute() / 15) % 4
-	if q != 0 { // quarter past/half/quarter to
-		sound := ValidQuarterSound(c.QuarterSound)
-		if sound == SoundNone || c.quarterMuted(q) {
+	sound := c.soundForQuarter(q)
+	if q != 0 { // quarter past / half / quarter to
+		if sound == SoundNone {
 			return Chime{}, false
 		}
 		return Chime{Sound: sound, Quarter: q, Hour: t.Hour()}, true
 	}
-	// top of the hour
-	sound := ValidHourSound(c.HourSound)
+	// top of the hour: sound and/or spoken readout
 	if sound == SoundNone && !c.Announce {
 		return Chime{}, false
 	}
@@ -110,6 +108,27 @@ func (c Config) Decide(t time.Time) (Chime, bool) {
 		ch.Text = DutchHour(t.Hour())
 	}
 	return ch, true
+}
+
+// NextBoundary returns the next quarter-hour wall-clock instant strictly after
+// now (:00/:15/:30/:45, seconds zeroed).
+func NextBoundary(now time.Time) time.Time {
+	q := now.Minute() / 15
+	b := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), q*15, 0, 0, now.Location())
+	if !b.After(now) {
+		b = b.Add(15 * time.Minute)
+	}
+	return b
+}
+
+// MarkLead is how far BEFORE a beat a chime should start so its time-marking
+// tone lands exactly on the beat. Only the speaking-clock time signal has such a
+// tone (its long third pip, ~2s in); every other sound plays on the beat.
+func MarkLead(sound string) time.Duration {
+	if sound == SoundTimeSignal {
+		return 2 * time.Second
+	}
+	return 0
 }
 
 // InQuiet reports whether t's wall-clock time falls in the quiet window. A start
