@@ -411,19 +411,30 @@ func buildSchedule(now time.Time, all []calEvent, cfg CalendarConfig) []Schedule
 func buildAgenda(now time.Time, all []calEvent, cfg CalendarConfig) []CalendarEvent {
 	before := atoiDefault(cfg.WeeksBefore, 0)
 	ahead := atoiDefault(cfg.WeeksAhead, 4)
-	from := now.AddDate(0, 0, -before*7)
-	until := now.AddDate(0, 0, ahead*7)
+	if ahead < 1 {
+		ahead = 1
+	}
+	// Show whole calendar weeks anchored to the START of the current week
+	// (Monday), not a rolling window from "now" — so the entire configured period
+	// is shown (including earlier days this week and today's all-day items, whose
+	// timestamp is midnight) with today highlighted, rather than stopping at now.
+	loc := now.Location()
+	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	offset := (int(startOfToday.Weekday()) + 6) % 7 // Mon=0 … Sun=6
+	weekStart := startOfToday.AddDate(0, 0, -offset)
+	from := weekStart.AddDate(0, 0, -before*7)
+	until := weekStart.AddDate(0, 0, ahead*7) // exclusive; `ahead` whole weeks from Monday
 
 	var evs []calEvent
 	for _, e := range all {
-		if e.t.Before(from) || e.t.After(until) {
+		if e.t.Before(from) || !e.t.Before(until) {
 			continue
 		}
 		evs = append(evs, e)
 	}
 	sort.Slice(evs, func(i, j int) bool { return evs[i].t.Before(evs[j].t) })
-	if len(evs) > 10 {
-		evs = evs[:10]
+	if len(evs) > 30 {
+		evs = evs[:30]
 	}
 	out := make([]CalendarEvent, 0, len(evs))
 	for _, e := range evs {
