@@ -4,6 +4,10 @@
   const stage = document.getElementById("stage");
   if (!stage) return;
 
+  // Mark the document as a kiosk so the CSS auto-scaling applies reliably
+  // (independent of :has() support in the kiosk browser).
+  document.documentElement.classList.add("kiosk");
+
   // ---- static header clock (independent of the server / rotation) ----
   const dateEl = document.getElementById("kdate");
   const timeEl = document.getElementById("ktime");

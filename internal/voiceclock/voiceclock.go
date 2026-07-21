@@ -11,18 +11,19 @@ import (
 
 // Chime styles (open / public-domain sounds synthesised in the browser).
 const (
-	StyleWestminster = "westminster" // Big Ben quarter chimes (public domain)
-	StyleGong        = "gong"        // generic airport/PA "bing-bong"
-	StylePips        = "pips"        // time-signal beeps
+	StyleSpeakingClock = "sprekende_klok" // bing-bong on quarters; "bij de derde toon…" + 3 pips on the hour
+	StyleWestminster   = "westminster"    // Big Ben quarter chimes (public domain)
+	StyleGong          = "gong"           // generic airport/PA "bing-bong"
+	StylePips          = "pips"           // time-signal beeps
 )
 
-// ValidStyle normalises an unknown/empty style to the default (westminster).
+// ValidStyle normalises an unknown/empty style to the default.
 func ValidStyle(s string) string {
 	switch s {
-	case StyleWestminster, StyleGong, StylePips:
+	case StyleSpeakingClock, StyleWestminster, StyleGong, StylePips:
 		return s
 	default:
-		return StyleWestminster
+		return StyleSpeakingClock
 	}
 }
 
@@ -34,9 +35,9 @@ type Config struct {
 	ChimeStyle string `json:"chimeStyle"` // westminster | gong | pips
 }
 
-// Default is the seeded configuration: on, silent overnight, Westminster chime.
+// Default is the seeded configuration: on, silent overnight, speaking-clock chime.
 func Default() Config {
-	return Config{Enabled: true, QuietStart: "22:00", QuietEnd: "07:00", ChimeStyle: StyleWestminster}
+	return Config{Enabled: true, QuietStart: "22:00", QuietEnd: "07:00", ChimeStyle: StyleSpeakingClock}
 }
 
 // Chime is the payload sent to the browser on a quarter-hour. The browser

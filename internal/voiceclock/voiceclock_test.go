@@ -40,13 +40,15 @@ func TestDecideAnnounceOnHour(t *testing.T) {
 }
 
 func TestDecideStyleDefaultsAndValidates(t *testing.T) {
-	require.Equal(t, StyleWestminster, ValidStyle(""))
-	require.Equal(t, StyleWestminster, ValidStyle("bogus"))
+	require.Equal(t, StyleSpeakingClock, ValidStyle(""))
+	require.Equal(t, StyleSpeakingClock, ValidStyle("bogus"))
 	require.Equal(t, StyleGong, ValidStyle(StyleGong))
-	// empty config style -> westminster in the payload.
+	require.Equal(t, StyleWestminster, ValidStyle(StyleWestminster))
+	// empty config style -> default (sprekende klok) in the payload.
 	ch, ok := Config{Enabled: true}.Decide(at(15, 0))
 	require.True(t, ok)
-	require.Equal(t, StyleWestminster, ch.Style)
+	require.Equal(t, StyleSpeakingClock, ch.Style)
+	require.Equal(t, StyleSpeakingClock, Default().ChimeStyle)
 }
 
 func TestDecideDisabled(t *testing.T) {
