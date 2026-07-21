@@ -168,7 +168,12 @@ func (s *Server) listResources(ctx context.Context, ds dbgen.DataSource) ([]widg
 		if err != nil {
 			return nil, err
 		}
-		return widget.GraphListTodoLists(ctx, tok)
+		lists, err := widget.GraphListTodoLists(ctx, tok)
+		if err != nil {
+			return nil, err
+		}
+		// Offer aggregating across every list (stored per widget↔source link).
+		return append([]widget.ResourceOption{{ID: widget.TodoAllLists, Name: "★ Alle lijsten"}}, lists...), nil
 	case "bring_lists":
 		if ds.SecretCiphertext == "" {
 			return nil, errors.New("no credentials")

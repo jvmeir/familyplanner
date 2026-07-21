@@ -5,10 +5,48 @@ import (
 	"time"
 )
 
+// TodoAllLists is the sentinel resource id meaning "every To Do list" (rather
+// than one specific list), selectable on ms_todo sources.
+const TodoAllLists = "__all__"
+
 // TodoTask is one open Microsoft To Do task with its due date (zero if none).
 type TodoTask struct {
 	Title string
 	Due   time.Time
+}
+
+// GraphTodoTasksAllLists returns open tasks across every To Do list.
+func GraphTodoTasksAllLists(ctx context.Context, token string) ([]TodoTask, error) {
+	lists, err := GraphListTodoLists(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	var out []TodoTask
+	for _, l := range lists {
+		ts, err := GraphTodoTasks(ctx, token, l.ID)
+		if err != nil {
+			continue
+		}
+		out = append(out, ts...)
+	}
+	return out, nil
+}
+
+// todoTasksFor resolves a list id (specific, "" = default list, or TodoAllLists)
+// to its open tasks.
+func todoTasksFor(ctx context.Context, token, listID string) ([]TodoTask, error) {
+	switch listID {
+	case TodoAllLists:
+		return GraphTodoTasksAllLists(ctx, token)
+	case "":
+		lists, err := GraphListTodoLists(ctx, token)
+		if err != nil || len(lists) == 0 {
+			return nil, err
+		}
+		return GraphTodoTasks(ctx, token, lists[0].ID)
+	default:
+		return GraphTodoTasks(ctx, token, listID)
+	}
 }
 
 // GraphListTodoLists lists the user's Microsoft To Do lists (for the picker).

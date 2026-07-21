@@ -210,10 +210,6 @@ func RegisterDefaults(r *Registry) {
 				{Value: "no", LabelKey: "widget.todolist.hide_no_due.no"},
 				{Value: "yes", LabelKey: "widget.todolist.hide_no_due.yes"},
 			}},
-			{Name: "all_lists", LabelKey: "widget.todolist.field.all_lists", Type: FieldSelect, Options: []Option{
-				{Value: "no", LabelKey: "widget.todolist.all_lists.no"},
-				{Value: "yes", LabelKey: "widget.todolist.all_lists.yes"},
-			}},
 		}},
 	})
 	r.Register(Type{

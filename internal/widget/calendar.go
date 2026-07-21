@@ -256,16 +256,8 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 	// Microsoft To Do sources: a task with a due date becomes an all-day event on
 	// that date (tasks without a due date are not shown on a calendar).
 	for _, td := range todos {
-		listID := td.listID
-		if listID == "" {
-			if lists, err := GraphListTodoLists(ctx, td.token); err == nil && len(lists) > 0 {
-				listID = lists[0].ID
-			}
-		}
-		if listID == "" {
-			continue
-		}
-		tasks, err := GraphTodoTasks(ctx, td.token, listID)
+		// listID may be a specific list, "" (default list) or TodoAllLists.
+		tasks, err := todoTasksFor(ctx, td.token, td.listID)
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err
