@@ -406,7 +406,7 @@ func widgetCell(c CellVM) templ.Component {
 				}
 			}
 			if len(c.Schedule) > 0 && c.ScheduleTable {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<table class=\"w-schedtable\"><tbody>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<div class=\"w-schedwrap cell-scroll\"><table class=\"w-schedtable\"><tbody>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -436,7 +436,7 @@ func widgetCell(c CellVM) templ.Component {
 					var templ_7745c5c3_Var27 string
 					templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(d.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 70, Col: 21}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 71, Col: 22}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 					if templ_7745c5c3_Err != nil {
@@ -460,7 +460,7 @@ func widgetCell(c CellVM) templ.Component {
 							var templ_7745c5c3_Var28 string
 							templ_7745c5c3_Var28, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(evStyle(ev.Color))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 76, Col: 59}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 77, Col: 60}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 							if templ_7745c5c3_Err != nil {
@@ -473,7 +473,7 @@ func widgetCell(c CellVM) templ.Component {
 							var templ_7745c5c3_Var29 string
 							templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(ev.Text)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 76, Col: 71}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 77, Col: 72}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 							if templ_7745c5c3_Err != nil {
@@ -490,7 +490,7 @@ func widgetCell(c CellVM) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</tbody></table>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</tbody></table></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -526,7 +526,7 @@ func widgetCell(c CellVM) templ.Component {
 					var templ_7745c5c3_Var32 string
 					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(d.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 89, Col: 42}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 91, Col: 42}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 					if templ_7745c5c3_Err != nil {
@@ -554,7 +554,7 @@ func widgetCell(c CellVM) templ.Component {
 							var templ_7745c5c3_Var33 string
 							templ_7745c5c3_Var33, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(evStyle(ev.Color))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 95, Col: 58}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 97, Col: 58}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 							if templ_7745c5c3_Err != nil {
@@ -567,7 +567,7 @@ func widgetCell(c CellVM) templ.Component {
 							var templ_7745c5c3_Var34 string
 							templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(ev.Text)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 95, Col: 70}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 97, Col: 70}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 							if templ_7745c5c3_Err != nil {
@@ -601,7 +601,7 @@ func widgetCell(c CellVM) templ.Component {
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(c.Month.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 105, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 107, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -619,7 +619,7 @@ func widgetCell(c CellVM) templ.Component {
 					var templ_7745c5c3_Var36 string
 					templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(wd)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 110, Col: 17}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 112, Col: 17}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 					if templ_7745c5c3_Err != nil {
@@ -665,7 +665,7 @@ func widgetCell(c CellVM) templ.Component {
 						var templ_7745c5c3_Var39 string
 						templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(day.Day))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 119, Col: 53}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 121, Col: 53}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 						if templ_7745c5c3_Err != nil {
@@ -683,7 +683,7 @@ func widgetCell(c CellVM) templ.Component {
 							var templ_7745c5c3_Var40 string
 							templ_7745c5c3_Var40, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(evStyle(ev.Color))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 122, Col: 58}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 124, Col: 58}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 							if templ_7745c5c3_Err != nil {
@@ -696,7 +696,7 @@ func widgetCell(c CellVM) templ.Component {
 							var templ_7745c5c3_Var41 string
 							templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(ev.Text)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 122, Col: 70}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 124, Col: 70}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 							if templ_7745c5c3_Err != nil {
@@ -730,7 +730,7 @@ func widgetCell(c CellVM) templ.Component {
 				var templ_7745c5c3_Var42 string
 				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "widget.stale"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 134, Col: 59}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/cell.templ`, Line: 136, Col: 59}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 				if templ_7745c5c3_Err != nil {

@@ -63,24 +63,26 @@ templ widgetCell(c CellVM) {
 				</ul>
 			}
 			if len(c.Schedule) > 0 && c.ScheduleTable {
-				<table class="w-schedtable">
-					<tbody>
-						for _, d := range c.Schedule {
-							<tr class={ templ.KV("today", d.Today) }>
-								<th>{ d.Label }</th>
-								<td>
-									if len(d.Events) == 0 {
-										<span class="sched-empty">—</span>
-									} else {
-										for _, ev := range d.Events {
-											<span class="sched-ev" style={ evStyle(ev.Color) }>{ ev.Text }</span>
+				<div class="w-schedwrap cell-scroll">
+					<table class="w-schedtable">
+						<tbody>
+							for _, d := range c.Schedule {
+								<tr class={ templ.KV("today", d.Today) }>
+									<th>{ d.Label }</th>
+									<td>
+										if len(d.Events) == 0 {
+											<span class="sched-empty">—</span>
+										} else {
+											for _, ev := range d.Events {
+												<span class="sched-ev" style={ evStyle(ev.Color) }>{ ev.Text }</span>
+											}
 										}
-									}
-								</td>
-							</tr>
-						}
-					</tbody>
-				</table>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
 			}
 			if len(c.Schedule) > 0 && !c.ScheduleTable {
 				<div class="w-sched">

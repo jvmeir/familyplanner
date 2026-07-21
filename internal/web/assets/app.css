@@ -331,6 +331,8 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 .sched-empty { color: var(--text-muted); opacity: .5; }
 .sched-events { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .sched-ev { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* days_table wrapper: bounds the table to the widget so a long list auto-scrolls. */
+.w-schedwrap { width: 100%; max-height: 100%; overflow: hidden; }
 .w-schedtable { width: 100%; border-collapse: collapse; text-align: left; }
 .w-schedtable th, .w-schedtable td { padding: 5px 8px; border-bottom: 1px solid color-mix(in srgb, var(--text) 10%, transparent); vertical-align: top; }
 .w-schedtable th { width: 7em; font-weight: 700; color: var(--text-muted); text-transform: capitalize; white-space: nowrap; }
