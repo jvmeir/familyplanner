@@ -1,12 +1,20 @@
 # Family Planner
 
-A self-hosted family planner: a **kiosk view** for a living-room TV plus a phone-based **admin** to configure it. Dutch by default, i18n-ready. Built in Go.
+A self-hosted family planner: a read-only **kiosk view** for a living-room TV plus a phone-based **admin** to configure it. Dutch by default, i18n-ready. Built in Go, server-rendered (templ + HTMX + SSE) — no SPA, no client build step.
 
-> Status: **M0** — first vertical slice (passphrase login, kiosk device pairing, a live countdown + clock on a themed grid over SSE, Dutch UI, demo seed, Docker/CI). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+> Status: **M0–M4 built and deployed.** Passphrase login + kiosk pairing, a recursive split-layout editor, playlists/rotation, a widget + data-source framework (OAuth, per-source resource pickers, health monitoring), a global voice clock, corner picture-in-picture video, and a self-healing kiosk runtime. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/HANDOFF.md](docs/HANDOFF.md).
+
+## Features
+
+- **Kiosk** — full-screen rotating views over SSE; live clock + scrolling ticker; corner health badge; **picture-in-picture** YouTube video that keeps playing across screen changes; keyboard/phone remote; self-healing (SSE-heartbeat watchdog + nightly reload).
+- **Widgets** — countdown, clock, calendar (agenda / days / week / month, iCal + Outlook, RRULE, today-highlight), weather (current + N-day forecast with hi/lo, by place name or coordinates), shopping (Bring), to-do (MS To Do), photos (OneDrive album slideshow, no-repeat), ticker (RSS), video (YouTube).
+- **Data sources** — reusable, typed, credentialed connections (iCal, RSS, text, Bring, Microsoft Graph = Outlook/To Do/OneDrive, YouTube) with a configurable refresh cadence (global default + per-source override) and per-widget resource/filter/colour.
+- **Voice clock** — global quarter/half/hour chimes + a spoken Dutch hourly announcement, server-synced across screens, with quiet hours.
+- **Ops** — encrypted credentials at rest (AES-GCM), argon2id admin login with rate-limiting, SSRF-guarded outbound fetches, single distroless container.
 
 ## Stack
 
-Go · chi · templ · SSE · modernc SQLite · sqlc · goose · scs · argon2id · go-i18n
+Go · chi · templ · HTMX · SSE · modernc SQLite · sqlc · goose · scs · argon2id · go-i18n · YouTube IFrame API · Open-Meteo
 
 ## Local development
 

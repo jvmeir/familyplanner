@@ -2,7 +2,7 @@
 
 A self-hosted **family planner**: a read-only **kiosk** for a living-room TV plus a phone-based **admin** to configure it. Dutch by default, i18n-ready. Built in **Go**. This doc is the single place to pick the project back up on a new machine.
 
-> Status (2026-07): **M0–M3 + health monitoring built, green, deployed to the dev VM, and pushed to a public GitHub repo.** Kiosk + admin + layouts + playlists + devices + a full widget/datasource framework with OAuth + per-source health surfaced on every screen. Not yet on a production host.
+> Status (2026-07): **M0–M4 + health + voice clock built, green, deployed to the dev VM, and pushed to a public GitHub repo.** Kiosk + admin + recursive layouts + playlists + devices + a full widget/datasource framework with OAuth + per-source health, a global voice clock, corner picture-in-picture video, weather forecasts, a configurable refresh cadence, and a self-healing kiosk runtime with security hardening (SSRF guard, login/pair rate-limit). Not yet on a production host.
 
 ## 0. Final architecture at a glance (read this first)
 
@@ -59,41 +59,45 @@ internal/i18n         go-i18n; locales/active.nl.json (Dutch default)
 internal/theme        design-token themes + cascade
 internal/layout       recursive split-tree model + ops (SplitLeaf/Remove/SetWidget/SetWeight)
 internal/rotation     per-device playlist playback (State + Manager)
-internal/oauth        x/oauth2 provider configs (ms_graph, onedrive, ms_todo, google_photos) + token refresh
-internal/broker       cache refresh + OAuth token refresh
+internal/oauth        x/oauth2 provider configs (ms_graph, onedrive, ms_todo) + token refresh
+internal/broker       cache refresh (on-show + configurable interval) + OAuth token refresh + source health
+internal/voiceclock   quarter/half/hour chime + Dutch hourly announcement timing/phrasing (pure)
 internal/widget       widget types + connectors (countdown, clock, calendar/iCal+Graph,
-                      weather/Open-Meteo, quote, web, shopping/Bring, photos/OneDrive+GooglePhotos,
-                      todolist/MS To Do). Connectors have overridable base URLs + mocked tests.
-internal/server       chi routes, auth/session/CSRF mw, SSE kiosk, admin CRUD, OAuth flow
-internal/web           templ views + render formatters + assets (app.css, htmx.min.js, kiosk.js, layouteditor.js)
+                      weather/Open-Meteo + geocoding, shopping/Bring, photos/OneDrive albums,
+                      todolist/MS To Do, ticker/RSS, video/YouTube). Shared HTTP client has an
+                      SSRF guard; connectors have overridable base URLs + mocked tests.
+internal/server       chi routes, auth/session/CSRF mw + login/pair rate-limit, SSE kiosk
+                      (rotation + PiP + cmd), admin CRUD, OAuth flow, cache-schema invalidation
+internal/web           templ views + render formatters + assets (app.css, htmx.min.js, kiosk.js,
+                      voiceclock.js, yt.js, layouteditor.js, kiosk-preview.js)
 ```
 
 ---
 
 ## 3. Widgets & data sources
 
-**Widgets:** countdown, clock, calendar (Agenda — modes agenda/dagen-lijst/dagen-tabel/week/maand; per-source filter; RRULE expansion), weather (Open-Meteo, no key), quote, web (iframe), shopping (Bring), photos (single/random/by-date), todolist (MS To Do).
+**Widgets:** countdown, clock, calendar (modes agenda/dagen-lijst/dagen-tabel/week/maand; per-source filter; RRULE expansion; today-highlight; agenda spans the whole current week + configured look-ahead), weather (Open-Meteo, no key — current conditions **+ N-day forecast** with hi/lo and a condition emoji; location by **place name** (geocoded) or lat/lon), shopping (Bring, category grouping, nl localization), photos (OneDrive **album slideshow**, no-repeat), todolist (MS To Do, due labels, hide-undated), ticker (RSS), video (YouTube, per-video sources; also drives the corner PiP).
 
 **Data-source types & credential kinds:**
 
 | type | credential | resource picker |
 |---|---|---|
 | `ical` | none (url / webcal://) | — |
+| `rss` | none (feed url) | — |
+| `text` | none (inline lines) | — |
 | `bring` | basic (email/password, encrypted) | which list |
 | `ms_graph` (Outlook calendar) | oauth2 | which calendar |
-| `onedrive` (photos) | oauth2 | which folder |
+| `onedrive` (photos) | oauth2 | which **album** |
 | `ms_todo` | oauth2 | which list |
-| `google_photos` | oauth2 | which album *(see gotchas)* |
+| `video` (YouTube) | none (video url) | — |
 
-**Resource selection is per widget→source link** (`widget_sources.resource`), with a live picker on the widget's edit page — so one data source (e.g. one Bring account, one Outlook connection) is reused across widgets that each show a different list/calendar/folder. The datasource-level pick (configure page) acts as a default.
+**Resource selection is per widget→source link** (`widget_sources.resource`), with a live picker on the widget's edit page — so one data source (e.g. one Bring account, one Outlook connection) is reused across widgets that each show a different list/calendar/album. Each data source also has a **refresh interval** field (0 = use the global default at `/admin/settings`).
 
 ---
 
 ## 4. OAuth model (important)
 
-- **App client id/secret are app-level config**, one app per provider:
-  - Microsoft (covers Outlook calendar + To Do + OneDrive): `FP_MS_CLIENT_ID`, `FP_MS_CLIENT_SECRET`
-  - Google (Google Photos): `FP_GOOGLE_CLIENT_ID`, `FP_GOOGLE_CLIENT_SECRET`
+- **App client id/secret are app-level config** — one Microsoft app covers Outlook calendar + To Do + OneDrive: `FP_MS_CLIENT_ID`, `FP_MS_CLIENT_SECRET`. (Google was removed with the Google Photos source.)
 - Creating an OAuth datasource = **interactive sign-in** (`/admin/datasources/{id}/oauth/start` → `…/oauth/callback`); only the user's **token** is stored (encrypted). Broker auto-refreshes + persists rotations.
 - **Microsoft app registration** already exists (tenant `jeancloud365.onmicrosoft.com`, app "FamilyPlanner", audience = work + personal MS accounts, delegated scopes `Calendars.Read`/`Tasks.Read`/`Files.Read`/`offline_access`). The **client_id** is in your local notes/`.env`; the **client secret** is not stored in this repo — rotate/retrieve via:
   ```sh
@@ -105,43 +109,44 @@ internal/web           templ views + render formatters + assets (app.css, htmx.m
 
 ## 5. Config (env vars, all `FP_*`)
 
-See `.env.example`. Key ones: `FP_ENV`, `FP_ADDR`, `FP_BASE_URL`, `FP_DATA_DIR`, `FP_ENCRYPTION_KEY` (derives the AES key; **required in prod**), `FP_ADMIN_PASSPHRASE` (bootstrap), `FP_LOCALE`, `FP_TIMEZONE` (Europe/Brussels), `FP_SESSION_DAYS`, and the OAuth app creds above.
+See `.env.example`. Key ones: `FP_ENV`, `FP_ADDR`, `FP_BASE_URL`, `FP_DATA_DIR`, `FP_ENCRYPTION_KEY` (derives the AES key; **required in prod**, keep stable), `FP_ADMIN_PASSPHRASE` (bootstrap), `FP_LOCALE`, `FP_TIMEZONE` (Europe/Brussels), `FP_SESSION_DAYS`, and `FP_MS_CLIENT_ID` / `FP_MS_CLIENT_SECRET`. Runtime tunables (global refresh interval, kiosk scale, ticker widget/speed, banner date, transition, theme, voice clock) live in the DB `settings`, edited at `/admin/settings`.
 
 ---
 
 ## 6. Deploy
 
-- **Dockerfile** = multi-stage → distroless static (~15 MB, CGO off). `docker-compose.yml` runs it with `/data` volume.
+- **Dockerfile** = multi-stage → distroless static (~15 MB, CGO off). Dev: `docker-compose.yml` (inline insecure key, bind mount). **Prod: `docker-compose.prod.yml`** pulls the GHCR image and reads all secrets from a gitignored `.env` (named `/data` volume). See README → *Secrets*.
 - **CI** (`.github/workflows/build.yml`): on push/PR runs templ+sqlc generate, `git diff` staleness check, vet, `-race` tests; on `main` builds + pushes `ghcr.io/jvmeir/familyplanner:{latest,sha}`. Pull-based redeploy (Watchtower) intended for the production host (Hetzner, Tailscale-only).
-- **Dev VM** (LAN, for running containers): details + the SSH/SMB workflow are in local notes (not committed — contains credentials). Pattern: edit locally → copy to the VM → `docker compose up -d --build` over SSH. The deploy reuses the tarball-over-SCP trick (recursive SCP was flaky against that sshd).
+- **Dev VM** (LAN, for running containers): SSH/SMB workflow in local notes (not committed — contains credentials). Pattern: edit locally → `tar` (excluding `.git`/`node_modules`) → SCP to the VM → run **`fp-deploy.sh`** (clean-extracts preserving `data/` + `.env`, prunes docker, `compose up -d --build`). Recursive SCP was flaky against that sshd, hence the tarball. On boot goose migrates and the cache-schema check clears `widget_cache` if a widget's data shape changed.
 
 ---
 
 ## 7. What's done vs. pending
 
-**Done & deployed:** M0 (skeleton/auth/kiosk/SSE), M1 (CRUD, recursive split/merge layout editor w/ drag-resize, playlists, devices, phone remote, HTMX), M2 (broker+cache, calendar/weather/quote/web widgets), M3 (OAuth framework + Outlook calendar + OneDrive photos + MS To Do; Bring shopping; per-link resource pickers; app-level OAuth creds), **health monitoring** (§9). Pushed to the public repo `github.com/jvmeir/familyplanner`; deployed to the dev VM.
+**Done & deployed:** M0 (skeleton/auth/kiosk/SSE), M1 (CRUD, recursive split/merge layout editor w/ drag-resize, playlists, devices, phone remote, HTMX), M2 (broker+cache, calendar/weather/countdown widgets), M3 (OAuth framework + Outlook calendar + OneDrive photos + MS To Do; Bring shopping; per-link resource pickers; app-level OAuth creds), **health monitoring** (§9), **voice clock** (quarter/half/hour + Dutch hourly announcement), and **M4**: corner **PiP** video (dock + interval) + video/ticker widgets; **weather forecast** (hi/lo, N-day, address geocoding); photos **album slideshow**; agenda **today-highlight + full-week window**; **configurable refresh cadence** (global + per-source) with on-show refresh; **per-item playlist intervals**; kiosk **self-healing** (SSE-heartbeat watchdog + nightly reload + version auto-reload); **security** (SSRF guard, login/pair rate-limit, prod compose, cache-schema invalidation). Pushed to `github.com/jvmeir/familyplanner`; deployed to the dev VM.
 
-**Explored and removed (do not reintroduce without a reason):** an API + Go→WASM **SPA** kiosk, and a **PWA** layer (service worker/manifest/offline/installable). Both were built, tested, and reverted — the kiosk stays plain server-rendered.
+**Removed (do not reintroduce without a reason):** the *quote of the day* and *web page* widgets; the *Google Photos* data source (Library API readonly restricted Mar 2025 — OneDrive is the photo source, so `FP_GOOGLE_*` creds are gone); OneDrive **folder** browsing (albums only, for a predictable slideshow); a yt-dlp downloader (YouTube bot-check — embeds are used instead). Also an API+SPA Go→WASM kiosk and a PWA layer were prototyped and reverted — the kiosk stays plain server-rendered.
 
 **Pending / next:**
-- **CI/GHCR**: the repo is public now; wire the build workflow to actually push images (Watchtower redeploy).
-- **Tailnet HTTPS** (+ `FP_BASE_URL`) so OAuth reconnect works on the wall and (if ever wanted) a PWA could re-enable offline; production Hetzner deploy.
-- **Voice clock** — done: global quarter-hour chime + hourly Dutch announcement (NMBS-style), configured at `/admin/settings` (enable + quiet hours). Audio needs a user gesture or the Chromium `--autoplay-policy=no-user-gesture-required` launch flag. Further voice (spoken *commands*) still later.
-- Kiosk write-back interactions (deferred — kiosk read-only).
-- Health: no periodic all-source sweep yet (only sources used by an active widget, plus never-connected via `oauth_status`, are checked).
-- Google Photos: the Library API readonly was restricted (Mar 2025); the code exists but OneDrive is the chosen photo source.
+- **CI/GHCR**: wire the build workflow to actually push images (Watchtower redeploy) + the production Hetzner deploy.
+- **Tailnet HTTPS** (+ `FP_BASE_URL`) so OAuth reconnect works on the wall.
+- Kiosk write-back interactions (deferred — kiosk read-only) + spoken voice *commands* (M5).
+- Health: no periodic all-source sweep yet (only sources touched by an active widget, plus never-connected via `oauth_status`, are checked).
 
 ## 8. Gotchas
 - **Generated code is committed** (templ `*_templ.go`, sqlc `dbgen`); CI fails if stale — run `task gen` after editing `.templ`/`.sql` and commit.
+- **`go build` does not lint JS.** The kiosk JS is embedded via `embed.FS`, so a syntax/temporal-dead-zone error in `kiosk.js`/`yt.js` compiles fine but can freeze the whole kiosk IIFE at runtime (clock + SSE + rotation all dead). **Smoke-test the kiosk in a real browser after touching JS** (load `/kiosk`, confirm the clock advances, no console errors). The inline **watchdog** now auto-recovers a frozen page in ~2.5 min, but don't rely on it.
+- **Bump `cacheSchemaVersion`** (`internal/server/server.go`) whenever a widget's cached `Data` struct changes shape — startup clears `widget_cache` on a mismatch so old rows aren't mis-decoded (and the new data shows immediately after deploy).
+- **SSRF guard blocks loopback in prod.** The shared widget HTTP client refuses loopback/link-local; tests that hit `httptest` servers (127.0.0.1) need the `allowLoopback` exemption (set in the widget package's `TestMain`). If a widget must reach `localhost` in prod, it won't — by design.
 - **`go test -race`** needs gcc (use plain `go test` locally on Windows).
 - **OAuth only works where the redirect resolves** (localhost now) — connect locally, not against the LAN VM.
 - **Container DNS**: if external widgets time out in a container, add `dns: [1.1.1.1, 8.8.8.8]` to the compose service.
 - **Kiosk is read-only**; widgets display only (no check-off yet).
-- **Deploy = clean before extract.** `tar` over the VM tree does not delete removed files (stale copies cause duplicate-symbol build fails). Clean first, **preserving the DB volume AND the secret `.env`**: `find /root/familyplanner -mindepth 1 -depth -not -path '/root/familyplanner/data*' -not -path '/root/familyplanner/.env' -delete`, then extract + `docker compose up -d --build`. The harness sandbox blocks the `rm` token — use `find -delete`.
-- **Secrets live in `/root/familyplanner/.env`** (gitignored, never committed): `FP_MS_CLIENT_ID` / `FP_MS_CLIENT_SECRET`. Compose reads them via `${...}` substitution. Preserve this file across deploys (see above).
+- **Deploy** uses `fp-deploy.sh` (see §6): it clean-extracts (a plain `tar` over the tree leaves stale files → duplicate-symbol build fails) while **preserving `data/` + `.env`** via `find -delete` (the harness sandbox blocks the `rm` token). Redeploys bump `bootID`, so connected kiosks auto-reload (a PiP/video briefly restarts — expected).
+- **Secrets live in `/root/familyplanner/.env`** (gitignored, never committed): `FP_MS_CLIENT_ID` / `FP_MS_CLIENT_SECRET` / `FP_ENCRYPTION_KEY`. Preserve this file across deploys.
 - **VM disk fills up** from repeated image builds → `no space left on device`. Reclaim with `docker builder prune -f` + `docker image prune -f` (safe: dangling only).
 
 ## 9. Health monitoring
-The broker records each data source's auth health (migration `00007` adds `access_expiry` / `last_sync` / `last_error` / `health` to `data_sources`). `oauth.ClassifyError` maps an OAuth `invalid_grant` to "refresh token dead → reconnect". The pure `internal/health` package aggregates four signals — **refresh-token dead** (red), **access expired**, **failed sync**, **stale data** (>1h) (amber) — ranked by severity. It's read-only (never calls external APIs; reads the state the broker already stored).
+The broker records each data source's health (migration `00007` adds `access_expiry` / `last_sync` / `last_error` / `health` to `data_sources`). For **OAuth** sources it's set during token refresh (`oauth.ClassifyError` maps `invalid_grant` → "refresh token dead → reconnect"); for **non-OAuth** sources (iCal/RSS/text/video/Bring) it's set from the widget's fetch outcome (ok / error). The pure `internal/health` package aggregates four signals — **refresh-token dead** (red), **access expired**, **failed sync**, **stale data** (>1h) (amber) — ranked by severity. It's read-only (never calls external APIs; reads the state the broker already stored).
 
 Surfaced as a **subtle corner badge** on every kiosk screen (hidden when healthy; rendered via `web.KioskBody` so it persists across SSE view swaps and refreshes each tick) and a **status pill** on the admin Gegevensbronnen page. Note: health is recorded for sources touched by an active widget, plus never-connected sources (via `oauth_status`); there's no periodic all-source sweep yet.
