@@ -52,6 +52,11 @@
   es.addEventListener("refresh", function () {
     loadView(currentViewID);
   });
+  // UI scale multiplier (set from admin; applied live on top of viewport scaling).
+  es.addEventListener("scale", function (e) {
+    var v = parseFloat(e.data);
+    if (!isNaN(v)) document.documentElement.style.setProperty("--kiosk-scale", v);
+  });
 
   // ---- controls (also reachable from a phone remote later) ----
   window.fpCtl = function (cmd) {

@@ -7,6 +7,7 @@ type SettingsVM struct {
 	VoiceEnabled bool
 	QuietStart   string // "HH:MM"
 	QuietEnd     string
+	KioskScale   string // UI scale multiplier, e.g. "1.00"
 	Saved        bool
 }
 
@@ -32,6 +33,20 @@ templ SettingsPage(vm SettingsVM) {
 			<label>
 				{ i18n.T(ctx, "settings.quiet_end") }
 				<input type="time" name="quiet_end" value={ vm.QuietEnd }/>
+			</label>
+			<h2>{ i18n.T(ctx, "settings.scale") }</h2>
+			<p class="muted">{ i18n.T(ctx, "settings.scale_help") }</p>
+			<label>
+				<span>{ i18n.T(ctx, "settings.scale") } — <output id="scaleout">{ vm.KioskScale }×</output></span>
+				<input
+					type="range"
+					name="kiosk_scale"
+					min="0.5"
+					max="2.0"
+					step="0.05"
+					value={ vm.KioskScale }
+					oninput="document.getElementById('scaleout').textContent = this.value + '×'"
+				/>
 			</label>
 			<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
 		</form>

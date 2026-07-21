@@ -26,6 +26,14 @@ templ DeviceList(devices []DeviceVM, playlists []PlaylistRef, views []ViewRef) {
 				<div class="row">
 					<span class="row-name">{ d.Name } #{ fmt.Sprint(d.ID) }</span>
 					<span class="row-type">{ i18n.T(ctx, "device.last_seen") }: { d.LastSeen }</span>
+					<button
+						class="btn ghost"
+						hx-delete={ "/admin/devices/" + fmt.Sprint(d.ID) }
+						hx-target="#devicelist"
+						hx-swap="outerHTML"
+						hx-confirm={ i18n.T(ctx, "admin.confirm_delete") }
+						title={ i18n.T(ctx, "device.remove") }
+					>×</button>
 				</div>
 				<form class="form inline" hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/playlist" } hx-target="#devicelist" hx-swap="outerHTML">
 					@csrfInput()

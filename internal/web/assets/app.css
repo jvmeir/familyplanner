@@ -113,6 +113,12 @@ button, .btn {
   70% { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0); }
   100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
 }
+/* Kiosk auto-scaling: on kiosk pages only (they contain #stage), scale the root
+   font-size with the viewport so every rem-based element grows together. Tuned
+   large for a big, high-mounted wall display read from a distance by kids.
+   Admin pages have no #stage, so they keep the normal 16px base. */
+html:has(#stage) { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(--kiosk-scale, 1)); }
+
 .view {
   height: 100%;
   padding: var(--gap, 14px);
@@ -174,7 +180,9 @@ button, .btn {
   border-bottom: 0;
 }
 .w-title { color: var(--text-muted); font-size: 1.1rem; font-weight: 600; }
-.w-big { font-size: clamp(2.5rem, 12vh, 7rem); font-weight: 800; line-height: 1; color: var(--accent); }
+/* rem-based so both the viewport auto-scale (root font-size) and the admin scale
+   slider drive the hero number. */
+.w-big { font-size: 5rem; font-weight: 800; line-height: 1; color: var(--accent); }
 .w-sub { font-size: 1.2rem; color: var(--text-muted); margin-top: 6px; }
 .w-body { font-size: 1.3rem; line-height: 1.45; margin: 6px 0 0; }
 .w-list { list-style: none; padding: 0; margin: 8px 0 0; width: 100%; text-align: left; overflow: hidden; }

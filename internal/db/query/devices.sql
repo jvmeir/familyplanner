@@ -14,3 +14,6 @@ SELECT * FROM kiosk_devices ORDER BY id;
 
 -- name: GetDevice :one
 SELECT * FROM kiosk_devices WHERE id = ?;
+
+-- name: DeleteDevice :exec
+DELETE FROM kiosk_devices WHERE id = ?;

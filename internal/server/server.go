@@ -140,6 +140,7 @@ func (s *Server) routes() http.Handler {
 			r.Post("/admin/settings", s.handleSettingsSave)
 
 			r.Get("/admin/devices", s.handleDevices)
+			r.Delete("/admin/devices/{id}", s.handleDeviceDelete)
 			r.Post("/admin/devices/{id}/playlist", s.handleDeviceAssign)
 			r.Post("/admin/devices/{id}/control/{cmd}", s.handleDeviceControl)
 
@@ -371,6 +372,9 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 		}
 		return send("refresh", "empty")
 	}
+	sendScale := func() bool {
+		return send("scale", strconv.FormatFloat(s.kioskScale(r.Context()), 'f', 2, 64))
+	}
 	reset := func(t *time.Timer, d time.Duration) {
 		if !t.Stop() {
 			select {
@@ -384,6 +388,7 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 	if !sendCurrent() {
 		return
 	}
+	sendScale() // push the current UI scale on connect
 	advance := time.NewTimer(dwell())
 	defer advance.Stop()
 	refresh := time.NewTicker(30 * time.Second)
@@ -401,10 +406,11 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			reset(advance, dwell())
-		case <-refresh.C: // periodic in-view data refresh (e.g. the clock)
+		case <-refresh.C: // periodic in-view data refresh (e.g. the clock) + scale sync
 			if !send("refresh", "tick") {
 				return
 			}
+			sendScale()
 		case <-advance.C: // dwell elapsed -> advance unless paused
 			if !state.Paused() {
 				state.Next()

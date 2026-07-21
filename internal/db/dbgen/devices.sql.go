@@ -34,6 +34,15 @@ func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (Kio
 	return i, err
 }
 
+const deleteDevice = `-- name: DeleteDevice :exec
+DELETE FROM kiosk_devices WHERE id = ?
+`
+
+func (q *Queries) DeleteDevice(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteDevice, id)
+	return err
+}
+
 const getDevice = `-- name: GetDevice :one
 SELECT id, name, token_hash, playlist_id, created_at, last_seen FROM kiosk_devices WHERE id = ?
 `
