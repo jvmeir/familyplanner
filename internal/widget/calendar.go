@@ -414,16 +414,17 @@ func buildAgenda(now time.Time, all []calEvent, cfg CalendarConfig) []CalendarEv
 	if ahead < 1 {
 		ahead = 1
 	}
-	// Show whole calendar weeks anchored to the START of the current week
-	// (Monday), not a rolling window from "now" — so the entire configured period
-	// is shown (including earlier days this week and today's all-day items, whose
-	// timestamp is midnight) with today highlighted, rather than stopping at now.
+	// Anchor the look-BACK to the start of the current week (Monday) so the whole
+	// current week is shown — including earlier days this week and today's all-day
+	// items (timestamped midnight) with today highlighted — instead of a rolling
+	// window that starts at "now". The look-AHEAD rolls forward `ahead` weeks from
+	// today (day-aligned, inclusive) so upcoming days aren't clipped.
 	loc := now.Location()
 	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	offset := (int(startOfToday.Weekday()) + 6) % 7 // Mon=0 … Sun=6
 	weekStart := startOfToday.AddDate(0, 0, -offset)
 	from := weekStart.AddDate(0, 0, -before*7)
-	until := weekStart.AddDate(0, 0, ahead*7) // exclusive; `ahead` whole weeks from Monday
+	until := startOfToday.AddDate(0, 0, ahead*7+1) // exclusive; `ahead` weeks ahead of today, whole days
 
 	var evs []calEvent
 	for _, e := range all {
