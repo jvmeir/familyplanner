@@ -226,6 +226,9 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
    (.widget sets container-type: size.) */
 .w-title { color: var(--text-muted); font-weight: 600; font-size: calc(6.5cqmin * var(--kiosk-scale, 1)); }
 .w-big { font-weight: 800; line-height: 1; color: var(--accent); font-size: calc(20cqmin * var(--kiosk-scale, 1)); }
+/* The live dhms countdown ("5d 03:12:45") is a long string, not a single big
+   number — size it to fit the cell width and keep the digits monospaced. */
+.w-big.countdown-live { font-size: calc(8cqmin * var(--kiosk-scale, 1)); white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .w-sub { color: var(--text-muted); margin-top: 6px; font-size: calc(5cqmin * var(--kiosk-scale, 1)); }
 .w-body { line-height: 1.45; margin: 6px 0 0; font-size: calc(5.5cqmin * var(--kiosk-scale, 1)); }
 .w-list { list-style: none; padding: 0; margin: 8px 0 0; width: 100%; text-align: left; overflow: hidden; }

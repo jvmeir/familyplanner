@@ -12,7 +12,7 @@
     var h = Math.floor(s / 3600); s %= 3600;
     var m = Math.floor(s / 60), sec = s % 60;
     var p = function (n) { return (n < 10 ? "0" : "") + n; };
-    return d + "d " + p(h) + ":" + p(m) + ":" + p(sec);
+    return d + "d " + p(h) + "u " + p(m) + "m " + p(sec) + "s";
   }
   function tickCountdowns() {
     stage.querySelectorAll(".countdown-live[data-target]").forEach(function (el) {

@@ -41,7 +41,7 @@
     const h = Math.floor(s / 3600); s %= 3600;
     const m = Math.floor(s / 60), sec = s % 60;
     const p = (n) => (n < 10 ? "0" : "") + n;
-    return d + "d " + p(h) + ":" + p(m) + ":" + p(sec);
+    return d + "d " + p(h) + "u " + p(m) + "m " + p(sec) + "s";
   }
 
   // ---- footer view label (name looked up from the id->name map) ----
