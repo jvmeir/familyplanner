@@ -13,7 +13,15 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/familyplanner ./cmd/server
 
 # ---- runtime stage ----
-FROM gcr.io/distroless/static-debian12
+# debian-slim (not distroless) so the video widget can shell out to yt-dlp +
+# ffmpeg to download YouTube videos for ad-free local playback.
+FROM debian:bookworm-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates ffmpeg python3 curl \
+    && curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp \
+    && apt-get purge -y curl && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /out/familyplanner /familyplanner
 EXPOSE 8080
 ENV FP_ADDR=:8080 \

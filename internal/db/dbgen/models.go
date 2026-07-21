@@ -71,6 +71,7 @@ type View struct {
 	RotationOrder int64  `json:"rotation_order"`
 	DwellSeconds  int64  `json:"dwell_seconds"`
 	LayoutJson    string `json:"layout_json"`
+	RenderMode    string `json:"render_mode"`
 	CreatedAt     string `json:"created_at"`
 	UpdatedAt     string `json:"updated_at"`
 }

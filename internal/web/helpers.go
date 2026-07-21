@@ -54,6 +54,10 @@ type CellVM struct {
 	ScheduleTable bool            // render Schedule as a table (days_table) vs list (days)
 	IframeURL     string          // embedded web page
 	ImageURL      string          // single photo
+	VideoURL      string          // local video file (/media/...) to play
+	VideoMute     bool            // play muted
+	VideoLoop     bool            // loop playback
+	Downloading   bool            // video still downloading (show a placeholder)
 	CountdownTo   int64           // >0: render a live dhms countdown to this Unix time
 	Stale         bool
 	Style         templ.SafeCSS
@@ -186,10 +190,11 @@ type OptionVM struct {
 
 // ViewVM is a row in the admin views list.
 type ViewVM struct {
-	ID   int64
-	Name string
-	Cols int64
-	Rows int64
+	ID         int64
+	Name       string
+	Cols       int64
+	Rows       int64
+	RenderMode string // grid | random_single
 }
 
 // ThemeOptVM is an option in the theme dropdown.
@@ -406,6 +411,11 @@ func init() {
 	RegisterFormatter("web", func(_ context.Context, data any) CellVM {
 		d, _ := data.(widget.WebData)
 		return CellVM{IframeURL: d.URL}
+	})
+
+	RegisterFormatter("video", func(_ context.Context, data any) CellVM {
+		d, _ := data.(widget.VideoData)
+		return CellVM{VideoURL: d.URL, VideoMute: d.Mute, VideoLoop: d.Loop, Downloading: d.Downloading}
 	})
 
 	RegisterFormatter("shopping", func(ctx context.Context, data any) CellVM {

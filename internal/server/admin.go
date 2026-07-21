@@ -216,7 +216,7 @@ func (s *Server) handleViewCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "name required", http.StatusBadRequest)
 		return
 	}
-	if _, err := s.store.CreateView(r.Context(), dbgen.CreateViewParams{
+	view, err := s.store.CreateView(r.Context(), dbgen.CreateViewParams{
 		Name:          name,
 		Cols:          parseIntDefault(r.FormValue("cols"), 3),
 		Rows:          parseIntDefault(r.FormValue("rows"), 2),
@@ -224,9 +224,13 @@ func (s *Server) handleViewCreate(w http.ResponseWriter, r *http.Request) {
 		InRotation:    1,
 		RotationOrder: 0,
 		DwellSeconds:  30,
-	}); err != nil {
+	})
+	if err != nil {
 		http.Error(w, "create failed", http.StatusInternalServerError)
 		return
+	}
+	if r.FormValue("mode") == "random_single" {
+		_ = s.store.UpdateViewMode(r.Context(), dbgen.UpdateViewModeParams{RenderMode: "random_single", ID: view.ID})
 	}
 	s.render(w, r, web.ViewList(s.viewVMs(r.Context())))
 }
@@ -240,6 +244,20 @@ func (s *Server) handleViewRename(w http.ResponseWriter, r *http.Request) {
 	if name := r.FormValue("name"); name != "" {
 		_ = s.store.UpdateViewName(r.Context(), dbgen.UpdateViewNameParams{Name: name, ID: id})
 	}
+	s.render(w, r, web.ViewList(s.viewVMs(r.Context())))
+}
+
+func (s *Server) handleViewMode(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	mode := "grid"
+	if r.FormValue("mode") == "random_single" {
+		mode = "random_single"
+	}
+	_ = s.store.UpdateViewMode(r.Context(), dbgen.UpdateViewModeParams{RenderMode: mode, ID: id})
 	s.render(w, r, web.ViewList(s.viewVMs(r.Context())))
 }
 
@@ -335,7 +353,7 @@ func (s *Server) viewVMs(ctx context.Context) []web.ViewVM {
 	}
 	out := make([]web.ViewVM, 0, len(rows))
 	for _, v := range rows {
-		out = append(out, web.ViewVM{ID: v.ID, Name: v.Name, Cols: v.Cols, Rows: v.Rows})
+		out = append(out, web.ViewVM{ID: v.ID, Name: v.Name, Cols: v.Cols, Rows: v.Rows, RenderMode: v.RenderMode})
 	}
 	return out
 }

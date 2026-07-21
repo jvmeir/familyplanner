@@ -188,6 +188,23 @@ func RegisterDefaults(r *Registry) {
 		}},
 	})
 	r.Register(Type{
+		ID:          "video",
+		NameKey:     "widget.video.name",
+		NewProvider: newVideo,
+		Decode:      decodeVideo,
+		Schema: Schema{Fields: []Field{
+			{Name: "url", LabelKey: "widget.video.field.url", Type: FieldText, Required: true},
+			{Name: "mute", LabelKey: "widget.video.field.mute", Type: FieldSelect, Options: []Option{
+				{Value: "no", LabelKey: "widget.video.mute.no"},
+				{Value: "yes", LabelKey: "widget.video.mute.yes"},
+			}},
+			{Name: "loop", LabelKey: "widget.video.field.loop", Type: FieldSelect, Options: []Option{
+				{Value: "yes", LabelKey: "widget.video.loop.yes"},
+				{Value: "no", LabelKey: "widget.video.loop.no"},
+			}},
+		}},
+	})
+	r.Register(Type{
 		ID:             "shopping",
 		NameKey:        "widget.shopping.name",
 		NewProvider:    newShopping,

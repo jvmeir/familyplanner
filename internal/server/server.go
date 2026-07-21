@@ -9,7 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -76,6 +79,9 @@ func New(cfg *config.Config, store *db.Store, reg *widget.Registry, i18nSvc *i18
 	s.brk = broker.New(store, reg, s.now, cfg.EncryptionKey, cfg.OAuthApp)
 	s.dsRegistry = datasource.NewRegistry()
 	datasource.RegisterDefaults(s.dsRegistry)
+	// Video widget: downloads are cached under the data volume and served at /media.
+	widget.VideoDir = filepath.Join(cfg.DataDir, "videos")
+	_ = os.MkdirAll(widget.VideoDir, 0o755)
 	if err := s.bootstrap(context.Background()); err != nil {
 		return nil, err
 	}
@@ -98,6 +104,11 @@ func (s *Server) routes() http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(web.Assets()))))
+	// Downloaded videos (video widget). Served from the data volume; content is
+	// family media on a private device, so no auth gate here (like /static).
+	if widget.VideoDir != "" {
+		r.Handle("/media/*", http.StripPrefix("/media/", http.FileServer(http.Dir(widget.VideoDir))))
+	}
 
 	// Session-backed routes (admin + auth + pairing).
 	r.Group(func(r chi.Router) {
@@ -120,6 +131,7 @@ func (s *Server) routes() http.Handler {
 			r.Get("/admin/views", s.handleViews)
 			r.Post("/admin/views", s.handleViewCreate)
 			r.Post("/admin/views/{id}/name", s.handleViewRename)
+			r.Post("/admin/views/{id}/mode", s.handleViewMode)
 			r.Delete("/admin/views/{id}", s.handleViewDelete)
 			r.Get("/admin/views/{id}/layout", s.handleViewLayout)
 			r.Get("/admin/views/{id}/preview", s.handleViewPreview)
@@ -557,11 +569,52 @@ func (s *Server) voiceClockConfig(ctx context.Context) voiceclock.Config {
 // renderViewComponent renders a view's body: the recursive layout tree if the
 // view has one, otherwise the legacy fixed grid.
 func (s *Server) renderViewComponent(ctx context.Context, view dbgen.View) templ.Component {
+	// Random-single mode: show one of the screen's widgets, chosen at random each
+	// time it's rendered; the grid/split layout is ignored.
+	if view.RenderMode == "random_single" {
+		if ids := s.viewWidgetIDs(ctx, view); len(ids) > 0 {
+			wid := ids[rand.IntN(len(ids))]
+			th := theme.Resolve(s.defaultTheme(ctx), theme.DefaultID)
+			cell := s.cellForWidget(ctx, wid, "")
+			return web.PreviewWidget(web.ThemeVars(th), cell)
+		}
+	}
 	if lm, th, ok := s.buildViewVM(ctx, view); ok {
 		return web.View(web.ThemeVars(th), lm)
 	}
 	gs, cells := s.renderLegacyGrid(ctx, view)
 	return web.Grid(gs, cells)
+}
+
+// viewWidgetIDs returns the widget ids assigned to a view (from its layout tree,
+// or legacy placements), used to pick one at random in random-single mode.
+func (s *Server) viewWidgetIDs(ctx context.Context, view dbgen.View) []int64 {
+	var ids []int64
+	if view.LayoutJson != "" {
+		if root, err := layout.Parse(view.LayoutJson); err == nil {
+			var walk func(layout.Node)
+			walk = func(n layout.Node) {
+				if n.Leaf != nil && n.Leaf.WidgetID != 0 {
+					ids = append(ids, n.Leaf.WidgetID)
+				}
+				if n.Split != nil {
+					for _, c := range n.Split.Children {
+						walk(c.Node)
+					}
+				}
+			}
+			walk(root)
+			return ids
+		}
+	}
+	if pls, err := s.store.ListPlacementsByView(ctx, view.ID); err == nil {
+		for _, p := range pls {
+			if p.WidgetID != 0 {
+				ids = append(ids, p.WidgetID)
+			}
+		}
+	}
+	return ids
 }
 
 // buildViewVM resolves a view's recursive layout into a render-ready LayoutVM
@@ -673,7 +726,7 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 	switch {
 	case meta.HideTitle == "1":
 		vm.Title = ""
-	case vm.IframeURL != "" || vm.ImageURL != "":
+	case vm.IframeURL != "" || vm.ImageURL != "" || vm.VideoURL != "":
 		// full-bleed media: no title bar
 		vm.Title = ""
 	default:

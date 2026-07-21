@@ -129,9 +129,9 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
   from { opacity: 0; transform: translateX(6%); }
   to { opacity: 1; transform: none; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .view.kslide { animation: none; }
-}
+/* Note: the slide is an explicit, opt-in kiosk setting, so it is intentionally
+   NOT disabled by the OS prefers-reduced-motion flag (which is often on by
+   default on Windows kiosks and silently suppressed the animation). */
 /* Single merged bottom bar: clock · ticker · (playlist·screen + controls). */
 .kbar {
   flex: 0 0 auto;
@@ -332,6 +332,10 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 /* photo */
 .kind-photos .widget, .widget.photo { padding: 0; }
 .w-photo { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius, 18px); display: block; }
+
+/* video */
+.kind-video .widget, .widget.video { padding: 0; background: #000; }
+.w-video { width: 100%; height: 100%; object-fit: contain; border-radius: var(--radius, 18px); display: block; background: #000; }
 
 .badge {
   position: absolute;

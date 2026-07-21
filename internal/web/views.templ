@@ -16,6 +16,13 @@ templ ViewsPage(views []ViewVM) {
 				{ i18n.T(ctx, "admin.field_name") }
 				<input name="name" required/>
 			</label>
+			<label>
+				{ i18n.T(ctx, "view.mode") }
+				<select name="mode">
+					<option value="grid">{ i18n.T(ctx, "view.mode.grid") }</option>
+					<option value="random_single">{ i18n.T(ctx, "view.mode.random_single") }</option>
+				</select>
+			</label>
 			<button type="submit">{ i18n.T(ctx, "admin.add") }</button>
 		</form>
 		<p class="muted">{ i18n.T(ctx, "view.create_hint") }</p>
@@ -41,6 +48,17 @@ templ ViewList(views []ViewVM) {
 					hx-swap="outerHTML"
 					aria-label={ i18n.T(ctx, "admin.rename") }
 				/>
+				<select
+					name="mode"
+					hx-post={ "/admin/views/" + fmt.Sprint(v.ID) + "/mode" }
+					hx-trigger="change"
+					hx-target="#viewlist"
+					hx-swap="outerHTML"
+					aria-label={ i18n.T(ctx, "view.mode") }
+				>
+					<option value="grid" selected?={ v.RenderMode != "random_single" }>{ i18n.T(ctx, "view.mode.grid") }</option>
+					<option value="random_single" selected?={ v.RenderMode == "random_single" }>{ i18n.T(ctx, "view.mode.random_single") }</option>
+				</select>
 				<a class="btn ghost" href={ templ.SafeURL("/admin/views/" + fmt.Sprint(v.ID) + "/layout") }>{ i18n.T(ctx, "view.edit_layout") }</a>
 				<a class="btn ghost" href={ templ.SafeURL("/admin/views/" + fmt.Sprint(v.ID) + "/preview") } target="_blank" rel="noopener">{ i18n.T(ctx, "admin.preview") }</a>
 				<button class="btn ghost" hx-delete={ "/admin/views/" + fmt.Sprint(v.ID) } hx-target="#viewlist" hx-swap="outerHTML" hx-confirm={ i18n.T(ctx, "admin.confirm_delete") }>×</button>

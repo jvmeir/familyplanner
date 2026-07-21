@@ -24,5 +24,8 @@ UPDATE views SET name = ?, cols = ?, rows = ?, theme_id = ?, updated_at = dateti
 -- name: UpdateViewName :exec
 UPDATE views SET name = ?, updated_at = datetime('now') WHERE id = ?;
 
+-- name: UpdateViewMode :exec
+UPDATE views SET render_mode = ?, updated_at = datetime('now') WHERE id = ?;
+
 -- name: DeleteView :exec
 DELETE FROM views WHERE id = ?;

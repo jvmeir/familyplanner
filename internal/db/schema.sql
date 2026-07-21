@@ -16,6 +16,7 @@ CREATE TABLE views (
     rotation_order INTEGER NOT NULL DEFAULT 0,
     dwell_seconds  INTEGER NOT NULL DEFAULT 30,
     layout_json    TEXT NOT NULL DEFAULT '',
+    render_mode    TEXT NOT NULL DEFAULT 'grid',
     created_at     TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
