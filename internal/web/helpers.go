@@ -272,7 +272,6 @@ type DataSourceVM struct {
 	URL       string
 	IsOAuth   bool // shows a Connect action + status
 	Connected bool // oauth connected
-	HasPicker bool // shows a Configure action
 	HasConfig bool // shows an Edit action (type has editable config fields)
 	// Health telemetry (OAuth sources): shown as a status pill.
 	HealthLevel string // "" | ok | warn | error

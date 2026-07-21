@@ -51,7 +51,7 @@ templ DataSourceList(sources []DataSourceVM) {
 					hx-swap="outerHTML"
 					aria-label={ i18n.T(ctx, "admin.rename") }
 				/>
-				<span class="row-type">{ d.Type }</span>
+				<span class="row-type">{ i18n.T(ctx, "datasource.type." + d.Type) }</span>
 				if d.HealthText != "" {
 					<span class={ "hpill", "hpill-" + d.HealthLevel } title={ d.LastError }>{ d.HealthText }</span>
 				}
@@ -88,35 +88,11 @@ templ DataSourceEditPage(id int64, name string, typeName string, fields []FieldV
 	}
 }
 
-// DataSourceConfigurePage lets you pick a resource (calendar/list) fetched live
-// from the authenticated API.
-templ DataSourceConfigurePage(id int64, name string, label string, options []OptionVM, errMsg string) {
-	@AdminPage("datasources") {
-		<h1>{ name }</h1>
-		if errMsg != "" {
-			<p class="muted">{ errMsg }</p>
-		} else {
-			<form class="card form" method="post" action={ templ.SafeURL("/admin/datasources/" + fmt.Sprint(id) + "/configure") }>
-				@csrfInput()
-				<label>
-					{ label }
-					<select name="resource">
-						for _, o := range options {
-							<option value={ o.Value } selected?={ o.Selected }>{ o.Label }</option>
-						}
-					</select>
-				</label>
-				<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
-			</form>
-		}
-		<a class="btn ghost" href="/admin/datasources">{ i18n.T(ctx, "nav.datasources") }</a>
-	}
-}
-
 // WidgetSources is the per-widget data-source linking section (on the edit page).
 templ WidgetSources(widgetID int64, linked []WidgetSourceVM, available []DataSourceVM) {
 	<div id="wsources" class="card">
 		<h2>{ i18n.T(ctx, "datasource.sources") }</h2>
+		<p class="muted">{ i18n.T(ctx, "datasource.sources_hint") }</p>
 		<div class="list">
 			if len(linked) == 0 {
 				<p class="muted">{ i18n.T(ctx, "datasource.none_linked") }</p>
@@ -124,6 +100,7 @@ templ WidgetSources(widgetID int64, linked []WidgetSourceVM, available []DataSou
 			for _, l := range linked {
 				<div class="row">
 					<span class="row-name">{ l.SourceName }</span>
+					<span class="row-type">{ i18n.T(ctx, "datasource.type." + l.SourceType) }</span>
 					if l.HasPicker {
 						<select name="resource"
 							hx-post={ fmt.Sprintf("/admin/widgets/%d/sources/%d/resource", widgetID, l.LinkID) }
@@ -156,7 +133,7 @@ templ WidgetSources(widgetID int64, linked []WidgetSourceVM, available []DataSou
 					{ i18n.T(ctx, "datasource.source") }
 					<select name="data_source_id">
 						for _, a := range available {
-							<option value={ fmt.Sprint(a.ID) }>{ a.Name }</option>
+							<option value={ fmt.Sprint(a.ID) }>{ a.Name } — { i18n.T(ctx, "datasource.type." + a.Type) }</option>
 						}
 					</select>
 				</label>

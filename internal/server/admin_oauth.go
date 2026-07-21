@@ -13,19 +13,11 @@ import (
 	"github.com/jvmeir/familyplanner/internal/auth"
 	"github.com/jvmeir/familyplanner/internal/crypto"
 	"github.com/jvmeir/familyplanner/internal/db/dbgen"
-	"github.com/jvmeir/familyplanner/internal/i18n"
 	"github.com/jvmeir/familyplanner/internal/oauth"
-	"github.com/jvmeir/familyplanner/internal/web"
 	"github.com/jvmeir/familyplanner/internal/widget"
 )
 
 const oauthCallbackPath = "/admin/datasources/oauth/callback"
-
-func jsonField(raw, key string) string {
-	m := map[string]string{}
-	_ = json.Unmarshal([]byte(raw), &m)
-	return m[key]
-}
 
 // tokenFromSecret decrypts a data source's stored OAuth token.
 func (s *Server) tokenFromSecret(ds dbgen.DataSource) *oauth2.Token {
@@ -190,54 +182,4 @@ func (s *Server) listResources(ctx context.Context, ds dbgen.DataSource) ([]widg
 		return widget.BringLists(ctx, sec.Email, sec.Password)
 	}
 	return nil, nil
-}
-
-func (s *Server) handleDataSourceConfigure(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		http.Error(w, "bad id", http.StatusBadRequest)
-		return
-	}
-	ds, err := s.store.GetDataSource(r.Context(), id)
-	if err != nil {
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
-	typ, _ := s.dsRegistry.Get(ds.Type)
-	if typ.ResourceKind == "" {
-		http.Redirect(w, r, "/admin/datasources", http.StatusSeeOther)
-		return
-	}
-
-	current := jsonField(ds.ConfigJson, typ.ResourceConfigKey)
-	var options []web.OptionVM
-	errMsg := ""
-	if opts, err := s.listResources(r.Context(), ds); err != nil {
-		errMsg = i18n.T(r.Context(), "datasource.connect_first")
-	} else {
-		for _, o := range opts {
-			options = append(options, web.OptionVM{Value: o.ID, Label: o.Name, Selected: o.ID == current})
-		}
-	}
-	s.render(w, r, web.DataSourceConfigurePage(ds.ID, ds.Name, i18n.T(r.Context(), typ.ResourceLabelKey), options, errMsg))
-}
-
-func (s *Server) handleDataSourceConfigureSave(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		http.Error(w, "bad id", http.StatusBadRequest)
-		return
-	}
-	ds, err := s.store.GetDataSource(r.Context(), id)
-	if err != nil {
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
-	typ, _ := s.dsRegistry.Get(ds.Type)
-	config := map[string]string{}
-	_ = json.Unmarshal([]byte(ds.ConfigJson), &config)
-	config[typ.ResourceConfigKey] = r.FormValue("resource")
-	cj, _ := json.Marshal(config)
-	_ = s.store.UpdateDataSourceConfig(r.Context(), dbgen.UpdateDataSourceConfigParams{ConfigJson: string(cj), ID: id})
-	http.Redirect(w, r, "/admin/datasources", http.StatusSeeOther)
 }

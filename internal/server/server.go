@@ -165,8 +165,6 @@ func (s *Server) routes() http.Handler {
 			r.Get("/admin/datasources/{id}/edit", s.handleDataSourceEdit)
 			r.Post("/admin/datasources/{id}", s.handleDataSourceUpdate)
 			r.Get("/admin/datasources/{id}/oauth/start", s.handleOAuthStart)
-			r.Get("/admin/datasources/{id}/configure", s.handleDataSourceConfigure)
-			r.Post("/admin/datasources/{id}/configure", s.handleDataSourceConfigureSave)
 			r.Delete("/admin/datasources/{id}", s.handleDataSourceDelete)
 			r.Post("/admin/widgets/{id}/sources", s.handleWidgetSourceAdd)
 			r.Post("/admin/widgets/{id}/sources/{linkID}/resource", s.handleWidgetSourceResource)

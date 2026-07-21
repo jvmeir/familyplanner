@@ -42,6 +42,34 @@ TV (kiosk)     ─►  Kiosk UI (templ + SSE)   │  HTTP (chi): sessions, auth,
 - `kiosk_devices` — paired displays (token hash + last-seen).
 - `settings`, `sessions` (scs).
 
+### Settings scopes (where does a setting live?)
+
+There are exactly **three** places a setting can live. When adding one, pick by
+this rule — it keeps the admin UI unambiguous:
+
+1. **Data source** (`data_sources.config_json` / `secret_ciphertext`) — the
+   *connection*: how to reach the data and authenticate. Reusable by many widgets
+   **unchanged**. Examples: iCal/RSS URL, text lines, OAuth account/token, Bring
+   login. Ask: *"Is this about reaching/authenticating the data, identical for
+   every widget that uses it?"*
+2. **Widget** (`widgets.config_json`) — *presentation & behaviour* of that widget
+   instance, independent of which source feeds it. Examples: calendar mode,
+   countdown date/precision, ticker order, to-do scope/hide-undated, hide-title,
+   title size/align, video mute/loop. Ask: *"Does this change how the widget
+   looks/behaves regardless of the source?"*
+3. **Relation** (`widget_sources` row: `resource`, `filter`, `color`) — per-pairing
+   choices: which *slice* of the source this widget uses, and how it looks **here**.
+   Examples: which calendar / list / album / folder (`resource`, incl. the
+   `__all__` sentinel), per-source `filter`, per-source `color`. Ask: *"Would this
+   differ for another widget using the same source?"*
+
+Consequence (enforced): the **resource picker lives only on the relation**
+(`widget_sources.resource`), never on the data source. A data-source type may
+declare a `ResourceKind` (so the relation shows a live picker), but data sources
+do not store a chosen resource. Providers read the resource **only** from
+`SourceInput.Resource`; an empty value means the provider's sensible default
+(e.g. primary calendar, default To Do list, drive root).
+
 ### View layout (evolving)
 
 - **M0:** a fixed `cols × rows` CSS grid; placements carry `col/row/col_span/row_span`.

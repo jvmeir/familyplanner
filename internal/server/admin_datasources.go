@@ -294,7 +294,6 @@ func (s *Server) dataSourceVMs(ctx context.Context) []web.DataSourceVM {
 			ID: d.ID, Name: d.Name, Type: d.Type, URL: c.URL,
 			IsOAuth:     isOAuth,
 			Connected:   d.OauthStatus == "connected",
-			HasPicker:   typ.ResourceKind != "",
 			HasConfig:   len(typ.Config.Fields) > 0,
 			HealthLevel: level,
 			HealthText:  text,

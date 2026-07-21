@@ -84,6 +84,7 @@
   "widget.title_align.center": "Gecentreerd",
   "widget.title_align.right": "Rechts",
   "datasource.color": "Kleur voor deze bron",
+  "datasource.sources_hint": "Deze instellingen gelden per koppeling: welke lijst/agenda (bron), filter en kleur. Verbinding/inloggegevens staan bij de gegevensbron; weergave-opties bij de widget.",
   "datasource.none_linked": "Nog geen bronnen gekoppeld.",
   "datasource.create_first": "Maak eerst een gegevensbron aan onder 'Gegevensbronnen'.",
   "playlist.default_badge": "standaard",

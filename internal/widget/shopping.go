@@ -36,18 +36,11 @@ func (p shoppingProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 			Password string `json:"password"`
 		}
 		_ = json.Unmarshal(s.Secret, &cred)
-		var cfg struct {
-			List string `json:"list"`
-		}
-		_ = json.Unmarshal(s.Config, &cfg)
 		if cred.Email == "" || cred.Password == "" {
 			continue
 		}
-		list := cfg.List
-		if s.Resource != "" {
-			list = s.Resource // per-widget list choice wins
-		}
-		its, err := bringFetch(ctx, cred.Email, cred.Password, list)
+		// The list is chosen per widget↔source link (empty = default list).
+		its, err := bringFetch(ctx, cred.Email, cred.Password, s.Resource)
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err

@@ -170,16 +170,9 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 				AccessToken string `json:"access_token"`
 			}
 			_ = json.Unmarshal(s.Secret, &sec)
-			var c struct {
-				ListID string `json:"list_id"`
-			}
-			_ = json.Unmarshal(s.Config, &c)
-			listID := c.ListID
-			if s.Resource != "" {
-				listID = s.Resource
-			}
 			if sec.AccessToken != "" {
-				todos = append(todos, tsrc{sec.AccessToken, listID, s.Filter, s.Color})
+				// List chosen per link (resource): specific / "" default / all.
+				todos = append(todos, tsrc{sec.AccessToken, s.Resource, s.Filter, s.Color})
 			}
 		case "ical":
 			var c struct {
@@ -194,16 +187,9 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 				AccessToken string `json:"access_token"`
 			}
 			_ = json.Unmarshal(s.Secret, &sec)
-			var c struct {
-				CalendarID string `json:"calendar_id"`
-			}
-			_ = json.Unmarshal(s.Config, &c)
-			calID := c.CalendarID
-			if s.Resource != "" {
-				calID = s.Resource
-			}
 			if sec.AccessToken != "" {
-				graphs = append(graphs, gsrc{sec.AccessToken, calID, s.Filter, s.Color})
+				// Calendar chosen per link (resource); "" = primary calendar.
+				graphs = append(graphs, gsrc{sec.AccessToken, s.Resource, s.Filter, s.Color})
 			}
 		}
 	}

@@ -54,28 +54,14 @@ func (p photosProvider) Fetch(ctx context.Context) (Data, time.Duration, error) 
 		var err error
 		switch s.Type {
 		case "google_photos":
-			var cfg struct {
-				AlbumID string `json:"album_id"`
-			}
-			_ = json.Unmarshal(s.Config, &cfg)
-			albumID := cfg.AlbumID
-			if s.Resource != "" {
-				albumID = s.Resource
-			}
-			if albumID == "" {
+			// Album chosen per widget↔source link (resource).
+			if s.Resource == "" {
 				continue
 			}
-			us, err = GooglePhotoURLs(ctx, sec.AccessToken, albumID)
+			us, err = GooglePhotoURLs(ctx, sec.AccessToken, s.Resource)
 		case "onedrive":
-			var cfg struct {
-				FolderID string `json:"folder_id"`
-			}
-			_ = json.Unmarshal(s.Config, &cfg)
-			folderID := cfg.FolderID
-			if s.Resource != "" {
-				folderID = s.Resource
-			}
-			us, err = GraphFolderPhotos(ctx, sec.AccessToken, folderID)
+			// Folder/album chosen per link (resource); "" = drive root.
+			us, err = GraphFolderPhotos(ctx, sec.AccessToken, s.Resource)
 		default:
 			continue
 		}

@@ -74,22 +74,12 @@ func (p todoProvider) Fetch(ctx context.Context) (Data, time.Duration, error) {
 			AccessToken string `json:"access_token"`
 		}
 		_ = json.Unmarshal(s.Secret, &sec)
-		var cfg struct {
-			ListID string `json:"list_id"`
-		}
-		_ = json.Unmarshal(s.Config, &cfg)
 		if sec.AccessToken == "" {
 			continue
 		}
 		// The list is chosen per widget↔source link (resource): a specific list,
-		// "" (default list), or TodoAllLists. The legacy all_lists config forces all.
-		listID := cfg.ListID
-		if s.Resource != "" {
-			listID = s.Resource
-		}
-		if p.allLists {
-			listID = TodoAllLists
-		}
+		// "" (default list), or TodoAllLists.
+		listID := s.Resource
 		tasks, err := todoTasksFor(ctx, sec.AccessToken, listID)
 		if err != nil {
 			if firstErr == nil {

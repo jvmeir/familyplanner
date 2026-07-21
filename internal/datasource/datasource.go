@@ -26,11 +26,11 @@ type Type struct {
 	Credential widget.Schema // secret fields (stored encrypted in secret_ciphertext)
 	CredKind   CredentialKind
 
-	// Dynamic resource picker (populated from the authenticated API on the
-	// configure page). Empty ResourceKind = no picker.
-	ResourceKind      string // "ms_calendars" | "bring_lists" | "ms_todo_lists"
-	ResourceConfigKey string // config key the chosen resource id is stored under
-	ResourceLabelKey  string // i18n label for the picker
+	// Dynamic resource picker, shown on the per-widget↔source link (the chosen
+	// resource is stored on that relation, never on the data source itself).
+	// Empty ResourceKind = no picker.
+	ResourceKind     string // "ms_calendars" | "bring_lists" | "ms_todo_lists" | …
+	ResourceLabelKey string // i18n label for the picker
 }
 
 // Registry holds the known data-source types.
@@ -94,42 +94,37 @@ func RegisterDefaults(r *Registry) {
 			{Name: "email", LabelKey: "datasource.field.email", Type: widget.FieldText, Required: true},
 			{Name: "password", LabelKey: "datasource.field.password", Type: widget.FieldPassword, Required: true},
 		}},
-		ResourceKind:      "bring_lists",
-		ResourceConfigKey: "list",
-		ResourceLabelKey:  "datasource.field.bring_list",
+		ResourceKind:     "bring_lists",
+		ResourceLabelKey: "datasource.field.bring_list",
 	})
 	// OAuth2 types: the app client id/secret come from app config; creating one
 	// is just an interactive sign-in that stores the user's token.
 	r.Register(Type{
-		ID:                "ms_graph",
-		NameKey:           "datasource.type.ms_graph",
-		CredKind:          CredOAuth2,
-		ResourceKind:      "ms_calendars",
-		ResourceConfigKey: "calendar_id",
-		ResourceLabelKey:  "datasource.field.calendar",
+		ID:               "ms_graph",
+		NameKey:          "datasource.type.ms_graph",
+		CredKind:         CredOAuth2,
+		ResourceKind:     "ms_calendars",
+		ResourceLabelKey: "datasource.field.calendar",
 	})
 	r.Register(Type{
-		ID:                "google_photos",
-		NameKey:           "datasource.type.google_photos",
-		CredKind:          CredOAuth2,
-		ResourceKind:      "google_albums",
-		ResourceConfigKey: "album_id",
-		ResourceLabelKey:  "datasource.field.album",
+		ID:               "google_photos",
+		NameKey:          "datasource.type.google_photos",
+		CredKind:         CredOAuth2,
+		ResourceKind:     "google_albums",
+		ResourceLabelKey: "datasource.field.album",
 	})
 	r.Register(Type{
-		ID:                "onedrive",
-		NameKey:           "datasource.type.onedrive",
-		CredKind:          CredOAuth2,
-		ResourceKind:      "onedrive_folders",
-		ResourceConfigKey: "folder_id",
-		ResourceLabelKey:  "datasource.field.folder",
+		ID:               "onedrive",
+		NameKey:          "datasource.type.onedrive",
+		CredKind:         CredOAuth2,
+		ResourceKind:     "onedrive_folders",
+		ResourceLabelKey: "datasource.field.folder",
 	})
 	r.Register(Type{
-		ID:                "ms_todo",
-		NameKey:           "datasource.type.ms_todo",
-		CredKind:          CredOAuth2,
-		ResourceKind:      "ms_todo_lists",
-		ResourceConfigKey: "list_id",
-		ResourceLabelKey:  "datasource.field.todolist",
+		ID:               "ms_todo",
+		NameKey:          "datasource.type.ms_todo",
+		CredKind:         CredOAuth2,
+		ResourceKind:     "ms_todo_lists",
+		ResourceLabelKey: "datasource.field.todolist",
 	})
 }

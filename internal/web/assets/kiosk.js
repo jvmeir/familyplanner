@@ -108,7 +108,12 @@
     loadView(currentViewID, changed);
   });
   es.addEventListener("refresh", function () {
-    loadView(currentViewID, false);
+    // Don't reload the view while a video is playing — reloading destroys the
+    // player (restarting it) and, on a random-single screen, re-randomizes the
+    // widget. The video plays to its end undisturbed; only the ticker refreshes.
+    if (!stage.querySelector(".w-yt")) {
+      loadView(currentViewID, false);
+    }
     loadTicker();
   });
   // Fresh id->name map (covers screens added/renamed after page load).
