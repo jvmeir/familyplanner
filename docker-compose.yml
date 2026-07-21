@@ -15,6 +15,12 @@ services:
       # Tailnet HTTPS URL (tailscale serve terminates TLS on this name -> :8080).
       # Drives absolute links + the OAuth redirect URI.
       FP_BASE_URL: https://planner.tail8bbe4.ts.net
+      # Microsoft OAuth app creds (Outlook/To Do/OneDrive). Kept OUT of this
+      # committed file: put them in a gitignored .env next to this compose file
+      # (FP_MS_CLIENT_ID=..., FP_MS_CLIENT_SECRET=...). Empty if unset -> OAuth
+      # sources just show "reconnect" until configured.
+      FP_MS_CLIENT_ID: "${FP_MS_CLIENT_ID:-}"
+      FP_MS_CLIENT_SECRET: "${FP_MS_CLIENT_SECRET:-}"
     volumes:
       # VM path (dev VM), not a Windows path. SQLite + cached files live here.
       - /root/familyplanner/data:/data
