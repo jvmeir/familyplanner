@@ -242,9 +242,11 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 
 /* month grid */
 .w-month { width: 100%; height: 100%; display: flex; flex-direction: column; }
-.wm-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; text-transform: capitalize; }
+/* Month-grid text sized relative to the widget (container query) x scale, so
+   events stay readable on a big wall and shrink to fit smaller cells. */
+.wm-title { font-size: calc(3.4cqmin * var(--kiosk-scale, 1)); font-weight: 700; margin-bottom: 4px; text-transform: capitalize; }
 .wm-grid { width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; }
-.wm-grid th { font-size: .95rem; color: var(--text-muted); padding: 2px; text-align: center; }
+.wm-grid th { font-size: calc(2.1cqmin * var(--kiosk-scale, 1)); color: var(--text-muted); padding: 2px; text-align: center; }
 .wm-day {
   border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
   vertical-align: top;
@@ -253,9 +255,9 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 }
 .wm-day.out { opacity: .35; }
 .wm-day.today { background: color-mix(in srgb, var(--accent) 18%, transparent); }
-.wm-num { display: block; font-size: 1.15rem; font-weight: 700; }
-.wm-ev { display: block; font-size: .95rem; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; color: var(--accent); margin-bottom: 2px; }
-.wm-more { font-size: .85rem; color: var(--text-muted); }
+.wm-num { display: block; font-size: calc(2.6cqmin * var(--kiosk-scale, 1)); font-weight: 700; }
+.wm-ev { display: block; font-size: calc(2.3cqmin * var(--kiosk-scale, 1)); line-height: 1.2; white-space: normal; overflow-wrap: anywhere; color: var(--accent); margin-bottom: 2px; }
+.wm-more { font-size: calc(2cqmin * var(--kiosk-scale, 1)); color: var(--text-muted); }
 
 /* relative day-by-day schedule */
 .w-sched { width: 100%; height: 100%; overflow: hidden; text-align: left; }

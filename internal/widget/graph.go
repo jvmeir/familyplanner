@@ -54,7 +54,7 @@ func GraphCalendar(ctx context.Context, token, calendarID string, from, to time.
 	if calendarID != "" {
 		path = "/me/calendars/" + calendarID + "/calendarView"
 	}
-	url := fmt.Sprintf("%s%s?startDateTime=%s&endDateTime=%s&$select=subject,start,isAllDay&$top=100&$orderby=start/dateTime",
+	url := fmt.Sprintf("%s%s?startDateTime=%s&endDateTime=%s&$select=subject,start,end,isAllDay&$top=100&$orderby=start/dateTime",
 		graphBase, path,
 		from.UTC().Format("2006-01-02T15:04:05"), to.UTC().Format("2006-01-02T15:04:05"))
 
@@ -65,6 +65,9 @@ func GraphCalendar(ctx context.Context, token, calendarID string, from, to time.
 			Start    struct {
 				DateTime string `json:"dateTime"`
 			} `json:"start"`
+			End struct {
+				DateTime string `json:"dateTime"`
+			} `json:"end"`
 		} `json:"value"`
 	}
 	if err := graphGet(ctx, token, url, &body); err != nil {
@@ -76,7 +79,7 @@ func GraphCalendar(ctx context.Context, token, calendarID string, from, to time.
 		if t.IsZero() {
 			continue
 		}
-		out = append(out, calEvent{t: t, title: e.Subject, allDay: e.IsAllDay})
+		out = append(out, calEvent{t: t, end: parseGraphTime(e.End.DateTime, loc), title: e.Subject, allDay: e.IsAllDay})
 	}
 	return out, nil
 }

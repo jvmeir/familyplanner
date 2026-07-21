@@ -92,8 +92,46 @@ var nlMonthFull = [...]string{"januari", "februari", "maart", "april", "mei", "j
 
 type calEvent struct {
 	t      time.Time
+	end    time.Time // event end (zero if unknown); enables multi-day spanning
 	title  string
 	allDay bool
+}
+
+func dateOf(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+// lastDay is the last calendar day the event occupies. For all-day events the
+// iCal DTEND is exclusive (the day after the final day); a timed event ending
+// exactly at midnight likewise doesn't occupy that next day.
+func (e calEvent) lastDay() time.Time {
+	sd := dateOf(e.t)
+	if e.end.IsZero() || !e.end.After(e.t) {
+		return sd
+	}
+	ed := dateOf(e.end)
+	if e.allDay || e.end.Equal(ed) {
+		ed = ed.AddDate(0, 0, -1)
+	}
+	if ed.Before(sd) {
+		return sd
+	}
+	return ed
+}
+
+// occupies reports whether the event covers the given day (start..lastDay).
+func (e calEvent) occupies(day time.Time) bool {
+	d := dateOf(day)
+	return !d.Before(dateOf(e.t)) && !d.After(e.lastDay())
+}
+
+// onDay formats the event for one day of a grid: a timed event shows its time on
+// its start day, everything else (all-day, or a continuation day) shows "• ".
+func (e calEvent) onDay(day time.Time) string {
+	if e.allDay || !sameDate(e.t, day) {
+		return "• " + e.title
+	}
+	return fmt.Sprintf("%02d:%02d %s", e.t.Hour(), e.t.Minute(), e.title)
 }
 
 func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error) {
@@ -212,12 +250,8 @@ func buildWeekGrid(now time.Time, all []calEvent, cfg CalendarConfig) *MonthGrid
 		for d := 0; d < 7; d++ {
 			cell := DayCell{Day: day.Day(), InMonth: true, Today: sameDate(day, now)}
 			for _, e := range all {
-				if sameDate(e.t, day) {
-					if e.allDay {
-						cell.Events = append(cell.Events, "• "+e.title)
-					} else {
-						cell.Events = append(cell.Events, fmt.Sprintf("%02d:%02d %s", e.t.Hour(), e.t.Minute(), e.title))
-					}
+				if e.occupies(day) {
+					cell.Events = append(cell.Events, e.onDay(day))
 				}
 			}
 			week = append(week, cell)
@@ -267,15 +301,28 @@ func fetchICS(ctx context.Context, rawURL, filterStr string, expandFrom, expandT
 		}
 		// All-day events use a date-only DTSTART (no time component).
 		allDay := !strings.Contains(propVal(e, ics.ComponentPropertyDtStart), "T")
+		endAt, eerr := e.GetEndAt()
+		var dur time.Duration
+		if eerr == nil && endAt.After(start) {
+			dur = endAt.Sub(start)
+		}
 		if rule := propVal(e, ics.ComponentPropertyRrule); rule != "" {
 			if occ := expandRecurring(rule, start, expandFrom, expandTo); len(occ) > 0 {
 				for _, t := range occ {
-					out = append(out, calEvent{t: t.In(loc), title: title, allDay: allDay})
+					ev := calEvent{t: t.In(loc), title: title, allDay: allDay}
+					if dur > 0 {
+						ev.end = ev.t.Add(dur)
+					}
+					out = append(out, ev)
 				}
 				continue
 			}
 		}
-		out = append(out, calEvent{t: start.In(loc), title: title, allDay: allDay})
+		ev := calEvent{t: start.In(loc), title: title, allDay: allDay}
+		if eerr == nil {
+			ev.end = endAt.In(loc)
+		}
+		out = append(out, ev)
 	}
 	return out, nil
 }
@@ -300,8 +347,8 @@ func buildSchedule(now time.Time, all []calEvent, cfg CalendarConfig) []Schedule
 			Today: sameDate(d, now),
 		}
 		for _, e := range all {
-			if sameDate(e.t, d) {
-				day.Events = append(day.Events, fmt.Sprintf("%02d:%02d %s", e.t.Hour(), e.t.Minute(), e.title))
+			if e.occupies(d) {
+				day.Events = append(day.Events, e.onDay(d))
 			}
 		}
 		sort.Strings(day.Events)
@@ -352,7 +399,7 @@ func buildMonth(now time.Time, all []calEvent) *MonthGrid {
 				anyInMonth = true
 			}
 			for _, e := range all {
-				if sameDate(e.t, day) {
+				if e.occupies(day) {
 					cell.Events = append(cell.Events, e.title)
 				}
 			}
