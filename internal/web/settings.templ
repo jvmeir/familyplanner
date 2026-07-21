@@ -1,0 +1,39 @@
+package web
+
+import "github.com/jvmeir/familyplanner/internal/i18n"
+
+// SettingsVM drives the admin settings page.
+type SettingsVM struct {
+	VoiceEnabled bool
+	QuietStart   string // "HH:MM"
+	QuietEnd     string
+	Saved        bool
+}
+
+// SettingsPage is the global kiosk settings (currently the voice clock).
+templ SettingsPage(vm SettingsVM) {
+	@AdminPage("settings") {
+		<h1>{ i18n.T(ctx, "settings.title") }</h1>
+		if vm.Saved {
+			<p class="muted">{ i18n.T(ctx, "settings.saved") }</p>
+		}
+		<form class="card form" method="post" action="/admin/settings">
+			@csrfInput()
+			<h2>{ i18n.T(ctx, "settings.voiceclock") }</h2>
+			<p class="muted">{ i18n.T(ctx, "settings.voiceclock_help") }</p>
+			<label class="check">
+				<input type="checkbox" name="voice_enabled" checked?={ vm.VoiceEnabled }/>
+				{ i18n.T(ctx, "settings.enabled") }
+			</label>
+			<label>
+				{ i18n.T(ctx, "settings.quiet_start") }
+				<input type="time" name="quiet_start" value={ vm.QuietStart }/>
+			</label>
+			<label>
+				{ i18n.T(ctx, "settings.quiet_end") }
+				<input type="time" name="quiet_end" value={ vm.QuietEnd }/>
+			</label>
+			<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
+		</form>
+	}
+}

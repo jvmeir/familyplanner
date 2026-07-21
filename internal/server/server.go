@@ -29,6 +29,7 @@ import (
 	"github.com/jvmeir/familyplanner/internal/layout"
 	"github.com/jvmeir/familyplanner/internal/rotation"
 	"github.com/jvmeir/familyplanner/internal/theme"
+	"github.com/jvmeir/familyplanner/internal/voiceclock"
 	"github.com/jvmeir/familyplanner/internal/web"
 	"github.com/jvmeir/familyplanner/internal/widget"
 )
@@ -134,6 +135,9 @@ func (s *Server) routes() http.Handler {
 			r.Post("/admin/playlists/{id}/items", s.handlePlaylistAddItem)
 			r.Delete("/admin/playlists/items/{itemID}", s.handlePlaylistItemDelete)
 			r.Post("/admin/playlists/items/{itemID}/move", s.handlePlaylistItemMove)
+
+			r.Get("/admin/settings", s.handleSettings)
+			r.Post("/admin/settings", s.handleSettingsSave)
 
 			r.Get("/admin/devices", s.handleDevices)
 			r.Post("/admin/devices/{id}/playlist", s.handleDeviceAssign)
@@ -384,6 +388,9 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 	defer advance.Stop()
 	refresh := time.NewTicker(30 * time.Second)
 	defer refresh.Stop()
+	// Global voice clock: fire on each quarter-hour so every screen chimes in sync.
+	chime := time.NewTimer(voiceclock.UntilNextQuarter(s.now()))
+	defer chime.Stop()
 
 	for {
 		select {
@@ -406,8 +413,30 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			reset(advance, dwell())
+		case <-chime.C: // quarter-hour voice-clock chime (gated by config + quiet hours)
+			if ch, ok := s.voiceClockConfig(r.Context()).Decide(s.now()); ok {
+				if payload, err := json.Marshal(ch); err == nil {
+					if !send("chime", string(payload)) {
+						return
+					}
+				}
+			}
+			chime.Reset(voiceclock.UntilNextQuarter(s.now()))
 		}
 	}
+}
+
+// voiceClockConfig loads the global voice-clock setting (seeded default if unset).
+func (s *Server) voiceClockConfig(ctx context.Context) voiceclock.Config {
+	raw, err := s.store.GetSetting(ctx, "voiceclock")
+	if err != nil || raw == "" {
+		return voiceclock.Default()
+	}
+	var cfg voiceclock.Config
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return voiceclock.Default()
+	}
+	return cfg
 }
 
 // ---------- view resolution ----------

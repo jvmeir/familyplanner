@@ -43,6 +43,7 @@
   }
 
   const es = new EventSource("/kiosk/stream");
+  window.fpES = es; // shared so voiceclock.js can listen for "chime" without a 2nd stream
   es.addEventListener("navigate", function (e) {
     currentViewID = e.data;
     updateViewLabel(currentViewID);

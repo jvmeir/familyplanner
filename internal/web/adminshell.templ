@@ -14,6 +14,7 @@ templ AdminPage(active string) {
 				<a href="/admin/views" class={ navClass(active, "views") }>{ i18n.T(ctx, "nav.views") }</a>
 				<a href="/admin/playlists" class={ navClass(active, "playlists") }>{ i18n.T(ctx, "nav.playlists") }</a>
 				<a href="/admin/devices" class={ navClass(active, "devices") }>{ i18n.T(ctx, "nav.devices") }</a>
+				<a href="/admin/settings" class={ navClass(active, "settings") }>{ i18n.T(ctx, "nav.settings") }</a>
 				<a class="navlink" href="/kiosk">{ i18n.T(ctx, "nav.kiosk") }</a>
 				<form method="post" action="/logout">
 					@csrfInput()
