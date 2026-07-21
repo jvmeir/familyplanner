@@ -63,9 +63,11 @@ func GraphListAlbums(ctx context.Context, token string) ([]ResourceOption, error
 	return all, nil // fallback: expose all bundles if none are tagged as albums
 }
 
-// GraphFolderPhotos returns pre-authenticated download URLs for the images in a
-// OneDrive folder (empty id = drive root), ordered by capture/creation date.
-// The download URLs are temporary (~1h) and load directly in an <img> (no token).
+// GraphFolderPhotos returns image URLs for the photos in a OneDrive folder or
+// album (empty id = drive root), ordered by capture/creation date. It prefers a
+// large thumbnail URL (a proper image/* CDN link that renders reliably in an
+// <img>) and only falls back to the raw downloadUrl (which OneDrive serves as
+// application/octet-stream, so browsers often won't render it).
 func GraphFolderPhotos(ctx context.Context, token, folderID string) ([]string, error) {
 	path := "/me/drive/root/children"
 	if folderID != "" {
@@ -81,26 +83,43 @@ func GraphFolderPhotos(ctx context.Context, token, folderID string) ([]string, e
 			Photo           *struct {
 				TakenDateTime string `json:"takenDateTime"`
 			} `json:"photo"`
+			Thumbnails []struct {
+				Large *struct {
+					URL string `json:"url"`
+				} `json:"large"`
+				Medium *struct {
+					URL string `json:"url"`
+				} `json:"medium"`
+			} `json:"thumbnails"`
 		} `json:"value"`
 	}
-	if err := graphGet(ctx, token, graphBase+path+"?$top=200", &body); err != nil {
+	if err := graphGet(ctx, token, graphBase+path+"?$top=200&$expand=thumbnails", &body); err != nil {
 		return nil, err
 	}
 
-	type item struct {
-		url  string
-		when string
-	}
+	type item struct{ url, when string }
 	var items []item
 	for _, it := range body.Value {
-		if it.File == nil || !strings.HasPrefix(it.File.MimeType, "image/") || it.DownloadURL == "" {
+		isImage := it.File != nil && strings.HasPrefix(it.File.MimeType, "image/")
+		url := ""
+		if len(it.Thumbnails) > 0 {
+			if it.Thumbnails[0].Large != nil {
+				url = it.Thumbnails[0].Large.URL
+			} else if it.Thumbnails[0].Medium != nil {
+				url = it.Thumbnails[0].Medium.URL
+			}
+		}
+		if url == "" && isImage {
+			url = it.DownloadURL // last resort (may not render if octet-stream)
+		}
+		if url == "" || (!isImage && len(it.Thumbnails) == 0) {
 			continue
 		}
 		when := it.CreatedDateTime
 		if it.Photo != nil && it.Photo.TakenDateTime != "" {
 			when = it.Photo.TakenDateTime
 		}
-		items = append(items, item{url: it.DownloadURL, when: when})
+		items = append(items, item{url: url, when: when})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].when < items[j].when })
 

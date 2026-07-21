@@ -213,13 +213,18 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
   container-type: size; /* enable cqh-based font scaling */
 }
 
-/* Agenda: enlarge events to fill the cell, scaled by event count (--n). */
-.kind-calendar .w-list { display: flex; flex-direction: column; justify-content: center; height: 100%; }
+/* Agenda: readable rows sized to the cell (not ballooned); wrap instead of
+   clipping, and let the list auto-scroll (cell-scroll) when there are many. */
+.kind-calendar .w-list { display: flex; flex-direction: column; justify-content: flex-start; height: 100%; }
 .kind-calendar .w-list li {
-  font-size: clamp(1rem, calc(82cqh / var(--n, 4)), 3rem);
+  font-size: clamp(0.8rem, calc(4.6cqmin * var(--kiosk-scale, 1)), 1.8rem);
   font-weight: 600;
-  padding: 2px 0;
+  line-height: 1.25;
+  padding: 3px 0;
   border-bottom: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
 }
 /* Widget text is sized relative to its own cell (container query units) so it
    fits in multi-widget layouts without clipping, times the admin scale slider.
