@@ -16,7 +16,7 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker [
 			@KioskBody(body, health)
 		</div>
 		if pip != nil && len(pip.IDs) > 0 {
-			<div class={ "kpip", "kpip-" + pip.Corner, "kpip-" + pip.Size }>
+			<div class={ pipClass(pip.Corner, pip.Size) }>
 				<div
 					class="w-yt"
 					data-video-ids={ videoIDsAttr(pip.IDs) }

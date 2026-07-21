@@ -356,6 +356,17 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 .kpip-bl { left: 1.5vw; bottom: 7vh; }
 .kpip-tr { right: 1.5vw; top: 1.5vh; }
 .kpip-tl { left: 1.5vw; top: 1.5vh; }
+/* Side dock: full-height column on one edge; the main content reshapes to the
+   rest via body padding (so nothing is covered). */
+.kpip-dock { top: 0; bottom: 0; height: 100vh; aspect-ratio: auto; border-radius: 0; }
+.kpip-dock-right { right: 0; left: auto; }
+.kpip-dock-left { left: 0; right: auto; }
+body:has(.kpip-dock-right.kpip-s) { padding-right: 18vw; }
+body:has(.kpip-dock-right.kpip-m) { padding-right: 26vw; }
+body:has(.kpip-dock-right.kpip-l) { padding-right: 36vw; }
+body:has(.kpip-dock-left.kpip-s) { padding-left: 18vw; }
+body:has(.kpip-dock-left.kpip-m) { padding-left: 26vw; }
+body:has(.kpip-dock-left.kpip-l) { padding-left: 36vw; }
 
 /* Keyboard-shortcuts help overlay (toggled with the "i" key). */
 .kshortcuts { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(0, 0, 0, .6); }

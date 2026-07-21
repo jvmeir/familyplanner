@@ -77,7 +77,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker []
 				return templ_7745c5c3_Err
 			}
 			if pip != nil && len(pip.IDs) > 0 {
-				var templ_7745c5c3_Var4 = []any{"kpip", "kpip-" + pip.Corner, "kpip-" + pip.Size}
+				var templ_7745c5c3_Var4 = []any{pipClass(pip.Corner, pip.Size)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var4...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

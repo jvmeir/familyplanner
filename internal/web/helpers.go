@@ -35,6 +35,16 @@ func videoIDsAttr(ids []string) string {
 	return string(b)
 }
 
+// pipClass builds the CSS classes for the corner/dock PiP. "left"/"right" dock
+// the video to a side (the main content reshapes around it via body:has); the
+// four corners float it as an overlay.
+func pipClass(corner, size string) string {
+	if corner == "left" || corner == "right" {
+		return "kpip kpip-dock kpip-dock-" + corner + " kpip-" + size
+	}
+	return "kpip kpip-" + corner + " kpip-" + size
+}
+
 // boolAttr renders a bool as "1"/"0" for a data attribute.
 func boolAttr(b bool) string {
 	if b {

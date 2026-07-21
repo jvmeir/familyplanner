@@ -216,7 +216,7 @@ func (s *Server) handlePlaylistPip(w http.ResponseWriter, r *http.Request) {
 		interval = 0
 	}
 	pc := pipConfig{
-		Corner:   pick(r.FormValue("pip_corner"), "br", "bl", "tr", "tl"),
+		Corner:   pick(r.FormValue("pip_corner"), "br", "bl", "tr", "tl", "right", "left"),
 		Size:     pick(r.FormValue("pip_size"), "m", "s", "l"),
 		Interval: interval,
 		Muted:    r.FormValue("pip_muted") != "",

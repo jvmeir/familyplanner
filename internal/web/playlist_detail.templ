@@ -46,6 +46,8 @@ templ PlaylistPip(d PlaylistDetailVM) {
 		<label>
 			{ i18n.T(ctx, "playlist.pip_corner") }
 			<select name="pip_corner">
+				<option value="right" selected?={ d.PipCorner == "right" }>{ i18n.T(ctx, "playlist.corner.right") }</option>
+				<option value="left" selected?={ d.PipCorner == "left" }>{ i18n.T(ctx, "playlist.corner.left") }</option>
 				<option value="br" selected?={ d.PipCorner == "br" }>{ i18n.T(ctx, "playlist.corner.br") }</option>
 				<option value="bl" selected?={ d.PipCorner == "bl" }>{ i18n.T(ctx, "playlist.corner.bl") }</option>
 				<option value="tr" selected?={ d.PipCorner == "tr" }>{ i18n.T(ctx, "playlist.corner.tr") }</option>
