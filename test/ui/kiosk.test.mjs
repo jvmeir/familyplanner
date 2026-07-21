@@ -30,16 +30,6 @@ after(async () => {
   await browser?.close();
 });
 
-async function waitForSWControl() {
-  await page.evaluate(async () => {
-    if (!('serviceWorker' in navigator)) return;
-    await navigator.serviceWorker.ready;
-    for (let i = 0; i < 60 && !navigator.serviceWorker.controller; i++) {
-      await new Promise((r) => setTimeout(r, 100));
-    }
-  });
-}
-
 test('kiosk renders the shell and widgets', async () => {
   await page.goto(BASE + '/kiosk', { waitUntil: 'load' });
   await page.waitForSelector('.view .widget', { timeout: 15000 });
@@ -71,43 +61,6 @@ test('next control swaps the view via the SSE loop', async () => {
   );
   const after = (await page.textContent('#kview'))?.trim();
   assert.notEqual(after, before, 'view label changed after next');
-});
-
-test('service worker registers and precaches the shell', async () => {
-  await page.goto(BASE + '/kiosk', { waitUntil: 'load' });
-  await waitForSWControl();
-  const sw = await page.evaluate(async () => {
-    if (!('serviceWorker' in navigator)) return { supported: false };
-    const names = await caches.keys();
-    const c = names.length ? await caches.open(names[0]) : null;
-    const keys = c ? (await c.keys()).map((r) => new URL(r.url).pathname) : [];
-    return {
-      supported: true,
-      controlled: !!navigator.serviceWorker.controller,
-      hasCss: keys.includes('/static/app.css'),
-      hasKioskJs: keys.includes('/static/kiosk.js'),
-    };
-  });
-  assert.ok(sw.supported, 'service workers supported');
-  assert.ok(sw.controlled, 'service worker controls the page');
-  assert.ok(sw.hasCss, 'app.css precached');
-  assert.ok(sw.hasKioskJs, 'kiosk.js precached');
-});
-
-test('renders offline from cache (PWA resilience)', async () => {
-  await page.goto(BASE + '/kiosk', { waitUntil: 'load' });
-  await page.waitForSelector('.view .widget', { timeout: 15000 });
-  await waitForSWControl();
-
-  await ctx.setOffline(true);
-  try {
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('.view .widget', { timeout: 15000 });
-    const n = await page.evaluate(() => document.querySelectorAll('.view .widget').length);
-    assert.ok(n >= 1, 'kiosk renders while offline');
-  } finally {
-    await ctx.setOffline(false);
-  }
 });
 
 // Runs last: creating an OAuth source makes the badge appear on the kiosk.

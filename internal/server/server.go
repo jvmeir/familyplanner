@@ -92,10 +92,6 @@ func (s *Server) routes() http.Handler {
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(web.Assets()))))
 
-	// PWA: service worker (root scope) + manifest, public so any page installs.
-	r.Get("/sw.js", s.handleServiceWorker)
-	r.Get("/manifest.webmanifest", s.handleManifest)
-
 	// Session-backed routes (admin + auth + pairing).
 	r.Group(func(r chi.Router) {
 		r.Use(s.sessions.LoadAndSave)

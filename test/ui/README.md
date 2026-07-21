@@ -1,18 +1,19 @@
 # Synthetic UI tests
 
 Playwright-driven browser tests for the server-rendered **kiosk** (templ + HTMX
-+ SSE) and its **PWA** behaviour (service worker + offline rendering).
++ SSE): shell render, the footer "next" control driving an SSE view swap, and
+the OAuth health badge.
 
 ## Run
 
 ```sh
-task test:ui        # builds the server (with the WASM client) and runs the suite
+task test:ui        # builds the server and runs the suite
 ```
 
 or manually:
 
 ```sh
-task build          # produces bin/familyplanner with app.wasm embedded
+task build          # produces bin/familyplanner
 cd test/ui
 npm install
 node run.mjs
@@ -26,8 +27,6 @@ server and propagates the exit code.
 
 - **Chrome or Edge installed.** Playwright launches it by channel; override with
   `FP_UI_CHANNEL=msedge`. No browser download is needed (uses `playwright-core`).
-- The service-worker / offline tests need a **secure context**, which `localhost`
-  satisfies — so they only pass against `http://localhost`, not a plain-LAN IP.
 
 ## Env overrides
 
