@@ -1,19 +1,15 @@
-// Global voice clock: reacts to the server's quarter-hour "chime" SSE event
-// (shared EventSource from kiosk.js), plays a short Web-Audio chime, and — on the
-// hour — speaks the Dutch time via SpeechSynthesis. Runs on every kiosk screen,
-// independent of the current view. The server gates timing + quiet hours, so
-// this stays dumb: chime, maybe speak.
+// Voice clock audio: synthesises an open/public-domain chime on each quarter-hour
+// and, on the hour, speaks the Dutch time (SpeechSynthesis, nl-BE). The synth is
+// exposed on window (fpChime/fpSpeak/fpTestChime) so the admin settings page can
+// preview it; the SSE listener at the bottom only runs on the kiosk (needs fpES).
 (function () {
-  const es = window.fpES;
-  if (!es) return;
-
-  // Browsers block audio until a user gesture; on a wall with no interaction the
-  // AudioContext stays suspended (silent) until someone touches the screen, or
-  // until Chromium is launched with --autoplay-policy=no-user-gesture-required.
-  let ctx = null;
+  // Browsers block audio until a user gesture; on an untouched wall the context
+  // stays suspended until a tap, or launch Chromium with
+  // --autoplay-policy=no-user-gesture-required.
+  var ctx = null;
   function audio() {
     if (!ctx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
+      var AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
       ctx = new AC();
     }
@@ -21,72 +17,109 @@
     return ctx;
   }
 
-  // A celesta/tubular-bell-style ascending station gong, evoking the NMBS/SNCB
-  // platform-announcement jingle (an approximation of the style — not their exact
-  // proprietary sample). Each note = fundamental + soft octave, gentle attack and
-  // a long bell tail.
-  const JINGLE = [
-    { f: 587.33, at: 0.0 },  // D5
-    { f: 880.0, at: 0.26 },  // A5
-    { f: 1108.73, at: 0.52 }, // C#6
-    { f: 1174.66, at: 0.9 },  // D6 (resolve)
-  ];
-
-  function bell(ac, freq, start) {
-    [1, 2].forEach(function (mult, i) {
-      const osc = ac.createOscillator();
-      const gain = ac.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freq * mult;
-      osc.connect(gain);
-      gain.connect(ac.destination);
-      const peak = i === 0 ? 0.34 : 0.12; // octave quieter
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(peak, start + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.6);
-      osc.start(start);
-      osc.stop(start + 1.7);
-    });
+  // A struck-bell tone: fundamental + soft octave, fast attack, long decay.
+  function bell(ac, freq, start, dur, peak) {
+    for (var i = 0; i < 2; i++) {
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = "triangle";
+      o.frequency.value = freq * (i ? 2 : 1);
+      o.connect(g); g.connect(ac.destination);
+      var pk = i ? peak * 0.3 : peak;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(pk, start + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      o.start(start); o.stop(start + dur + 0.05);
+    }
   }
 
-  function chime() {
-    const ac = audio();
-    if (!ac) return;
-    const now = ac.currentTime;
-    JINGLE.forEach(function (n) {
-      bell(ac, n.f, now + n.at);
+  function beep(ac, freq, start, dur) {
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.type = "sine"; o.frequency.value = freq;
+    o.connect(g); g.connect(ac.destination);
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(0.3, start + 0.005);
+    g.gain.setValueAtTime(0.3, start + dur - 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.start(start); o.stop(start + dur + 0.02);
+  }
+
+  // Westminster Quarters (public-domain, "Big Ben"). Five 4-note changes in E
+  // major; per quarter it plays a growing set, and on the hour it adds the hour
+  // strikes on a low bell.
+  var N = { E4: 329.63, FS4: 369.99, GS4: 415.30, B3: 246.94, E3: 164.81 };
+  var CH = [
+    [N.GS4, N.FS4, N.E4, N.B3],
+    [N.E4, N.GS4, N.FS4, N.B3],
+    [N.E4, N.FS4, N.GS4, N.E4],
+    [N.GS4, N.E4, N.FS4, N.B3],
+    [N.B3, N.FS4, N.GS4, N.E4],
+  ];
+  var QSEQ = { 0: [1, 2, 3, 4], 1: [0], 2: [1, 2], 3: [3, 4, 0] };
+
+  function westminster(ac, quarter, hour) {
+    var t = ac.currentTime, step = 0.62, gap = 0.45;
+    (QSEQ[quarter] || [0]).forEach(function (ci) {
+      CH[ci].forEach(function (f) { bell(ac, f, t, 2.0, 0.32); t += step; });
+      t += gap;
     });
+    if (quarter === 0) {
+      t += 0.5;
+      var strikes = (hour % 12) || 12;
+      for (var i = 0; i < strikes; i++) { bell(ac, N.E3, t, 2.6, 0.42); t += 1.2; }
+    }
+    return t - ac.currentTime;
+  }
+
+  function gong(ac) {
+    var t = ac.currentTime;
+    [880.0, 587.33].forEach(function (f, i) { bell(ac, f, t + i * 0.3, 1.6, 0.34); });
+    return 1.9;
+  }
+
+  function pips(ac) {
+    var t = ac.currentTime;
+    for (var i = 0; i < 3; i++) { beep(ac, 1000, t, 0.09); t += 0.2; }
+    beep(ac, 1500, t, 0.5);
+    return t + 0.5 - ac.currentTime;
+  }
+
+  // playChime returns the sound's duration in seconds (so the caller can time
+  // the spoken announcement to follow it).
+  function playChime(d) {
+    var ac = audio();
+    if (!ac) return 0;
+    d = d || {};
+    if (d.style === "gong") return gong(ac);
+    if (d.style === "pips") return pips(ac);
+    return westminster(ac, d.quarter || 0, d.hour || 0);
   }
 
   function speak(text) {
     if (!("speechSynthesis" in window) || !text) return;
-    const u = new SpeechSynthesisUtterance("Het is " + text);
+    var u = new SpeechSynthesisUtterance("Het is " + text);
     u.lang = "nl-BE";
     u.rate = 0.85; // calm, measured — station-announcer cadence
-    u.pitch = 1.0;
-    // Prefer an installed Flemish (nl-BE) voice, else any Dutch voice.
-    const voices = window.speechSynthesis.getVoices();
-    const nlBE = voices.find(function (v) { return /nl[-_]BE/i.test(v.lang); });
-    const nl = nlBE || voices.find(function (v) { return /^nl/i.test(v.lang); });
+    var voices = window.speechSynthesis.getVoices();
+    var nl = voices.find(function (v) { return /nl[-_]BE/i.test(v.lang); }) ||
+             voices.find(function (v) { return /^nl/i.test(v.lang); });
     if (nl) u.voice = nl;
     window.speechSynthesis.speak(u);
   }
 
-  es.addEventListener("chime", function (e) {
-    let d = {};
-    try {
-      d = JSON.parse(e.data);
-    } catch (_) {}
-    chime();
-    if (d.announce && d.text) {
-      // Let the jingle ring out, then announce (station-announcer cadence).
-      setTimeout(function () {
-        speak(d.text);
-      }, 2000);
-    }
-  });
+  var HOURS = ["twaalf", "één", "twee", "drie", "vier", "vijf",
+               "zes", "zeven", "acht", "negen", "tien", "elf"];
+  function dutchHour(h) { return HOURS[((h % 12) + 12) % 12] + " uur"; }
 
-  // First interaction unlocks audio for the rest of the session.
+  // Exposed for the admin tester + reuse.
+  window.fpChime = playChime;
+  window.fpSpeak = speak;
+  window.fpTestChime = function (style) {
+    var h = new Date().getHours();
+    var dur = playChime({ style: style || "westminster", quarter: 0, hour: h });
+    setTimeout(function () { speak(dutchHour(h)); }, (dur + 0.4) * 1000);
+  };
+
+  // First interaction unlocks audio for the session.
   function unlock() {
     audio();
     document.removeEventListener("pointerdown", unlock);
@@ -94,4 +127,17 @@
   }
   document.addEventListener("pointerdown", unlock);
   document.addEventListener("keydown", unlock);
+
+  // ---- kiosk only: react to the server's quarter-hour chime event ----
+  var es = window.fpES;
+  if (es) {
+    es.addEventListener("chime", function (e) {
+      var d = {};
+      try { d = JSON.parse(e.data); } catch (_) {}
+      var dur = playChime(d);
+      if (d.announce && d.text) {
+        setTimeout(function () { speak(d.text); }, (dur + 0.4) * 1000);
+      }
+    });
+  }
 })();

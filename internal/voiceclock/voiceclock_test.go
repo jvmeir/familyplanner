@@ -19,17 +19,34 @@ func TestDutchHour(t *testing.T) {
 }
 
 func TestDecideAnnounceOnHour(t *testing.T) {
-	cfg := Config{Enabled: true, QuietStart: "22:00", QuietEnd: "07:00"}
+	cfg := Config{Enabled: true, QuietStart: "22:00", QuietEnd: "07:00", ChimeStyle: StyleWestminster}
 
 	ch, ok := cfg.Decide(at(15, 0))
 	require.True(t, ok)
 	require.True(t, ch.Announce)
 	require.Equal(t, "drie uur", ch.Text)
+	require.Equal(t, 0, ch.Quarter, "top of hour")
+	require.Equal(t, 15, ch.Hour)
+	require.Equal(t, StyleWestminster, ch.Style)
 
 	ch, ok = cfg.Decide(at(15, 15))
 	require.True(t, ok)
 	require.False(t, ch.Announce, "quarter past = chime only")
 	require.Empty(t, ch.Text)
+	require.Equal(t, 1, ch.Quarter)
+
+	ch, _ = cfg.Decide(at(15, 45))
+	require.Equal(t, 3, ch.Quarter)
+}
+
+func TestDecideStyleDefaultsAndValidates(t *testing.T) {
+	require.Equal(t, StyleWestminster, ValidStyle(""))
+	require.Equal(t, StyleWestminster, ValidStyle("bogus"))
+	require.Equal(t, StyleGong, ValidStyle(StyleGong))
+	// empty config style -> westminster in the payload.
+	ch, ok := Config{Enabled: true}.Decide(at(15, 0))
+	require.True(t, ok)
+	require.Equal(t, StyleWestminster, ch.Style)
 }
 
 func TestDecideDisabled(t *testing.T) {

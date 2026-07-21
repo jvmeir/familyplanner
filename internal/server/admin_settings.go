@@ -24,6 +24,7 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 		Enabled:    r.FormValue("voice_enabled") != "",
 		QuietStart: r.FormValue("quiet_start"),
 		QuietEnd:   r.FormValue("quiet_end"),
+		ChimeStyle: voiceclock.ValidStyle(r.FormValue("chime_style")),
 	}
 	if js, err := json.Marshal(cfg); err == nil {
 		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "voiceclock", Value: string(js)})
@@ -43,6 +44,7 @@ func (s *Server) settingsVM(ctx context.Context, saved bool) web.SettingsVM {
 		VoiceEnabled: cfg.Enabled,
 		QuietStart:   cfg.QuietStart,
 		QuietEnd:     cfg.QuietEnd,
+		ChimeStyle:   voiceclock.ValidStyle(cfg.ChimeStyle),
 		KioskScale:   strconv.FormatFloat(s.kioskScale(ctx), 'f', 2, 64),
 		Saved:        saved,
 	}

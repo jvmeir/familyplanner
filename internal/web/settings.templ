@@ -7,6 +7,7 @@ type SettingsVM struct {
 	VoiceEnabled bool
 	QuietStart   string // "HH:MM"
 	QuietEnd     string
+	ChimeStyle   string // westminster | gong | pips
 	KioskScale   string // UI scale multiplier, e.g. "1.00"
 	Saved        bool
 }
@@ -34,6 +35,17 @@ templ SettingsPage(vm SettingsVM) {
 				{ i18n.T(ctx, "settings.quiet_end") }
 				<input type="time" name="quiet_end" value={ vm.QuietEnd }/>
 			</label>
+			<label>
+				{ i18n.T(ctx, "settings.chime_style") }
+				<select name="chime_style">
+					<option value="westminster" selected?={ vm.ChimeStyle == "westminster" }>{ i18n.T(ctx, "settings.chime.westminster") }</option>
+					<option value="gong" selected?={ vm.ChimeStyle == "gong" }>{ i18n.T(ctx, "settings.chime.gong") }</option>
+					<option value="pips" selected?={ vm.ChimeStyle == "pips" }>{ i18n.T(ctx, "settings.chime.pips") }</option>
+				</select>
+			</label>
+			<button type="button" class="btn ghost" onclick="fpTestChime(document.querySelector('[name=chime_style]').value)">
+				{ i18n.T(ctx, "settings.test") }
+			</button>
 			<h2>{ i18n.T(ctx, "settings.scale") }</h2>
 			<p class="muted">{ i18n.T(ctx, "settings.scale_help") }</p>
 			<label>
@@ -50,5 +62,6 @@ templ SettingsPage(vm SettingsVM) {
 			</label>
 			<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
 		</form>
+		<script src="/static/voiceclock.js"></script>
 	}
 }

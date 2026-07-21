@@ -9,21 +9,43 @@ import (
 	"time"
 )
 
+// Chime styles (open / public-domain sounds synthesised in the browser).
+const (
+	StyleWestminster = "westminster" // Big Ben quarter chimes (public domain)
+	StyleGong        = "gong"        // generic airport/PA "bing-bong"
+	StylePips        = "pips"        // time-signal beeps
+)
+
+// ValidStyle normalises an unknown/empty style to the default (westminster).
+func ValidStyle(s string) string {
+	switch s {
+	case StyleWestminster, StyleGong, StylePips:
+		return s
+	default:
+		return StyleWestminster
+	}
+}
+
 // Config is the (JSON-persisted) voice-clock setting.
 type Config struct {
 	Enabled    bool   `json:"enabled"`
 	QuietStart string `json:"quietStart"` // "HH:MM", inclusive
 	QuietEnd   string `json:"quietEnd"`   // "HH:MM", exclusive (wraps past midnight)
+	ChimeStyle string `json:"chimeStyle"` // westminster | gong | pips
 }
 
-// Default is the seeded configuration: on, silent overnight.
+// Default is the seeded configuration: on, silent overnight, Westminster chime.
 func Default() Config {
-	return Config{Enabled: true, QuietStart: "22:00", QuietEnd: "07:00"}
+	return Config{Enabled: true, QuietStart: "22:00", QuietEnd: "07:00", ChimeStyle: StyleWestminster}
 }
 
-// Chime is the payload sent to the browser on a quarter-hour.
+// Chime is the payload sent to the browser on a quarter-hour. The browser
+// synthesises the sound; the server only decides when + what.
 type Chime struct {
-	Announce bool   `json:"announce"`      // speak the time (top of the hour)
+	Style    string `json:"style"`          // westminster | gong | pips
+	Quarter  int    `json:"quarter"`        // 0 = top of hour, 1 = :15, 2 = :30, 3 = :45
+	Hour     int    `json:"hour"`           // 0–23 (Westminster hour strikes)
+	Announce bool   `json:"announce"`       // speak the time (top of the hour)
 	Text     string `json:"text,omitempty"` // Dutch words, e.g. "drie uur"
 }
 
@@ -34,10 +56,16 @@ func (c Config) Decide(t time.Time) (Chime, bool) {
 	if !c.Enabled || c.InQuiet(t) {
 		return Chime{}, false
 	}
-	if t.Minute() == 0 {
-		return Chime{Announce: true, Text: DutchHour(t.Hour())}, true
+	ch := Chime{
+		Style:   ValidStyle(c.ChimeStyle),
+		Quarter: (t.Minute() / 15) % 4,
+		Hour:    t.Hour(),
 	}
-	return Chime{Announce: false}, true
+	if t.Minute() == 0 {
+		ch.Announce = true
+		ch.Text = DutchHour(t.Hour())
+	}
+	return ch, true
 }
 
 // InQuiet reports whether t's wall-clock time falls in the quiet window. A start
