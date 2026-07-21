@@ -248,7 +248,9 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 .w-big.countdown-live { font-size: calc(8cqmin * var(--kiosk-scale, 1)); white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .w-sub { color: var(--text-muted); margin-top: 6px; font-size: calc(5cqmin * var(--kiosk-scale, 1)); }
 .w-body { line-height: 1.45; margin: 6px 0 0; font-size: calc(5.5cqmin * var(--kiosk-scale, 1)); }
-.w-list { list-style: none; padding: 0; margin: 8px 0 0; width: 100%; text-align: left; overflow: hidden; }
+/* max-height bounds the list to the widget so a long list (shopping / to-do)
+   clips and is auto-scrolled by kiosk.js instead of overflowing the cell. */
+.w-list { list-style: none; padding: 0; margin: 8px 0 0; width: 100%; max-height: 100%; text-align: left; overflow: hidden; }
 .w-list li {
   padding: 6px 2px;
   border-bottom: 1px solid color-mix(in srgb, var(--text) 12%, transparent);

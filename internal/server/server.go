@@ -511,6 +511,7 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 			reset(advance, dwell())
 		case <-chime.C: // quarter-hour voice-clock chime (gated by config + quiet hours)
 			if ch, ok := s.voiceClockConfig(r.Context()).Decide(beat); ok {
+				ch.AtUnixMs = beat.UnixMilli() // let the client align the marking pip to the exact beat
 				if payload, err := json.Marshal(ch); err == nil {
 					if !send("chime", string(payload)) {
 						return
@@ -524,12 +525,12 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 }
 
 // chimeDelay is how long to wait before firing the chime timer for the given
-// beat: the time until the beat, minus any lead so a speaking-clock marking tone
-// lands exactly on the beat. Never negative.
+// beat: the time until the beat, minus the chime's lead so a spoken readout has
+// time to finish and its marking pip can land on the beat. Never negative.
 func (s *Server) chimeDelay(ctx context.Context, now, beat time.Time) time.Duration {
 	d := beat.Sub(now)
 	if ch, ok := s.voiceClockConfig(ctx).Decide(beat); ok {
-		d -= voiceclock.MarkLead(ch.Sound)
+		d -= ch.Lead()
 	}
 	if d < 0 {
 		d = 0

@@ -159,10 +159,28 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 	// falling back to a single URL in the widget config for backward compatibility.
 	type feed struct{ url, filter, color string }
 	type gsrc struct{ token, calID, filter, color string }
+	type tsrc struct{ token, listID, filter, color string }
 	var feeds []feed
 	var graphs []gsrc
+	var todos []tsrc
 	for _, s := range p.sources {
 		switch s.Type {
+		case "ms_todo":
+			var sec struct {
+				AccessToken string `json:"access_token"`
+			}
+			_ = json.Unmarshal(s.Secret, &sec)
+			var c struct {
+				ListID string `json:"list_id"`
+			}
+			_ = json.Unmarshal(s.Config, &c)
+			listID := c.ListID
+			if s.Resource != "" {
+				listID = s.Resource
+			}
+			if sec.AccessToken != "" {
+				todos = append(todos, tsrc{sec.AccessToken, listID, s.Filter, s.Color})
+			}
 		case "ical":
 			var c struct {
 				URL string `json:"url"`
@@ -189,10 +207,10 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 			}
 		}
 	}
-	if len(feeds) == 0 && len(graphs) == 0 && p.cfg.URL != "" {
+	if len(feeds) == 0 && len(graphs) == 0 && len(todos) == 0 && p.cfg.URL != "" {
 		feeds = append(feeds, feed{p.cfg.URL, p.cfg.Filter, ""})
 	}
-	if len(feeds) == 0 && len(graphs) == 0 {
+	if len(feeds) == 0 && len(graphs) == 0 && len(todos) == 0 {
 		return nil, 0, fmt.Errorf("calendar: no data sources configured")
 	}
 
@@ -232,6 +250,42 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 				e.color = g.color
 				all = append(all, e)
 			}
+		}
+		ok++
+	}
+	// Microsoft To Do sources: a task with a due date becomes an all-day event on
+	// that date (tasks without a due date are not shown on a calendar).
+	for _, td := range todos {
+		listID := td.listID
+		if listID == "" {
+			if lists, err := GraphListTodoLists(ctx, td.token); err == nil && len(lists) > 0 {
+				listID = lists[0].ID
+			}
+		}
+		if listID == "" {
+			continue
+		}
+		tasks, err := GraphTodoTasks(ctx, td.token, listID)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		flt := parseFilter(td.filter)
+		for _, t := range tasks {
+			if t.Due.IsZero() {
+				continue
+			}
+			if !flt.match(func(prop string) string {
+				if prop == "" {
+					return t.Title
+				}
+				return ""
+			}) {
+				continue
+			}
+			all = append(all, calEvent{t: dateOf(t.Due.In(loc)), title: t.Title, allDay: true, color: td.color})
 		}
 		ok++
 	}

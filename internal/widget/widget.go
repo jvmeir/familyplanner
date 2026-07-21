@@ -146,7 +146,7 @@ func RegisterDefaults(r *Registry) {
 		NameKey:        "widget.calendar.name",
 		NewProvider:    newCalendar,
 		Decode:         decodeCalendar,
-		AcceptsSources: []string{"ical", "ms_graph"},
+		AcceptsSources: []string{"ical", "ms_graph", "ms_todo"},
 		// Feeds + per-feed filters come from linked data sources (managed on the
 		// widget's edit page). These fields control display only.
 		Schema: Schema{Fields: []Field{
@@ -209,6 +209,10 @@ func RegisterDefaults(r *Registry) {
 			{Name: "hide_no_due", LabelKey: "widget.todolist.field.hide_no_due", Type: FieldSelect, Options: []Option{
 				{Value: "no", LabelKey: "widget.todolist.hide_no_due.no"},
 				{Value: "yes", LabelKey: "widget.todolist.hide_no_due.yes"},
+			}},
+			{Name: "all_lists", LabelKey: "widget.todolist.field.all_lists", Type: FieldSelect, Options: []Option{
+				{Value: "no", LabelKey: "widget.todolist.all_lists.no"},
+				{Value: "yes", LabelKey: "widget.todolist.all_lists.yes"},
 			}},
 		}},
 	})

@@ -83,6 +83,22 @@ type Chime struct {
 	Hour     int    `json:"hour"`           // 0–23 (Westminster hour strikes)
 	Announce bool   `json:"announce"`       // speak the time (top of the hour)
 	Text     string `json:"text,omitempty"` // Dutch words, e.g. "drie uur"
+	AtUnixMs int64  `json:"at,omitempty"`   // the exact beat instant (ms); the client aligns the marking pip to it
+}
+
+// Lead is how far BEFORE the beat this chime should be SENT so its time-marking
+// tone lands on the beat. The speaking-clock time signal has a marking pip; when
+// spoken first, we lead enough for the phrase (~4s) plus the pips (~2s) — the
+// client fine-aligns the pip to AtUnixMs, so a generous lead just needs to start
+// early enough. Everything else plays on the beat.
+func (c Chime) Lead() time.Duration {
+	if c.Sound != SoundTimeSignal {
+		return 0
+	}
+	if c.Announce {
+		return 6 * time.Second
+	}
+	return 2 * time.Second // pips only: the long third pip is ~2s in
 }
 
 // Decide returns the chime to emit at local time t (a quarter-hour boundary), or
@@ -119,16 +135,6 @@ func NextBoundary(now time.Time) time.Time {
 		b = b.Add(15 * time.Minute)
 	}
 	return b
-}
-
-// MarkLead is how far BEFORE a beat a chime should start so its time-marking
-// tone lands exactly on the beat. Only the speaking-clock time signal has such a
-// tone (its long third pip, ~2s in); every other sound plays on the beat.
-func MarkLead(sound string) time.Duration {
-	if sound == SoundTimeSignal {
-		return 2 * time.Second
-	}
-	return 0
 }
 
 // InQuiet reports whether t's wall-clock time falls in the quiet window. A start

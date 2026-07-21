@@ -7,11 +7,61 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"time"
 )
 
 // bringBase is overridable in tests. Bring has no official public API; these are
 // the community-known REST endpoints.
 var bringBase = "https://api.getbring.com/rest/v2"
+
+// bringLocaleURL is Bring's public catalog mapping the canonical (German) item
+// names to a target locale — used to localize list items (which the API returns
+// in the catalog's base German). Overridable in tests.
+var bringLocaleURL = "https://web.getbring.com/locale/articles.nl-NL.json"
+
+var (
+	bringCatMu  sync.Mutex
+	bringCatMap map[string]string // German name -> Dutch name
+	bringCatAt  time.Time
+)
+
+// bringCatalog returns the German→Dutch item-name map, fetched once and cached
+// for a day. On any failure it returns nil (items are then shown untranslated).
+func bringCatalog(ctx context.Context) map[string]string {
+	bringCatMu.Lock()
+	defer bringCatMu.Unlock()
+	if bringCatMap != nil && time.Since(bringCatAt) < 24*time.Hour {
+		return bringCatMap
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bringLocaleURL, nil)
+	if err != nil {
+		return bringCatMap
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return bringCatMap
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return bringCatMap
+	}
+	var m map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&m); err != nil || len(m) == 0 {
+		return bringCatMap
+	}
+	bringCatMap, bringCatAt = m, time.Now()
+	return bringCatMap
+}
+
+// bringLocalize maps a catalog item name to Dutch (unchanged if not in the
+// catalog, e.g. a freely-typed custom item).
+func bringLocalize(cat map[string]string, name string) string {
+	if t, ok := cat[name]; ok && t != "" {
+		return t
+	}
+	return name
+}
 
 const bringAPIKey = "cof4Nc6D8saplXjE3h3HXqHH8m7VU2i1Gs0g85Sp"
 
@@ -106,12 +156,14 @@ func bringItems(ctx context.Context, auth bringAuth, listUUID string) ([]string,
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil, err
 	}
+	cat := bringCatalog(ctx) // German -> Dutch (nil on failure = no translation)
 	items := make([]string, 0, len(body.Purchase))
 	for _, p := range body.Purchase {
+		name := bringLocalize(cat, p.Name)
 		if p.Specification != "" {
-			items = append(items, p.Name+" ("+p.Specification+")")
+			items = append(items, name+" ("+p.Specification+")")
 		} else {
-			items = append(items, p.Name)
+			items = append(items, name)
 		}
 	}
 	return items, nil

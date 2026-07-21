@@ -16,6 +16,7 @@ type todoProvider struct {
 	sources   []SourceInput
 	scope     string // "" / "all" = all open tasks; "today_overdue" = due today or earlier
 	hideNoDue bool   // drop tasks that have no due date
+	allLists  bool   // query every To Do list instead of the one linked/selected
 	now       NowFunc
 }
 
@@ -23,6 +24,7 @@ func newTodo(raw json.RawMessage, sources []SourceInput, now NowFunc) (Provider,
 	var cfg struct {
 		Scope     string `json:"scope"`
 		HideNoDue string `json:"hide_no_due"`
+		AllLists  string `json:"all_lists"`
 	}
 	if len(raw) > 0 {
 		_ = json.Unmarshal(raw, &cfg)
@@ -30,7 +32,7 @@ func newTodo(raw json.RawMessage, sources []SourceInput, now NowFunc) (Provider,
 	if now == nil {
 		now = time.Now
 	}
-	return todoProvider{sources: sources, scope: cfg.Scope, hideNoDue: cfg.HideNoDue == "yes", now: now}, nil
+	return todoProvider{sources: sources, scope: cfg.Scope, hideNoDue: cfg.HideNoDue == "yes", allLists: cfg.AllLists == "yes", now: now}, nil
 }
 
 // todoDueLabel renders a task's due date as a short Dutch status: "te laat"
@@ -76,48 +78,62 @@ func (p todoProvider) Fetch(ctx context.Context) (Data, time.Duration, error) {
 			ListID string `json:"list_id"`
 		}
 		_ = json.Unmarshal(s.Config, &cfg)
-		listID := cfg.ListID
-		if s.Resource != "" {
-			listID = s.Resource
-		}
 		if sec.AccessToken == "" {
 			continue
 		}
-		// No list picked: fall back to the account's default To Do list so a
-		// freshly-linked widget still shows tasks without extra configuration.
-		if listID == "" {
-			if lists, err := GraphListTodoLists(ctx, sec.AccessToken); err == nil && len(lists) > 0 {
-				listID = lists[0].ID
-			}
-		}
-		if listID == "" {
-			continue
-		}
-		tasks, err := GraphTodoTasks(ctx, sec.AccessToken, listID)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
-			continue
-		}
-		for _, t := range tasks {
-			if p.hideNoDue && t.Due.IsZero() {
-				continue // caller only wants dated tasks
-			}
-			if p.scope == "today_overdue" {
-				// Only tasks with a due date at/before end of today.
-				if t.Due.IsZero() || t.Due.After(endOfToday) {
-					continue
+		// Decide which lists to query: every list, or the linked/selected one
+		// (falling back to the account's default list when none is picked).
+		var listIDs []string
+		if p.allLists {
+			if lists, err := GraphListTodoLists(ctx, sec.AccessToken); err == nil {
+				for _, l := range lists {
+					listIDs = append(listIDs, l.ID)
 				}
 			}
-			// Suffix a short due label ("· vandaag" / "· te laat" / "· di 22 jul").
-			if label := todoDueLabel(t.Due, now); label != "" {
-				items = append(items, t.Title+" · "+label)
-			} else {
-				items = append(items, t.Title)
+		} else {
+			listID := cfg.ListID
+			if s.Resource != "" {
+				listID = s.Resource
+			}
+			if listID == "" {
+				if lists, err := GraphListTodoLists(ctx, sec.AccessToken); err == nil && len(lists) > 0 {
+					listID = lists[0].ID
+				}
+			}
+			if listID != "" {
+				listIDs = []string{listID}
 			}
 		}
-		ok++
+		if len(listIDs) == 0 {
+			continue
+		}
+		for _, lid := range listIDs {
+			tasks, err := GraphTodoTasks(ctx, sec.AccessToken, lid)
+			if err != nil {
+				if firstErr == nil {
+					firstErr = err
+				}
+				continue
+			}
+			for _, t := range tasks {
+				if p.hideNoDue && t.Due.IsZero() {
+					continue // caller only wants dated tasks
+				}
+				if p.scope == "today_overdue" {
+					// Only tasks with a due date at/before end of today.
+					if t.Due.IsZero() || t.Due.After(endOfToday) {
+						continue
+					}
+				}
+				// Suffix a short due label ("· vandaag" / "· te laat" / "· di 22 jul").
+				if label := todoDueLabel(t.Due, now); label != "" {
+					items = append(items, t.Title+" · "+label)
+				} else {
+					items = append(items, t.Title)
+				}
+			}
+			ok++
+		}
 	}
 	if ok == 0 && firstErr != nil {
 		return nil, 0, firstErr
