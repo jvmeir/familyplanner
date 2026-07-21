@@ -27,30 +27,17 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker [
 				<span class="kfooter-label">
 					<span id="kplaylist">{ controls.PlaylistName }</span>
 					<span class="sep">·</span>
-					<span id="kview"></span>
+					<span id="kview" data-names={ controls.NamesJSON }></span>
 				</span>
 				<span class="kfooter-controls">
-					<span class="kcountdown" id="kcountdown"></span>
 					<button onclick="fpCtl('prev')" title={ i18n.T(ctx, "kiosk.prev") }>⏮</button>
 					<button onclick="fpCtl('pause')" title={ i18n.T(ctx, "kiosk.pause") }>⏸</button>
 					<button onclick="fpCtl('resume')" title={ i18n.T(ctx, "kiosk.play") }>▶</button>
 					<button onclick="fpCtl('next')" title={ i18n.T(ctx, "kiosk.next") }>⏭</button>
-					<select id="kjump" onchange="fpGoto(this.value)" aria-label={ i18n.T(ctx, "kiosk.jump") }>
-						<option value="">{ i18n.T(ctx, "kiosk.jump") }</option>
-						for _, v := range controls.Playlist {
-							<option value={ fmt.Sprint(v.ID) } selected?={ v.ID == controls.CurrentID }>{ v.Name }</option>
-						}
-						if len(controls.All) > 0 {
-							<optgroup label={ i18n.T(ctx, "kiosk.all_views") }>
-								for _, v := range controls.All {
-									<option value={ fmt.Sprint(v.ID) }>{ v.Name }</option>
-								}
-							</optgroup>
-						}
-					</select>
 				</span>
 			</span>
 		</footer>
+		<div class="kprogress"><div class="kprogress-fill" id="kprogress"></div></div>
 		<script src="/static/kiosk.js"></script>
 		<script src="/static/voiceclock.js"></script>
 	}

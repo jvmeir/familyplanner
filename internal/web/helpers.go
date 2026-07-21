@@ -79,6 +79,7 @@ type ControlsVM struct {
 	Playlist     []ViewRef
 	All          []ViewRef
 	CurrentID    int64
+	NamesJSON    string // JSON {viewID: name} so the footer can label the current view
 }
 
 // LayoutVM is the render tree for a view's recursive split layout. A leaf has a

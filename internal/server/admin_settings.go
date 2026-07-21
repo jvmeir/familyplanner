@@ -45,6 +45,12 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 	if v := r.FormValue("theme"); v != "" {
 		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "default_theme", Value: v})
 	}
+	if v := r.FormValue("ticker_speed"); v != "" {
+		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "ticker_speed", Value: v})
+	}
+	if v := r.FormValue("banner_date"); v != "" {
+		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "banner_date", Value: v})
+	}
 	s.render(w, r, web.SettingsPage(s.settingsVM(r.Context(), true)))
 }
 
@@ -72,9 +78,40 @@ func (s *Server) settingsVM(ctx context.Context, saved bool) web.SettingsVM {
 		KioskScale:     strconv.FormatFloat(s.kioskScale(ctx), 'f', 2, 64),
 		TickerWidgets:  tickers,
 		TickerWidgetID: tickerID,
+		TickerSpeed:    strconv.Itoa(s.tickerSpeed(ctx)),
+		BannerDate:     s.bannerDate(ctx),
 		Themes:         s.themeOpts(),
 		Theme:          s.defaultTheme(ctx),
 		Saved:          saved,
+	}
+}
+
+// tickerSpeed is the ticker scroll-loop duration in seconds (default 60).
+func (s *Server) tickerSpeed(ctx context.Context) int {
+	v, err := s.store.GetSetting(ctx, "ticker_speed")
+	if err != nil || v == "" {
+		return 60
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return 60
+	}
+	if n < 20 {
+		n = 20
+	}
+	if n > 240 {
+		n = 240
+	}
+	return n
+}
+
+// bannerDate is the banner date display mode: none | short | long (default long).
+func (s *Server) bannerDate(ctx context.Context) string {
+	switch v, _ := s.store.GetSetting(ctx, "banner_date"); v {
+	case "none", "short", "long":
+		return v
+	default:
+		return "long"
 	}
 }
 

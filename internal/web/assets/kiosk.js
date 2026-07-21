@@ -8,28 +8,30 @@
   // (independent of :has() support in the kiosk browser).
   document.documentElement.classList.add("kiosk");
 
-  // ---- static header clock (independent of the server / rotation) ----
+  // ---- clock (client-side; date format pushed via the config event) ----
   const dateEl = document.getElementById("kdate");
   const timeEl = document.getElementById("ktime");
-  const fmtDate = new Intl.DateTimeFormat("nl-BE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const fmtTime = new Intl.DateTimeFormat("nl-BE", { hour: "2-digit", minute: "2-digit" });
+  let dateFmt = "long";
+  let fmtDate = new Intl.DateTimeFormat("nl-BE", dateOpts(dateFmt));
+  function dateOpts(f) {
+    if (f === "short") return { day: "2-digit", month: "2-digit", year: "numeric" };
+    return { weekday: "long", day: "numeric", month: "long", year: "numeric" }; // long
+  }
   function tick() {
     const now = new Date();
-    if (dateEl) dateEl.textContent = fmtDate.format(now);
+    if (dateEl) dateEl.textContent = dateFmt === "none" ? "" : fmtDate.format(now);
     if (timeEl) timeEl.textContent = fmtTime.format(now);
   }
   tick();
   setInterval(tick, 1000);
 
-  // ---- footer view label (mirrors the jump dropdown's option text) ----
-  const jump = document.getElementById("kjump");
+  // ---- footer view label (name looked up from the id->name map) ----
   const viewEl = document.getElementById("kview");
+  let viewNames = {};
+  try { viewNames = JSON.parse((viewEl && viewEl.dataset.names) || "{}"); } catch (e) {}
   function updateViewLabel(id) {
-    if (jump) {
-      jump.value = id;
-      const opt = jump.querySelector('option[value="' + id + '"]');
-      if (opt && viewEl) viewEl.textContent = opt.textContent;
-    }
+    if (viewEl) viewEl.textContent = viewNames[id] || "";
   }
 
   // ---- SSE: follow the server's current view ----
@@ -88,29 +90,29 @@
     else if (e.data !== bootID) location.reload();
   });
 
-  // Seconds-to-next-screen: the server sends the dwell (0 = paused) with each
-  // navigate; count it down locally.
-  var cdEl = document.getElementById("kcountdown");
-  var cdTimer = null, cdLeft = 0;
-  function cdRender() {
-    if (cdEl) cdEl.textContent = cdLeft > 0 ? "→ " + cdLeft + "s" : "";
-  }
+  // Time-to-next-screen: the server sends the dwell (0 = paused) with each
+  // navigate; drive the full-width progress bar under the bar.
+  var progEl = document.getElementById("kprogress");
   es.addEventListener("dwell", function (e) {
-    cdLeft = parseInt(e.data, 10) || 0;
-    if (cdTimer) { clearInterval(cdTimer); cdTimer = null; }
-    cdRender();
-    if (cdLeft > 0) {
-      cdTimer = setInterval(function () {
-        cdLeft -= 1;
-        if (cdLeft <= 0) { cdLeft = 0; clearInterval(cdTimer); cdTimer = null; }
-        cdRender();
-      }, 1000);
+    if (!progEl) return;
+    var secs = parseInt(e.data, 10) || 0;
+    progEl.style.transition = "none";
+    progEl.style.width = "0%";
+    void progEl.offsetWidth; // reflow so the reset applies before animating
+    if (secs > 0) {
+      progEl.style.transition = "width " + secs + "s linear";
+      progEl.style.width = "100%";
     }
   });
-  // UI scale multiplier (set from admin; applied live on top of viewport scaling).
-  es.addEventListener("scale", function (e) {
-    var v = parseFloat(e.data);
-    if (!isNaN(v)) document.documentElement.style.setProperty("--kiosk-scale", v);
+
+  // Live kiosk config (pushed on connect + each refresh): UI scale, ticker
+  // scroll speed, and the banner date format.
+  es.addEventListener("config", function (e) {
+    var c = {};
+    try { c = JSON.parse(e.data); } catch (_) {}
+    if (c.scale) document.documentElement.style.setProperty("--kiosk-scale", c.scale);
+    if (c.tickerSecs) document.documentElement.style.setProperty("--kticker-secs", c.tickerSecs + "s");
+    if (c.dateFmt) { dateFmt = c.dateFmt; fmtDate = new Intl.DateTimeFormat("nl-BE", dateOpts(dateFmt)); tick(); }
   });
 
   // ---- controls (also reachable from a phone remote later) ----

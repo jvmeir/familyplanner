@@ -425,8 +425,13 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 		}
 		return send("dwell", strconv.Itoa(secs))
 	}
-	sendScale := func() bool {
-		return send("scale", strconv.FormatFloat(s.kioskScale(r.Context()), 'f', 2, 64))
+	sendConfig := func() bool {
+		b, _ := json.Marshal(map[string]any{
+			"scale":      s.kioskScale(r.Context()),
+			"tickerSecs": s.tickerSpeed(r.Context()),
+			"dateFmt":    s.bannerDate(r.Context()),
+		})
+		return send("config", string(b))
 	}
 	reset := func(t *time.Timer, d time.Duration) {
 		if !t.Stop() {
@@ -441,7 +446,7 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 	if !sendCurrent() {
 		return
 	}
-	sendScale()                  // push the current UI scale on connect
+	sendConfig()               // push scale + ticker speed + date format on connect
 	send("version", s.bootID)    // kiosks reload when this changes (i.e. after a redeploy)
 	advance := time.NewTimer(dwell())
 	defer advance.Stop()
@@ -465,7 +470,7 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 			if !send("refresh", "tick") {
 				return
 			}
-			sendScale()
+			sendConfig()
 		case <-advance.C: // dwell elapsed -> advance unless paused
 			if !state.Paused() {
 				state.Next()
@@ -666,8 +671,13 @@ func (s *Server) buildControls(ctx context.Context, dev dbgen.KioskDevice, curre
 		}
 	}
 	if all, err := s.store.ListViews(ctx); err == nil {
+		names := make(map[string]string, len(all))
 		for _, v := range all {
 			vm.All = append(vm.All, web.ViewRef{ID: v.ID, Name: v.Name})
+			names[strconv.FormatInt(v.ID, 10)] = v.Name
+		}
+		if b, err := json.Marshal(names); err == nil {
+			vm.NamesJSON = string(b)
 		}
 	}
 	return vm

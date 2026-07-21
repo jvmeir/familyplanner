@@ -151,7 +151,7 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
   display: inline-block;
   white-space: nowrap;
   padding-left: 100%;
-  animation: kmarquee 45s linear infinite;
+  animation: kmarquee var(--kticker-secs, 60s) linear infinite;
 }
 .kticker:hover .kticker-track { animation-play-state: paused; }
 .kticker-item::after { content: "•"; margin: 0 1.2em; opacity: .45; }
@@ -161,7 +161,9 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
   to { transform: translateX(-100%); }
 }
 .kbar-right { display: flex; align-items: center; gap: 0.8em; margin-left: auto; white-space: nowrap; }
-.kcountdown { opacity: .7; font-variant-numeric: tabular-nums; margin-right: .3em; }
+/* Full-width dwell progress bar under the bar (screen bottom edge). */
+.kprogress { flex: 0 0 auto; height: 5px; background: rgba(0, 0, 0, .15); }
+.kprogress-fill { height: 100%; width: 0; background: var(--accent, #2f6df6); }
 .kfooter-label { color: rgba(255, 255, 255, .85); }
 .kfooter-label .sep { opacity: .5; margin: 0 6px; }
 .kfooter-controls { display: flex; gap: 6px; align-items: center; }
