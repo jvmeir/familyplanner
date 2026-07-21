@@ -129,6 +129,7 @@ type Manager struct {
 type conn struct {
 	state  *State
 	notify chan struct{}
+	cmds   chan string // one-shot client-side commands (mute/pip) pushed to the kiosk
 }
 
 // NewManager creates an empty manager.
@@ -136,9 +137,10 @@ func NewManager() *Manager { return &Manager{devices: make(map[int64]*conn)} }
 
 // Connect registers a device's live stream with its resolved playlist items.
 // It returns the playback State, a notify channel that fires when a command
-// mutates the state, and a release func to call when the stream ends.
-func (m *Manager) Connect(deviceID int64, items []Item) (*State, <-chan struct{}, func()) {
-	c := &conn{state: NewState(items), notify: make(chan struct{}, 1)}
+// mutates the state, a client-command channel (mute/pip actions forwarded to
+// the kiosk verbatim), and a release func to call when the stream ends.
+func (m *Manager) Connect(deviceID int64, items []Item) (*State, <-chan struct{}, <-chan string, func()) {
+	c := &conn{state: NewState(items), notify: make(chan struct{}, 1), cmds: make(chan string, 8)}
 	m.mu.Lock()
 	m.devices[deviceID] = c
 	m.mu.Unlock()
@@ -150,7 +152,23 @@ func (m *Manager) Connect(deviceID int64, items []Item) (*State, <-chan struct{}
 		}
 		m.mu.Unlock()
 	}
-	return c.state, c.notify, release
+	return c.state, c.notify, c.cmds, release
+}
+
+// SendClientCmd forwards a UI-only command (e.g. "mute", "pip-toggle") to a
+// connected device's kiosk, which acts on it client-side. Returns false if the
+// device has no live stream (or its command buffer is momentarily full).
+func (m *Manager) SendClientCmd(deviceID int64, cmd string) bool {
+	c := m.lookup(deviceID)
+	if c == nil {
+		return false
+	}
+	select {
+	case c.cmds <- cmd:
+		return true
+	default:
+		return false // buffer full; drop rather than block the caller
+	}
 }
 
 // Command applies a prev/next/pause/resume to a connected device. next/prev only

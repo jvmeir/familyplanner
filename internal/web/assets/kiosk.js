@@ -189,6 +189,17 @@
     if ("transition" in c) transitionOn = !!c.transition;
   });
 
+  // UI-only commands pushed by the admin remote (mute / PiP), acted on here.
+  es.addEventListener("cmd", function (e) {
+    switch (e.data) {
+      case "mute":
+      case "unmute": if (window.fpPip) fpPip.mute(); break;
+      case "pip-toggle": if (window.fpPip) fpPip.toggle(); break;
+      case "pip-next": if (window.fpPip) fpPip.next(); break;
+      case "pip-prev": if (window.fpPip) fpPip.prev(); break;
+    }
+  });
+
   // ---- controls (also reachable from a phone remote later) ----
   window.fpCtl = function (cmd) {
     fetch("/kiosk/control/" + cmd, { method: "POST" }).catch(function () {});

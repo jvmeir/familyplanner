@@ -62,6 +62,10 @@ templ DeviceList(devices []DeviceVM, playlists []PlaylistRef, views []ViewRef) {
 					<button class="btn ghost" hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/pause" } hx-swap="none">⏸</button>
 					<button class="btn ghost" hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/resume" } hx-swap="none">▶</button>
 					<button class="btn ghost" hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/next" } hx-swap="none">⏭</button>
+					<button class="btn ghost" title={ i18n.T(ctx, "device.mute") } hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/mute" } hx-swap="none">🔇</button>
+					<button class="btn ghost" title={ i18n.T(ctx, "device.pip_toggle") } hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/pip-toggle" } hx-swap="none">📺</button>
+					<button class="btn ghost" title={ i18n.T(ctx, "device.pip_prev") } hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/pip-prev" } hx-swap="none">⏪</button>
+					<button class="btn ghost" title={ i18n.T(ctx, "device.pip_next") } hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/pip-next" } hx-swap="none">⏩</button>
 					<select name="view" hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/control/goto" } hx-swap="none" hx-trigger="change">
 						<option value="">{ i18n.T(ctx, "kiosk.jump") }</option>
 						for _, v := range views {

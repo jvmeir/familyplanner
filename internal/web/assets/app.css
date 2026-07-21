@@ -215,7 +215,7 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 
 /* Agenda: readable rows sized to the cell (not ballooned); wrap instead of
    clipping, and let the list auto-scroll (cell-scroll) when there are many. */
-.kind-calendar .w-list { display: flex; flex-direction: column; justify-content: flex-start; height: 100%; }
+.kind-calendar .w-list { display: flex; flex-direction: column; justify-content: flex-start; height: 100%; min-height: 0; max-height: 100%; overflow: hidden; }
 .kind-calendar .w-list li {
   font-size: clamp(0.8rem, calc(4.6cqmin * var(--kiosk-scale, 1)), 1.8rem);
   font-weight: 600;

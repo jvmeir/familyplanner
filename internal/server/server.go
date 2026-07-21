@@ -461,7 +461,7 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 	h.Set("Cache-Control", "no-cache")
 	h.Set("Connection", "keep-alive")
 
-	state, notify, release := s.rotation.Connect(dev.ID, s.deviceItems(r.Context(), dev))
+	state, notify, cmds, release := s.rotation.Connect(dev.ID, s.deviceItems(r.Context(), dev))
 	defer release()
 
 	send := func(event, data string) bool {
@@ -566,6 +566,10 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			reset(advance, dwell())
+		case cmd := <-cmds: // UI-only command (mute/pip) forwarded to the kiosk
+			if !send("cmd", cmd) {
+				return
+			}
 		case <-refresh.C: // periodic in-view data refresh (e.g. the clock) + scale sync
 			state.SetItems(s.deviceItems(r.Context(), dev)) // pick up playlist edits live
 			if !send("refresh", "tick") {

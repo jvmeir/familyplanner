@@ -73,6 +73,9 @@ func (s *Server) handleDeviceControl(w http.ResponseWriter, r *http.Request) {
 		s.rotation.Goto(id, viewID)
 	case "next", "prev", "pause", "resume":
 		s.rotation.Command(id, rotation.Command(cmd))
+	case "mute", "unmute", "pip-toggle", "pip-next", "pip-prev":
+		// UI-only actions handled by the kiosk itself; forward over its SSE stream.
+		s.rotation.SendClientCmd(id, cmd)
 	default:
 		http.Error(w, "bad command", http.StatusBadRequest)
 		return

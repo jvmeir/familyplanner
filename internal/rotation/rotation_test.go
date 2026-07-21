@@ -75,12 +75,22 @@ func TestManagerCommandsReachDevice(t *testing.T) {
 	// command to an unconnected device is a no-op
 	require.False(t, m.Command(1, rotation.CmdNext))
 
-	state, notify, release := m.Connect(1, items())
+	state, notify, cmds, release := m.Connect(1, items())
 	defer release()
 
 	require.True(t, m.Command(1, rotation.CmdNext))
 	require.Equal(t, int64(20), curID(t, state))
 	require.False(t, state.Paused(), "manual next moves but does NOT pause rotation")
+
+	// client commands (mute/pip) are forwarded verbatim to the stream
+	require.True(t, m.SendClientCmd(1, "mute"))
+	select {
+	case c := <-cmds:
+		require.Equal(t, "mute", c)
+	default:
+		t.Fatal("expected the client command on the cmds channel")
+	}
+	require.False(t, m.SendClientCmd(999, "mute"), "unconnected device -> false")
 
 	// the SSE loop would be woken via notify
 	select {
@@ -103,7 +113,7 @@ func TestManagerCommandsReachDevice(t *testing.T) {
 
 func TestDisconnectRemovesDevice(t *testing.T) {
 	m := rotation.NewManager()
-	_, _, release := m.Connect(2, items())
+	_, _, _, release := m.Connect(2, items())
 	require.True(t, m.Command(2, rotation.CmdNext))
 	release()
 	require.False(t, m.Command(2, rotation.CmdNext), "after release the device is gone")

@@ -111,6 +111,9 @@
       pipEl.style.display = hidden ? "" : "none";
       if (pip) { try { hidden ? pip.player.playVideo() : pip.player.pauseVideo(); } catch (x) {} }
     },
+    mute: function () {
+      if (pip && pip.player) { try { pip.player.isMuted() ? pip.player.unMute() : pip.player.mute(); } catch (x) {} }
+    },
   };
 
   if (stage) window.fpSetupVideos(); // initial on-screen video
