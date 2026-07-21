@@ -3,22 +3,8 @@ package widget
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"regexp"
-	"sync"
 	"time"
-)
-
-// VideoDir is where downloaded videos are stored (and served from at /media);
-// YtdlpPath is the yt-dlp executable; VideoCookies is an optional Netscape
-// cookies.txt (a logged-in YouTube session) that lets yt-dlp bypass YouTube's
-// "confirm you're not a bot" gate on server IPs. All set at startup.
-var (
-	VideoDir     = ""
-	YtdlpPath    = "yt-dlp"
-	VideoCookies = "" // path to cookies.txt; used only if the file exists
 )
 
 // ytIDRe extracts an 11-char YouTube video id from a URL or a bare id.
@@ -38,18 +24,16 @@ type VideoConfig struct {
 	Loop string `json:"loop"` // "yes" | "no" (default yes)
 }
 
-// VideoData is the normalized render data. While the file is still downloading,
-// Downloading is true and URL is empty.
+// VideoData is the normalized render data: the YouTube video id plus playback
+// options. The kiosk embeds it with the YouTube IFrame Player API (which also
+// gives us the ENDED event that drives "advance on end").
 type VideoData struct {
-	URL         string `json:"url"`
-	Mute        bool   `json:"mute"`
-	Loop        bool   `json:"loop"`
-	Downloading bool   `json:"downloading"`
+	VideoID string `json:"video_id"`
+	Mute    bool   `json:"mute"`
+	Loop    bool   `json:"loop"`
 }
 
-type videoProvider struct {
-	cfg VideoConfig
-}
+type videoProvider struct{ cfg VideoConfig }
 
 func newVideo(raw json.RawMessage, _ []SourceInput, _ NowFunc) (Provider, error) {
 	var cfg VideoConfig
@@ -67,66 +51,10 @@ func decodeVideo(raw json.RawMessage) (Data, error) {
 	return d, err
 }
 
-func (p videoProvider) Fetch(ctx context.Context) (Data, time.Duration, error) {
-	id := youtubeID(p.cfg.URL)
-	if id == "" || VideoDir == "" {
-		return VideoData{}, time.Minute, nil
-	}
-	data := VideoData{Mute: p.cfg.Mute == "yes", Loop: p.cfg.Loop != "no"} // loop defaults on
-	path := filepath.Join(VideoDir, id+".mp4")
-	if _, err := os.Stat(path); err == nil {
-		data.URL = "/media/" + id + ".mp4"
-		return data, time.Hour, nil // cached file; long TTL
-	}
-	// Not downloaded yet: kick off a background download and report "downloading";
-	// a short TTL means the broker re-checks until the file is ready.
-	ensureVideoDownload(id)
-	data.Downloading = true
-	return data, 15 * time.Second, nil
-}
-
-var (
-	dlMu       sync.Mutex
-	dlInflight = map[string]bool{}
-)
-
-// ensureVideoDownload downloads a YouTube video to VideoDir/<id>.mp4 (ad-free,
-// since it plays a local file), de-duplicating concurrent downloads. yt-dlp
-// writes to <id>.mp4.part first and renames on success, so the .mp4 only exists
-// once complete.
-func ensureVideoDownload(id string) {
-	dlMu.Lock()
-	if dlInflight[id] {
-		dlMu.Unlock()
-		return
-	}
-	dlInflight[id] = true
-	dlMu.Unlock()
-	go func() {
-		defer func() {
-			dlMu.Lock()
-			delete(dlInflight, id)
-			dlMu.Unlock()
-		}()
-		out := filepath.Join(VideoDir, id+".mp4")
-		// Build the URL from the validated id so no arbitrary string reaches yt-dlp.
-		url := "https://www.youtube.com/watch?v=" + id
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-		defer cancel()
-		args := []string{
-			"--no-playlist",
-			"-f", "bv*[height<=1080]+ba/b[height<=1080]/b",
-			"--merge-output-format", "mp4",
-			"-o", out,
-		}
-		// Use a logged-in YouTube cookies.txt if one has been provided, so
-		// downloads work from the server IP (bot-check / Premium source).
-		if VideoCookies != "" {
-			if _, err := os.Stat(VideoCookies); err == nil {
-				args = append(args, "--cookies", VideoCookies)
-			}
-		}
-		args = append(args, url)
-		_ = exec.CommandContext(ctx, YtdlpPath, args...).Run()
-	}()
+func (p videoProvider) Fetch(_ context.Context) (Data, time.Duration, error) {
+	return VideoData{
+		VideoID: youtubeID(p.cfg.URL),
+		Mute:    p.cfg.Mute == "yes",
+		Loop:    p.cfg.Loop != "no", // loop defaults on
+	}, time.Hour, nil
 }

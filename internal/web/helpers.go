@@ -28,6 +28,14 @@ func evStyle(color string) templ.SafeCSS {
 	return templ.SafeCSS("border-left:0.4em solid " + color + ";padding-left:0.3em")
 }
 
+// boolAttr renders a bool as "1"/"0" for a data attribute.
+func boolAttr(b bool) string {
+	if b {
+		return "1"
+	}
+	return "0"
+}
+
 // colorOrDefault gives an <input type=color> a valid hex value (it can't be
 // empty); unset links default to a neutral grey.
 func colorOrDefault(c string) string {
@@ -54,10 +62,9 @@ type CellVM struct {
 	ScheduleTable bool            // render Schedule as a table (days_table) vs list (days)
 	IframeURL     string          // embedded web page
 	ImageURL      string          // single photo
-	VideoURL      string          // local video file (/media/...) to play
+	VideoID       string          // YouTube video id (embedded via the IFrame API)
 	VideoMute     bool            // play muted
 	VideoLoop     bool            // loop playback
-	Downloading   bool            // video still downloading (show a placeholder)
 	CountdownTo   int64           // >0: render a live dhms countdown to this Unix time
 	Stale         bool
 	Style         templ.SafeCSS
@@ -190,11 +197,12 @@ type OptionVM struct {
 
 // ViewVM is a row in the admin views list.
 type ViewVM struct {
-	ID         int64
-	Name       string
-	Cols       int64
-	Rows       int64
-	RenderMode string // grid | random_single
+	ID          int64
+	Name        string
+	Cols        int64
+	Rows        int64
+	RenderMode  string // grid | random_single
+	AdvanceMode string // timer | on_end
 }
 
 // ThemeOptVM is an option in the theme dropdown.
@@ -415,7 +423,7 @@ func init() {
 
 	RegisterFormatter("video", func(_ context.Context, data any) CellVM {
 		d, _ := data.(widget.VideoData)
-		return CellVM{VideoURL: d.URL, VideoMute: d.Mute, VideoLoop: d.Loop, Downloading: d.Downloading}
+		return CellVM{VideoID: d.VideoID, VideoMute: d.Mute, VideoLoop: d.Loop}
 	})
 
 	RegisterFormatter("shopping", func(ctx context.Context, data any) CellVM {

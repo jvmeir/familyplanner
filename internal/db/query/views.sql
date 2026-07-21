@@ -27,5 +27,8 @@ UPDATE views SET name = ?, updated_at = datetime('now') WHERE id = ?;
 -- name: UpdateViewMode :exec
 UPDATE views SET render_mode = ?, updated_at = datetime('now') WHERE id = ?;
 
+-- name: UpdateViewAdvance :exec
+UPDATE views SET advance_mode = ?, updated_at = datetime('now') WHERE id = ?;
+
 -- name: DeleteView :exec
 DELETE FROM views WHERE id = ?;

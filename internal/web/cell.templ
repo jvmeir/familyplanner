@@ -19,13 +19,14 @@ templ widgetCell(c CellVM) {
 		<div class="widget photo">
 			<img class="w-photo" src={ templ.SafeURL(c.ImageURL) } alt=""/>
 		</div>
-	} else if c.VideoURL != "" {
+	} else if c.VideoID != "" {
 		<div class="widget video">
-			<video class="w-video" src={ templ.SafeURL(c.VideoURL) } autoplay muted?={ c.VideoMute } loop?={ c.VideoLoop } playsinline></video>
-		</div>
-	} else if c.Downloading {
-		<div class="widget">
-			<div class="w-sub">{ i18n.T(ctx, "widget.video.downloading") }</div>
+			<div
+				class="w-yt"
+				data-video-id={ c.VideoID }
+				data-mute={ boolAttr(c.VideoMute) }
+				data-loop={ boolAttr(c.VideoLoop) }
+			></div>
 		</div>
 	} else {
 		<div class={ "widget", "kind-" + c.Kind }>

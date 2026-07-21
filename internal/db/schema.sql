@@ -17,6 +17,7 @@ CREATE TABLE views (
     dwell_seconds  INTEGER NOT NULL DEFAULT 30,
     layout_json    TEXT NOT NULL DEFAULT '',
     render_mode    TEXT NOT NULL DEFAULT 'grid',
+    advance_mode   TEXT NOT NULL DEFAULT 'timer',
     created_at     TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );

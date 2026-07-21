@@ -23,7 +23,7 @@ func (q *Queries) CountViews(ctx context.Context) (int64, error) {
 const createView = `-- name: CreateView :one
 INSERT INTO views (name, cols, rows, theme_id, in_rotation, rotation_order, dwell_seconds)
 VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, cols, "rows", theme_id, in_rotation, rotation_order, dwell_seconds, layout_json, render_mode, created_at, updated_at
+RETURNING id, name, cols, "rows", theme_id, in_rotation, rotation_order, dwell_seconds, layout_json, render_mode, advance_mode, created_at, updated_at
 `
 
 type CreateViewParams struct {
@@ -58,6 +58,7 @@ func (q *Queries) CreateView(ctx context.Context, arg CreateViewParams) (View, e
 		&i.DwellSeconds,
 		&i.LayoutJson,
 		&i.RenderMode,
+		&i.AdvanceMode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -74,7 +75,7 @@ func (q *Queries) DeleteView(ctx context.Context, id int64) error {
 }
 
 const getView = `-- name: GetView :one
-SELECT id, name, cols, "rows", theme_id, in_rotation, rotation_order, dwell_seconds, layout_json, render_mode, created_at, updated_at FROM views WHERE id = ?
+SELECT id, name, cols, "rows", theme_id, in_rotation, rotation_order, dwell_seconds, layout_json, render_mode, advance_mode, created_at, updated_at FROM views WHERE id = ?
 `
 
 func (q *Queries) GetView(ctx context.Context, id int64) (View, error) {
@@ -91,6 +92,7 @@ func (q *Queries) GetView(ctx context.Context, id int64) (View, error) {
 		&i.DwellSeconds,
 		&i.LayoutJson,
 		&i.RenderMode,
+		&i.AdvanceMode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -98,7 +100,7 @@ func (q *Queries) GetView(ctx context.Context, id int64) (View, error) {
 }
 
 const listRotationViews = `-- name: ListRotationViews :many
-SELECT id, name, cols, "rows", theme_id, in_rotation, rotation_order, dwell_seconds, layout_json, render_mode, created_at, updated_at FROM views WHERE in_rotation = 1 ORDER BY rotation_order, id
+SELECT id, name, cols, "rows", theme_id, in_rotation, rotation_order, dwell_seconds, layout_json, render_mode, advance_mode, created_at, updated_at FROM views WHERE in_rotation = 1 ORDER BY rotation_order, id
 `
 
 func (q *Queries) ListRotationViews(ctx context.Context) ([]View, error) {
@@ -121,6 +123,7 @@ func (q *Queries) ListRotationViews(ctx context.Context) ([]View, error) {
 			&i.DwellSeconds,
 			&i.LayoutJson,
 			&i.RenderMode,
+			&i.AdvanceMode,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -138,7 +141,7 @@ func (q *Queries) ListRotationViews(ctx context.Context) ([]View, error) {
 }
 
 const listViews = `-- name: ListViews :many
-SELECT id, name, cols, "rows", theme_id, in_rotation, rotation_order, dwell_seconds, layout_json, render_mode, created_at, updated_at FROM views ORDER BY rotation_order, id
+SELECT id, name, cols, "rows", theme_id, in_rotation, rotation_order, dwell_seconds, layout_json, render_mode, advance_mode, created_at, updated_at FROM views ORDER BY rotation_order, id
 `
 
 func (q *Queries) ListViews(ctx context.Context) ([]View, error) {
@@ -161,6 +164,7 @@ func (q *Queries) ListViews(ctx context.Context) ([]View, error) {
 			&i.DwellSeconds,
 			&i.LayoutJson,
 			&i.RenderMode,
+			&i.AdvanceMode,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -211,6 +215,20 @@ func (q *Queries) UpdateView(ctx context.Context, arg UpdateViewParams) error {
 		arg.ThemeID,
 		arg.ID,
 	)
+	return err
+}
+
+const updateViewAdvance = `-- name: UpdateViewAdvance :exec
+UPDATE views SET advance_mode = ?, updated_at = datetime('now') WHERE id = ?
+`
+
+type UpdateViewAdvanceParams struct {
+	AdvanceMode string `json:"advance_mode"`
+	ID          int64  `json:"id"`
+}
+
+func (q *Queries) UpdateViewAdvance(ctx context.Context, arg UpdateViewAdvanceParams) error {
+	_, err := q.db.ExecContext(ctx, updateViewAdvance, arg.AdvanceMode, arg.ID)
 	return err
 }
 

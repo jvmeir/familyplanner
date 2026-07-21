@@ -70,6 +70,7 @@
           if (v) v.classList.add("kslide");
         }
         setupCellScroll();
+        if (window.fpSetupVideos) window.fpSetupVideos();
       }
     } catch (e) {
       // keep last-good content on any error

@@ -2,9 +2,10 @@ package web
 
 import "github.com/jvmeir/familyplanner/internal/i18n"
 
-// View renders a recursive split layout inside the themed container.
-templ View(themeVars templ.SafeCSS, root LayoutVM) {
-	<div class="view" style={ themeVars } data-mode="day">
+// View renders a recursive split layout inside the themed container. onEnd marks
+// the screen so the kiosk advances when its end-capable widgets (video) finish.
+templ View(themeVars templ.SafeCSS, root LayoutVM, onEnd bool) {
+	<div class="view" style={ themeVars } data-mode="day" data-advance-on-end={ boolAttr(onEnd) }>
 		@LayoutPane(root)
 	</div>
 }
@@ -18,12 +19,13 @@ templ PreviewPage(title string, body templ.Component) {
 		</div>
 		<a class="btn preview-close" href="/admin/widgets" title={ i18n.T(ctx, "admin.back") }>✕</a>
 		<script src="/static/kiosk-preview.js"></script>
+		<script src="/static/yt.js"></script>
 	}
 }
 
 // PreviewWidget renders a single widget cell full-screen inside the theme.
-templ PreviewWidget(themeVars templ.SafeCSS, cell CellVM) {
-	<div class="view" style={ themeVars } data-mode="day">
+templ PreviewWidget(themeVars templ.SafeCSS, cell CellVM, onEnd bool) {
+	<div class="view" style={ themeVars } data-mode="day" data-advance-on-end={ boolAttr(onEnd) }>
 		@widgetCell(cell)
 	</div>
 }

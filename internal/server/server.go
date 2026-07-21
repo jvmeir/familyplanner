@@ -11,8 +11,6 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -79,10 +77,6 @@ func New(cfg *config.Config, store *db.Store, reg *widget.Registry, i18nSvc *i18
 	s.brk = broker.New(store, reg, s.now, cfg.EncryptionKey, cfg.OAuthApp)
 	s.dsRegistry = datasource.NewRegistry()
 	datasource.RegisterDefaults(s.dsRegistry)
-	// Video widget: downloads are cached under the data volume and served at /media.
-	widget.VideoDir = filepath.Join(cfg.DataDir, "videos")
-	widget.VideoCookies = filepath.Join(cfg.DataDir, "youtube-cookies.txt")
-	_ = os.MkdirAll(widget.VideoDir, 0o755)
 	if err := s.bootstrap(context.Background()); err != nil {
 		return nil, err
 	}
@@ -105,11 +99,6 @@ func (s *Server) routes() http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(web.Assets()))))
-	// Downloaded videos (video widget). Served from the data volume; content is
-	// family media on a private device, so no auth gate here (like /static).
-	if widget.VideoDir != "" {
-		r.Handle("/media/*", http.StripPrefix("/media/", http.FileServer(http.Dir(widget.VideoDir))))
-	}
 
 	// Session-backed routes (admin + auth + pairing).
 	r.Group(func(r chi.Router) {
@@ -133,6 +122,7 @@ func (s *Server) routes() http.Handler {
 			r.Post("/admin/views", s.handleViewCreate)
 			r.Post("/admin/views/{id}/name", s.handleViewRename)
 			r.Post("/admin/views/{id}/mode", s.handleViewMode)
+			r.Post("/admin/views/{id}/advance", s.handleViewAdvance)
 			r.Delete("/admin/views/{id}", s.handleViewDelete)
 			r.Get("/admin/views/{id}/layout", s.handleViewLayout)
 			r.Get("/admin/views/{id}/preview", s.handleViewPreview)
@@ -431,7 +421,18 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 		return true
 	}
 	dwell := func() time.Duration {
-		if it, ok := state.Current(); ok && it.Dwell > 0 {
+		it, ok := state.Current()
+		if !ok {
+			return 30 * time.Second
+		}
+		// "Advance on end" screens with an end-capable widget (video) suspend the
+		// timer — the client advances when the video finishes. A generous safety
+		// cap still advances if the player never reports ENDED (e.g. it errored).
+		if v, err := s.store.GetView(r.Context(), it.ViewID); err == nil &&
+			v.AdvanceMode == "on_end" && s.viewHasEndWidget(r.Context(), v) {
+			return 30 * time.Minute
+		}
+		if it.Dwell > 0 {
 			return it.Dwell
 		}
 		return 30 * time.Second
@@ -570,6 +571,7 @@ func (s *Server) voiceClockConfig(ctx context.Context) voiceclock.Config {
 // renderViewComponent renders a view's body: the recursive layout tree if the
 // view has one, otherwise the legacy fixed grid.
 func (s *Server) renderViewComponent(ctx context.Context, view dbgen.View) templ.Component {
+	onEnd := view.AdvanceMode == "on_end" // client advances when end-widgets finish
 	// Random-single mode: show one of the screen's widgets, chosen at random each
 	// time it's rendered; the grid/split layout is ignored.
 	if view.RenderMode == "random_single" {
@@ -577,14 +579,25 @@ func (s *Server) renderViewComponent(ctx context.Context, view dbgen.View) templ
 			wid := ids[rand.IntN(len(ids))]
 			th := theme.Resolve(s.defaultTheme(ctx), theme.DefaultID)
 			cell := s.cellForWidget(ctx, wid, "")
-			return web.PreviewWidget(web.ThemeVars(th), cell)
+			return web.PreviewWidget(web.ThemeVars(th), cell, onEnd)
 		}
 	}
 	if lm, th, ok := s.buildViewVM(ctx, view); ok {
-		return web.View(web.ThemeVars(th), lm)
+		return web.View(web.ThemeVars(th), lm, onEnd)
 	}
 	gs, cells := s.renderLegacyGrid(ctx, view)
 	return web.Grid(gs, cells)
+}
+
+// viewHasEndWidget reports whether a view contains a widget that emits an end
+// event (currently: a video), so its rotation timer can be suspended in on_end.
+func (s *Server) viewHasEndWidget(ctx context.Context, view dbgen.View) bool {
+	for _, id := range s.viewWidgetIDs(ctx, view) {
+		if w, err := s.store.GetWidget(ctx, id); err == nil && w.Type == "video" {
+			return true
+		}
+	}
+	return false
 }
 
 // viewWidgetIDs returns the widget ids assigned to a view (from its layout tree,
@@ -727,7 +740,7 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 	switch {
 	case meta.HideTitle == "1":
 		vm.Title = ""
-	case vm.IframeURL != "" || vm.ImageURL != "" || vm.VideoURL != "":
+	case vm.IframeURL != "" || vm.ImageURL != "" || vm.VideoID != "":
 		// full-bleed media: no title bar
 		vm.Title = ""
 	default:

@@ -173,7 +173,7 @@ func (s *Server) handleWidgetPreview(w http.ResponseWriter, r *http.Request) {
 	}
 	th := theme.Resolve(s.defaultTheme(r.Context()), theme.DefaultID)
 	cell := s.cellForWidget(r.Context(), id, "")
-	s.render(w, r, web.PreviewPage(wgt.Name, web.PreviewWidget(web.ThemeVars(th), cell)))
+	s.render(w, r, web.PreviewPage(wgt.Name, web.PreviewWidget(web.ThemeVars(th), cell, false)))
 }
 
 // handleViewPreview renders a whole screen full-screen (new tab).
@@ -232,6 +232,9 @@ func (s *Server) handleViewCreate(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("mode") == "random_single" {
 		_ = s.store.UpdateViewMode(r.Context(), dbgen.UpdateViewModeParams{RenderMode: "random_single", ID: view.ID})
 	}
+	if r.FormValue("advance") == "on_end" {
+		_ = s.store.UpdateViewAdvance(r.Context(), dbgen.UpdateViewAdvanceParams{AdvanceMode: "on_end", ID: view.ID})
+	}
 	s.render(w, r, web.ViewList(s.viewVMs(r.Context())))
 }
 
@@ -258,6 +261,20 @@ func (s *Server) handleViewMode(w http.ResponseWriter, r *http.Request) {
 		mode = "random_single"
 	}
 	_ = s.store.UpdateViewMode(r.Context(), dbgen.UpdateViewModeParams{RenderMode: mode, ID: id})
+	s.render(w, r, web.ViewList(s.viewVMs(r.Context())))
+}
+
+func (s *Server) handleViewAdvance(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	mode := "timer"
+	if r.FormValue("advance") == "on_end" {
+		mode = "on_end"
+	}
+	_ = s.store.UpdateViewAdvance(r.Context(), dbgen.UpdateViewAdvanceParams{AdvanceMode: mode, ID: id})
 	s.render(w, r, web.ViewList(s.viewVMs(r.Context())))
 }
 
@@ -353,7 +370,7 @@ func (s *Server) viewVMs(ctx context.Context) []web.ViewVM {
 	}
 	out := make([]web.ViewVM, 0, len(rows))
 	for _, v := range rows {
-		out = append(out, web.ViewVM{ID: v.ID, Name: v.Name, Cols: v.Cols, Rows: v.Rows, RenderMode: v.RenderMode})
+		out = append(out, web.ViewVM{ID: v.ID, Name: v.Name, Cols: v.Cols, Rows: v.Rows, RenderMode: v.RenderMode, AdvanceMode: v.AdvanceMode})
 	}
 	return out
 }

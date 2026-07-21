@@ -23,6 +23,13 @@ templ ViewsPage(views []ViewVM) {
 					<option value="random_single">{ i18n.T(ctx, "view.mode.random_single") }</option>
 				</select>
 			</label>
+			<label>
+				{ i18n.T(ctx, "view.advance") }
+				<select name="advance">
+					<option value="timer">{ i18n.T(ctx, "view.advance.timer") }</option>
+					<option value="on_end">{ i18n.T(ctx, "view.advance.on_end") }</option>
+				</select>
+			</label>
 			<button type="submit">{ i18n.T(ctx, "admin.add") }</button>
 		</form>
 		<p class="muted">{ i18n.T(ctx, "view.create_hint") }</p>
@@ -58,6 +65,17 @@ templ ViewList(views []ViewVM) {
 				>
 					<option value="grid" selected?={ v.RenderMode != "random_single" }>{ i18n.T(ctx, "view.mode.grid") }</option>
 					<option value="random_single" selected?={ v.RenderMode == "random_single" }>{ i18n.T(ctx, "view.mode.random_single") }</option>
+				</select>
+				<select
+					name="advance"
+					hx-post={ "/admin/views/" + fmt.Sprint(v.ID) + "/advance" }
+					hx-trigger="change"
+					hx-target="#viewlist"
+					hx-swap="outerHTML"
+					aria-label={ i18n.T(ctx, "view.advance") }
+				>
+					<option value="timer" selected?={ v.AdvanceMode != "on_end" }>{ i18n.T(ctx, "view.advance.timer") }</option>
+					<option value="on_end" selected?={ v.AdvanceMode == "on_end" }>{ i18n.T(ctx, "view.advance.on_end") }</option>
 				</select>
 				<a class="btn ghost" href={ templ.SafeURL("/admin/views/" + fmt.Sprint(v.ID) + "/layout") }>{ i18n.T(ctx, "view.edit_layout") }</a>
 				<a class="btn ghost" href={ templ.SafeURL("/admin/views/" + fmt.Sprint(v.ID) + "/preview") } target="_blank" rel="noopener">{ i18n.T(ctx, "admin.preview") }</a>
