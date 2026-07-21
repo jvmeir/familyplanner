@@ -21,10 +21,12 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := voiceclock.Config{
-		Enabled:    r.FormValue("voice_enabled") != "",
-		QuietStart: r.FormValue("quiet_start"),
-		QuietEnd:   r.FormValue("quiet_end"),
-		ChimeStyle: voiceclock.ValidStyle(r.FormValue("chime_style")),
+		Enabled:      r.FormValue("voice_enabled") != "",
+		QuietStart:   r.FormValue("quiet_start"),
+		QuietEnd:     r.FormValue("quiet_end"),
+		QuarterSound: voiceclock.ValidQuarterSound(r.FormValue("quarter_sound")),
+		HourSound:    voiceclock.ValidHourSound(r.FormValue("hour_sound")),
+		Announce:     r.FormValue("announce") != "",
 	}
 	if js, err := json.Marshal(cfg); err == nil {
 		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "voiceclock", Value: string(js)})
@@ -44,7 +46,9 @@ func (s *Server) settingsVM(ctx context.Context, saved bool) web.SettingsVM {
 		VoiceEnabled: cfg.Enabled,
 		QuietStart:   cfg.QuietStart,
 		QuietEnd:     cfg.QuietEnd,
-		ChimeStyle:   voiceclock.ValidStyle(cfg.ChimeStyle),
+		QuarterSound: voiceclock.ValidQuarterSound(cfg.QuarterSound),
+		HourSound:    voiceclock.ValidHourSound(cfg.HourSound),
+		Announce:     cfg.Announce,
 		KioskScale:   strconv.FormatFloat(s.kioskScale(ctx), 'f', 2, 64),
 		Saved:        saved,
 	}

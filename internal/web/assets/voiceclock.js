@@ -120,25 +120,41 @@
                "zes", "zeven", "acht", "negen", "tien", "elf"];
   function dutchHour(h) { return HOURS[((h % 12) + 12) % 12] + " uur"; }
 
+  function playSound(ac, sound, quarter, hour) {
+    switch (sound) {
+      case "bingbong": bingbong(ac); return 2.4;
+      case "gong": return gong(ac);
+      case "pips": return pips(ac);
+      case "timesignal": timePips(ac); return 3;
+      case "westminster": return westminster(ac, quarter || 0, hour || 0);
+      default: return 0; // "none"
+    }
+  }
+
   // runChime handles one chime event end-to-end (sound + any announcement).
   function runChime(d) {
     d = d || {};
-    var style = d.style || "sprekende_klok";
+    var sound = d.sound || "none";
     var ac = audio();
-    if (style === "sprekende_klok") {
-      if (d.quarter === 0 && d.text) speakThenPips("Bij de derde toon is het " + d.text);
-      else bingbong(ac);
+    // Speaking-clock: on the hour with the time-signal sound + spoken time, the
+    // voice leads and the three pips land on the third (double-length) tone.
+    if (sound === "timesignal" && d.announce && d.text) {
+      speakThenPips("Bij de derde toon is het " + d.text);
       return;
     }
-    var dur = style === "gong" ? gong(ac) : style === "pips" ? pips(ac) : westminster(ac, d.quarter || 0, d.hour || 0);
+    var dur = playSound(ac, sound, d.quarter, d.hour);
     if (d.announce && d.text) {
       setTimeout(function () { speak("Het is " + d.text); }, (dur + 0.4) * 1000);
     }
   }
 
-  window.fpTestChime = function (style) {
+  // Admin previews.
+  window.fpTestQuarter = function (sound) {
+    runChime({ sound: sound, quarter: 1, hour: new Date().getHours() });
+  };
+  window.fpTestHour = function (sound, announce) {
     var h = new Date().getHours();
-    runChime({ style: style || "sprekende_klok", quarter: 0, hour: h, announce: true, text: dutchHour(h) });
+    runChime({ sound: sound, quarter: 0, hour: h, announce: !!announce, text: dutchHour(h) });
   };
 
   function unlock() {

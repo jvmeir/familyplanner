@@ -9,61 +9,86 @@ import (
 	"time"
 )
 
-// Chime styles (open / public-domain sounds synthesised in the browser).
+// Chime sounds (open / public-domain, synthesised in the browser).
 const (
-	StyleSpeakingClock = "sprekende_klok" // bing-bong on quarters; "bij de derde toon…" + 3 pips on the hour
-	StyleWestminster   = "westminster"    // Big Ben quarter chimes (public domain)
-	StyleGong          = "gong"           // generic airport/PA "bing-bong"
-	StylePips          = "pips"           // time-signal beeps
+	SoundNone        = "none"
+	SoundBingBong    = "bingbong"    // two-tone PA "bing-bong"
+	SoundGong        = "gong"        // airport-style gong
+	SoundPips        = "pips"        // short time-signal beeps
+	SoundTimeSignal  = "timesignal"  // 3 pips, third double-length (speaking-clock)
+	SoundWestminster = "westminster" // Big Ben quarter chimes (public domain)
 )
 
-// ValidStyle normalises an unknown/empty style to the default.
-func ValidStyle(s string) string {
-	switch s {
-	case StyleSpeakingClock, StyleWestminster, StyleGong, StylePips:
-		return s
-	default:
-		return StyleSpeakingClock
+func validSound(s, def string, allowed ...string) string {
+	for _, a := range allowed {
+		if s == a {
+			return s
+		}
+	}
+	return def
+}
+
+// ValidQuarterSound normalises the :15/:30/:45 sound (default bing-bong).
+func ValidQuarterSound(s string) string {
+	return validSound(s, SoundBingBong, SoundNone, SoundBingBong, SoundGong, SoundPips, SoundWestminster)
+}
+
+// ValidHourSound normalises the :00 sound (default time-signal).
+func ValidHourSound(s string) string {
+	return validSound(s, SoundTimeSignal, SoundNone, SoundBingBong, SoundGong, SoundPips, SoundTimeSignal, SoundWestminster)
+}
+
+// Config is the (JSON-persisted) voice-clock setting. The quarter (:15/:30/:45)
+// and the hour (:00) each have their own sound; the hour may also speak the time.
+type Config struct {
+	Enabled      bool   `json:"enabled"`
+	QuietStart   string `json:"quietStart"`   // "HH:MM", inclusive
+	QuietEnd     string `json:"quietEnd"`     // "HH:MM", exclusive (wraps past midnight)
+	QuarterSound string `json:"quarterSound"` // sound at :15/:30/:45
+	HourSound    string `json:"hourSound"`    // sound at :00
+	Announce     bool   `json:"announce"`     // speak the Dutch time on the hour
+}
+
+// Default is the seeded configuration: on, silent overnight; bing-bong on the
+// quarters, time-signal + spoken time on the hour (the speaking-clock feel).
+func Default() Config {
+	return Config{
+		Enabled: true, QuietStart: "22:00", QuietEnd: "07:00",
+		QuarterSound: SoundBingBong, HourSound: SoundTimeSignal, Announce: true,
 	}
 }
 
-// Config is the (JSON-persisted) voice-clock setting.
-type Config struct {
-	Enabled    bool   `json:"enabled"`
-	QuietStart string `json:"quietStart"` // "HH:MM", inclusive
-	QuietEnd   string `json:"quietEnd"`   // "HH:MM", exclusive (wraps past midnight)
-	ChimeStyle string `json:"chimeStyle"` // westminster | gong | pips
-}
-
-// Default is the seeded configuration: on, silent overnight, speaking-clock chime.
-func Default() Config {
-	return Config{Enabled: true, QuietStart: "22:00", QuietEnd: "07:00", ChimeStyle: StyleSpeakingClock}
-}
-
-// Chime is the payload sent to the browser on a quarter-hour. The browser
-// synthesises the sound; the server only decides when + what.
+// Chime is the payload sent to the browser. The browser synthesises the sound;
+// the server only decides when + what.
 type Chime struct {
-	Style    string `json:"style"`          // westminster | gong | pips
+	Sound    string `json:"sound"`          // none|bingbong|gong|pips|timesignal|westminster
 	Quarter  int    `json:"quarter"`        // 0 = top of hour, 1 = :15, 2 = :30, 3 = :45
 	Hour     int    `json:"hour"`           // 0–23 (Westminster hour strikes)
 	Announce bool   `json:"announce"`       // speak the time (top of the hour)
 	Text     string `json:"text,omitempty"` // Dutch words, e.g. "drie uur"
 }
 
-// Decide reports whether to emit a chime at local time t (called at a
-// quarter-hour boundary) and its payload. Returns ok=false when disabled or
-// within quiet hours.
+// Decide returns the chime to emit at local time t (a quarter-hour boundary), or
+// ok=false when disabled, in quiet hours, or nothing is configured for that beat.
 func (c Config) Decide(t time.Time) (Chime, bool) {
 	if !c.Enabled || c.InQuiet(t) {
 		return Chime{}, false
 	}
-	ch := Chime{
-		Style:   ValidStyle(c.ChimeStyle),
-		Quarter: (t.Minute() / 15) % 4,
-		Hour:    t.Hour(),
+	q := (t.Minute() / 15) % 4
+	if q != 0 { // quarter past/half/quarter to
+		sound := ValidQuarterSound(c.QuarterSound)
+		if sound == SoundNone {
+			return Chime{}, false
+		}
+		return Chime{Sound: sound, Quarter: q, Hour: t.Hour()}, true
 	}
-	if t.Minute() == 0 {
-		ch.Announce = true
+	// top of the hour
+	sound := ValidHourSound(c.HourSound)
+	if sound == SoundNone && !c.Announce {
+		return Chime{}, false
+	}
+	ch := Chime{Sound: sound, Quarter: 0, Hour: t.Hour(), Announce: c.Announce}
+	if c.Announce {
 		ch.Text = DutchHour(t.Hour())
 	}
 	return ch, true

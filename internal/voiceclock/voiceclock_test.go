@@ -18,20 +18,24 @@ func TestDutchHour(t *testing.T) {
 	require.Equal(t, "elf uur", DutchHour(23))
 }
 
-func TestDecideAnnounceOnHour(t *testing.T) {
-	cfg := Config{Enabled: true, QuietStart: "22:00", QuietEnd: "07:00", ChimeStyle: StyleWestminster}
+func TestDecideHourVsQuarter(t *testing.T) {
+	cfg := Config{
+		Enabled: true, QuietStart: "22:00", QuietEnd: "07:00",
+		QuarterSound: SoundBingBong, HourSound: SoundTimeSignal, Announce: true,
+	}
 
-	ch, ok := cfg.Decide(at(15, 0))
+	ch, ok := cfg.Decide(at(15, 0)) // top of the hour
 	require.True(t, ok)
+	require.Equal(t, SoundTimeSignal, ch.Sound)
 	require.True(t, ch.Announce)
 	require.Equal(t, "drie uur", ch.Text)
-	require.Equal(t, 0, ch.Quarter, "top of hour")
+	require.Equal(t, 0, ch.Quarter)
 	require.Equal(t, 15, ch.Hour)
-	require.Equal(t, StyleWestminster, ch.Style)
 
-	ch, ok = cfg.Decide(at(15, 15))
+	ch, ok = cfg.Decide(at(15, 15)) // quarter past
 	require.True(t, ok)
-	require.False(t, ch.Announce, "quarter past = chime only")
+	require.Equal(t, SoundBingBong, ch.Sound)
+	require.False(t, ch.Announce)
 	require.Empty(t, ch.Text)
 	require.Equal(t, 1, ch.Quarter)
 
@@ -39,16 +43,31 @@ func TestDecideAnnounceOnHour(t *testing.T) {
 	require.Equal(t, 3, ch.Quarter)
 }
 
-func TestDecideStyleDefaultsAndValidates(t *testing.T) {
-	require.Equal(t, StyleSpeakingClock, ValidStyle(""))
-	require.Equal(t, StyleSpeakingClock, ValidStyle("bogus"))
-	require.Equal(t, StyleGong, ValidStyle(StyleGong))
-	require.Equal(t, StyleWestminster, ValidStyle(StyleWestminster))
-	// empty config style -> default (sprekende klok) in the payload.
-	ch, ok := Config{Enabled: true}.Decide(at(15, 0))
+func TestDecideNoneSounds(t *testing.T) {
+	cfg := Config{Enabled: true, QuarterSound: SoundNone, HourSound: SoundNone, Announce: false}
+	// Quarter sound "none" -> no quarter chime.
+	_, ok := cfg.Decide(at(15, 15))
+	require.False(t, ok)
+	// Hour sound "none" + no announce -> nothing on the hour.
+	_, ok = cfg.Decide(at(15, 0))
+	require.False(t, ok)
+	// Hour sound "none" but announce on -> voice-only event.
+	cfg.Announce = true
+	ch, ok := cfg.Decide(at(15, 0))
 	require.True(t, ok)
-	require.Equal(t, StyleSpeakingClock, ch.Style)
-	require.Equal(t, StyleSpeakingClock, Default().ChimeStyle)
+	require.Equal(t, SoundNone, ch.Sound)
+	require.True(t, ch.Announce)
+}
+
+func TestValidSoundsAndDefaults(t *testing.T) {
+	require.Equal(t, SoundBingBong, ValidQuarterSound(""))
+	require.Equal(t, SoundBingBong, ValidQuarterSound("timesignal")) // not allowed for quarters
+	require.Equal(t, SoundWestminster, ValidQuarterSound(SoundWestminster))
+	require.Equal(t, SoundTimeSignal, ValidHourSound(""))
+	require.Equal(t, SoundTimeSignal, ValidHourSound("bogus"))
+	require.Equal(t, SoundGong, ValidHourSound(SoundGong))
+	require.Equal(t, SoundBingBong, Default().QuarterSound)
+	require.Equal(t, SoundTimeSignal, Default().HourSound)
 }
 
 func TestDecideDisabled(t *testing.T) {
