@@ -2,7 +2,14 @@
 
 A self-hosted **family planner**: a read-only **kiosk** for a living-room TV plus a phone-based **admin** to configure it. Dutch by default, i18n-ready. Built in **Go**. This doc is the single place to pick the project back up on a new machine.
 
-> Status (2026-06): **M0–M3 built, green, and running on the dev VM.** Kiosk + admin + layouts + playlists + devices + a full widget/datasource framework with OAuth. Not yet on a production host.
+> Status (2026-07): **M0–M3 + health monitoring built, green, deployed to the dev VM, and pushed to a public GitHub repo.** Kiosk + admin + layouts + playlists + devices + a full widget/datasource framework with OAuth + per-source health surfaced on every screen. Not yet on a production host.
+
+## 0. Final architecture at a glance (read this first)
+
+- **Rendering is server-side only** — templ (typed HTML) + HTMX + SSE. The server renders every page and pushes view swaps; the browser just swaps HTML fragments. An API+SPA (Go→WASM) variant and a PWA (service worker/offline/installable) layer were both prototyped this cycle and then **removed** — the project deliberately stays plain server-rendered. Do not reintroduce them without a reason.
+- **The kiosk is just a browser** (Chromium/Edge, fullscreen) on the old Surface Go wired to a big monitor, pointed at `/kiosk`. There is **no native kiosk app and no kiosk-agent** (the earlier M0.5 cage+Chromium supervisor is dropped). Consequence: night-dim/burn-in are in-browser CSS only; no automatic backlight/CEC power control.
+- **Health monitoring** is live: the broker records each OAuth source's token health, and a subtle corner **badge** on every kiosk screen (+ an admin status pill) surfaces inactive auth / failed syncs / stale data. See §9.
+- **No offline** over plain LAN http (a service worker would need HTTPS/localhost, and there's no PWA anymore). Brief SSE drops are tolerated (the page holds its last view and reconnects). True offline would require the PWA back + the Tailscale HTTPS URL.
 
 ---
 
@@ -112,13 +119,16 @@ See `.env.example`. Key ones: `FP_ENV`, `FP_ADDR`, `FP_BASE_URL`, `FP_DATA_DIR`,
 
 ## 7. What's done vs. pending
 
-**Done & deployed:** M0 (skeleton/auth/kiosk/SSE), M1 (CRUD, recursive split/merge layout editor w/ drag-resize, playlists, devices, phone remote, HTMX), M2 (broker+cache, calendar/weather/quote/web widgets), M3 (OAuth framework + Outlook calendar + OneDrive photos + MS To Do; Bring shopping; per-link resource pickers; app-level OAuth creds).
+**Done & deployed:** M0 (skeleton/auth/kiosk/SSE), M1 (CRUD, recursive split/merge layout editor w/ drag-resize, playlists, devices, phone remote, HTMX), M2 (broker+cache, calendar/weather/quote/web widgets), M3 (OAuth framework + Outlook calendar + OneDrive photos + MS To Do; Bring shopping; per-link resource pickers; app-level OAuth creds), **health monitoring** (§9). Pushed to the public repo `github.com/jvmeir/familyplanner`; deployed to the dev VM.
+
+**Explored and removed (do not reintroduce without a reason):** an API + Go→WASM **SPA** kiosk, and a **PWA** layer (service worker/manifest/offline/installable). Both were built, tested, and reverted — the kiosk stays plain server-rendered.
 
 **Pending / next:**
-- **Git/CI**: first push to `github.com/jvmeir/familyplanner` (this commit) → CI/GHCR activates.
-- **Tailnet HTTPS redirect** for OAuth on the wall (+ `FP_BASE_URL`); production Hetzner deploy.
-- **M0.5 kiosk-agent**: a small Go binary on the Surface (cage + Chromium `--kiosk`, systemd, night dimming/power, heartbeat) — built for linux/amd64.
-- **M5 voice**; kiosk write-back interactions (deferred — kiosk read-only).
+- **CI/GHCR**: the repo is public now; wire the build workflow to actually push images (Watchtower redeploy).
+- **Tailnet HTTPS** (+ `FP_BASE_URL`) so OAuth reconnect works on the wall and (if ever wanted) a PWA could re-enable offline; production Hetzner deploy.
+- **Voice** (Dutch voice clock / announcements) — in design.
+- Kiosk write-back interactions (deferred — kiosk read-only).
+- Health: no periodic all-source sweep yet (only sources used by an active widget, plus never-connected via `oauth_status`, are checked).
 - Google Photos: the Library API readonly was restricted (Mar 2025); the code exists but OneDrive is the chosen photo source.
 
 ## 8. Gotchas
@@ -127,3 +137,10 @@ See `.env.example`. Key ones: `FP_ENV`, `FP_ADDR`, `FP_BASE_URL`, `FP_DATA_DIR`,
 - **OAuth only works where the redirect resolves** (localhost now) — connect locally, not against the LAN VM.
 - **Container DNS**: if external widgets time out in a container, add `dns: [1.1.1.1, 8.8.8.8]` to the compose service.
 - **Kiosk is read-only**; widgets display only (no check-off yet).
+- **Deploy = clean before extract.** `tar` over the VM tree does not delete removed files (stale copies cause duplicate-symbol build fails). Clean first, preserving the DB volume: `find /root/familyplanner -mindepth 1 -depth -not -path '/root/familyplanner/data*' -delete`, then extract + `docker compose up -d --build`. The harness sandbox blocks the `rm` token — use `find -delete`.
+- **VM disk fills up** from repeated image builds → `no space left on device`. Reclaim with `docker builder prune -f` + `docker image prune -f` (safe: dangling only).
+
+## 9. Health monitoring
+The broker records each data source's auth health (migration `00007` adds `access_expiry` / `last_sync` / `last_error` / `health` to `data_sources`). `oauth.ClassifyError` maps an OAuth `invalid_grant` to "refresh token dead → reconnect". The pure `internal/health` package aggregates four signals — **refresh-token dead** (red), **access expired**, **failed sync**, **stale data** (>1h) (amber) — ranked by severity. It's read-only (never calls external APIs; reads the state the broker already stored).
+
+Surfaced as a **subtle corner badge** on every kiosk screen (hidden when healthy; rendered via `web.KioskBody` so it persists across SSE view swaps and refreshes each tick) and a **status pill** on the admin Gegevensbronnen page. Note: health is recorded for sources touched by an active widget, plus never-connected sources (via `oauth_status`); there's no periodic all-source sweep yet.

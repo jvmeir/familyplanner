@@ -102,9 +102,34 @@ persisted). Tailscale-only; no public ingress.
 
 ## Kiosk runtime
 
-The kiosk opens an SSE stream. The server pushes `refresh` (data/tick) and, with
-multiple rotation views, `navigate` (advance). The browser re-fetches the active
-grid fragment and swaps it. M0 uses vanilla `EventSource`; HTMX arrives in M1.
+**Server-rendered only** (templ + HTMX + SSE) — no SPA, no PWA. The kiosk opens
+an SSE stream (`/kiosk/stream`). The server pushes `refresh` (data/tick) and,
+with multiple rotation views, `navigate` (advance); the browser re-fetches the
+active view fragment (`/kiosk/view/{id}`) and swaps it into `#stage`. The
+swapped fragment is `web.KioskBody` = the view **plus** the corner health badge,
+so the badge persists across swaps and refreshes with health each tick.
+
+The **kiosk is just a browser** (Chromium/Edge fullscreen) on the Surface Go +
+monitor, pointed at `/kiosk`. There is no native kiosk app / no kiosk-agent, so
+night-dim/burn-in are in-browser CSS only and there's no automatic power/CEC
+control. Pairing is a one-time passphrase entry in the browser (permanent
+device cookie). Brief SSE drops are tolerated (the last view stays; the client
+reconnects); there is no offline caching (that would need the removed PWA + an
+HTTPS origin).
+
+> Note: an API + Go→WASM **SPA** kiosk and a **PWA** (service worker / offline /
+> installable) layer were both prototyped and then removed. The project stays
+> plain server-rendered.
+
+## Health monitoring
+
+The broker records each data source's auth health (`data_sources.access_expiry`
+/ `last_sync` / `last_error` / `health`; `oauth.ClassifyError` detects a dead
+refresh token via OAuth `invalid_grant`). The pure `internal/health` package
+aggregates four signals — refresh-token dead (red), access expired, failed sync,
+stale data (amber) — into a severity-ranked summary. It's read-only and never
+calls external services. Shown as a subtle corner badge on every kiosk screen
+(hidden when healthy) and a status pill on the admin data-sources page.
 
 ## Deployment
 
@@ -117,10 +142,15 @@ exposure. SQLite + cached files live on a mounted `/data` volume.
 ## Milestones
 
 - **M0** — skeleton + login + kiosk pairing + live countdown/clock grid + Dutch
-  i18n + themes + demo seed + Docker/CI. *(current)*
-- **M0.5** — kiosk-agent (cage + Chromium kiosk, systemd, dimming, heartbeat).
+  i18n + themes + demo seed + Docker/CI. ✅
+- ~~**M0.5** — kiosk-agent~~ — **dropped.** The kiosk is just a fullscreen
+  browser; no supervisor binary.
 - **M1** — domain CRUD, **recursive split/merge layout editor**, schema-driven
-  widget forms, rotation engine, HTMX.
-- **M2** — iCal / Open-Meteo / countdown / quote connectors + broker caching.
-- **M3** — OAuth: MS Graph → Google → OneDrive / Google Photos.
-- **M4** — polish + fun widgets. **M5** — voice.
+  widget forms, rotation engine, HTMX. ✅
+- **M2** — iCal / Open-Meteo / countdown / quote connectors + broker caching. ✅
+- **M3** — OAuth: MS Graph (Outlook/To Do) + OneDrive; Bring; per-link resource
+  pickers. ✅
+- **Health** — OAuth token/expiry + sync monitoring, kiosk badge + admin pill. ✅
+- **M4** — polish + fun widgets. **M5** — voice (Dutch voice clock, in design).
+
+*(Explored and reverted: an API+SPA Go→WASM kiosk and a PWA offline layer.)*
