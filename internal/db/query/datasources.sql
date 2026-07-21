@@ -21,6 +21,9 @@ UPDATE data_sources SET config_json = ?, updated_at = datetime('now') WHERE id =
 -- name: UpdateDataSourceName :exec
 UPDATE data_sources SET name = ?, updated_at = datetime('now') WHERE id = ?;
 
+-- name: UpdateDataSourceRefreshInterval :exec
+UPDATE data_sources SET refresh_interval_secs = ?, updated_at = datetime('now') WHERE id = ?;
+
 -- name: UpdateDataSourceHealth :exec
 UPDATE data_sources
 SET access_expiry = ?, last_error = ?, health = ?, updated_at = datetime('now')
@@ -37,7 +40,7 @@ RETURNING *;
 -- name: ListWidgetSources :many
 SELECT ws.id, ws.widget_id, ws.data_source_id, ws.filter, ws.resource, ws.color, ws.position,
        ds.name AS source_name, ds.type AS source_type, ds.config_json AS source_config,
-       ds.secret_ciphertext AS source_secret
+       ds.secret_ciphertext AS source_secret, ds.refresh_interval_secs AS refresh_interval_secs
 FROM widget_sources ws
 JOIN data_sources ds ON ds.id = ws.data_source_id
 WHERE ws.widget_id = ?

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -76,7 +77,8 @@ func (b *Broker) RefreshWidget(ctx context.Context, wgt dbgen.Widget) {
 		b.markErr(ctx, wgt.ID, "unknown widget type")
 		return
 	}
-	prov, err := typ.NewProvider(json.RawMessage(wgt.ConfigJson), b.sourcesFor(ctx, wgt.ID), b.now)
+	sources := b.sourcesFor(ctx, wgt.ID)
+	prov, err := typ.NewProvider(json.RawMessage(wgt.ConfigJson), sources, b.now)
 	if err != nil {
 		b.markErr(ctx, wgt.ID, err.Error())
 		return
@@ -94,6 +96,13 @@ func (b *Broker) RefreshWidget(ctx context.Context, wgt dbgen.Widget) {
 	if ttl <= 0 {
 		ttl = 30 * time.Second
 	}
+	// For data-backed widgets, drive the background refresh cadence off the
+	// configured interval (per-source override, else the global default) rather
+	// than the provider's own TTL. On-show refresh keeps a displayed widget fresh;
+	// this bounds how often we hit external services in the background.
+	if cap := b.refreshCap(ctx, sources); cap > 0 {
+		ttl = cap
+	}
 	if err := b.store.UpsertWidgetCache(ctx, dbgen.UpsertWidgetCacheParams{
 		WidgetID:  wgt.ID,
 		DataJson:  string(js),
@@ -103,6 +112,47 @@ func (b *Broker) RefreshWidget(ctx context.Context, wgt dbgen.Widget) {
 	}); err != nil {
 		slog.Error("broker: upsert cache", "widget", wgt.ID, "err", err)
 	}
+}
+
+// DefaultRefreshInterval is the fallback background-refresh cadence for
+// data-backed widgets when no global/per-source interval is configured.
+const DefaultRefreshInterval = 15 * time.Minute
+
+// refreshCap returns the background-refresh cadence for a widget with the given
+// linked sources: the smallest non-zero interval among them (a per-source
+// override, else the global default). Returns 0 for widgets with no external
+// source, so purely computed widgets (clock, countdown) keep their own TTL.
+func (b *Broker) refreshCap(ctx context.Context, sources []widget.SourceInput) time.Duration {
+	if len(sources) == 0 {
+		return 0
+	}
+	global := b.globalRefreshInterval(ctx)
+	best := int64(0)
+	for _, s := range sources {
+		iv := s.RefreshIntervalSecs
+		if iv <= 0 {
+			iv = global
+		}
+		if best == 0 || iv < best {
+			best = iv
+		}
+	}
+	return time.Duration(best) * time.Second
+}
+
+// globalRefreshInterval reads the "refresh_interval_secs" setting (seconds),
+// falling back to DefaultRefreshInterval; floored at 30s to protect sources.
+func (b *Broker) globalRefreshInterval(ctx context.Context) int64 {
+	secs := int64(DefaultRefreshInterval / time.Second)
+	if v, err := b.store.GetSetting(ctx, "refresh_interval_secs"); err == nil {
+		if n, perr := strconv.ParseInt(v, 10, 64); perr == nil && n > 0 {
+			secs = n
+		}
+	}
+	if secs < 30 {
+		secs = 30
+	}
+	return secs
 }
 
 // sourcesFor resolves a widget's linked data sources into provider inputs.
@@ -127,12 +177,13 @@ func (b *Broker) sourcesFor(ctx context.Context, widgetID int64) []widget.Source
 			}
 		}
 		out = append(out, widget.SourceInput{
-			Type:     r.SourceType,
-			Config:   json.RawMessage(r.SourceConfig),
-			Secret:   secret,
-			Filter:   r.Filter,
-			Resource: r.Resource,
-			Color:    r.Color,
+			Type:                r.SourceType,
+			Config:              json.RawMessage(r.SourceConfig),
+			Secret:              secret,
+			Filter:              r.Filter,
+			Resource:            r.Resource,
+			Color:               r.Color,
+			RefreshIntervalSecs: r.RefreshIntervalSecs,
 		})
 	}
 	return out

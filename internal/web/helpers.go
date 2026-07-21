@@ -110,6 +110,7 @@ type CellVM struct {
 type EvVM struct {
 	Text  string
 	Color string
+	Today bool // event is on the current day (highlighted in the agenda)
 }
 
 // evItems maps widget calendar items to the presentation view-model.
@@ -452,7 +453,7 @@ func init() {
 		}
 		vm := CellVM{}
 		for _, e := range d.Events {
-			vm.Agenda = append(vm.Agenda, EvVM{Text: e.When + "  " + e.Title, Color: e.Color})
+			vm.Agenda = append(vm.Agenda, EvVM{Text: e.When + "  " + e.Title, Color: e.Color, Today: e.Today})
 		}
 		return vm
 	})
@@ -460,16 +461,6 @@ func init() {
 	RegisterFormatter("weather", func(_ context.Context, data any) CellVM {
 		d, _ := data.(widget.WeatherData)
 		return CellVM{Big: strconv.FormatFloat(d.TempC, 'f', 0, 64) + "°", Sub: wmoNL(d.Code)}
-	})
-
-	RegisterFormatter("quote", func(_ context.Context, data any) CellVM {
-		d, _ := data.(widget.QuoteData)
-		return CellVM{Body: d.Text, Sub: "— " + d.Author}
-	})
-
-	RegisterFormatter("web", func(_ context.Context, data any) CellVM {
-		d, _ := data.(widget.WebData)
-		return CellVM{IframeURL: d.URL}
 	})
 
 	RegisterFormatter("video", func(_ context.Context, data any) CellVM {

@@ -118,8 +118,8 @@ func RegisterDefaults(r *Registry) {
 		ID:               "onedrive",
 		NameKey:          "datasource.type.onedrive",
 		CredKind:         CredOAuth2,
-		ResourceKind:     "onedrive_folders",
-		ResourceLabelKey: "datasource.field.folder",
+		ResourceKind:     "onedrive_albums",
+		ResourceLabelKey: "datasource.field.album",
 	})
 	r.Register(Type{
 		ID:               "ms_todo",

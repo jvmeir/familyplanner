@@ -90,6 +90,7 @@ CREATE TABLE data_sources (
     last_sync         TEXT NOT NULL DEFAULT '',
     last_error        TEXT NOT NULL DEFAULT '',
     health            TEXT NOT NULL DEFAULT '',
+    refresh_interval_secs INTEGER NOT NULL DEFAULT 0, -- 0 = use global default
     created_at        TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );

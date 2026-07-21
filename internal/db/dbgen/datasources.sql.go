@@ -45,7 +45,7 @@ func (q *Queries) AddWidgetSource(ctx context.Context, arg AddWidgetSourceParams
 const createDataSource = `-- name: CreateDataSource :one
 INSERT INTO data_sources (name, type, config_json, secret_ciphertext)
 VALUES (?, ?, ?, ?)
-RETURNING id, name, type, config_json, secret_ciphertext, oauth_status, access_expiry, last_sync, last_error, health, created_at, updated_at
+RETURNING id, name, type, config_json, secret_ciphertext, oauth_status, access_expiry, last_sync, last_error, health, refresh_interval_secs, created_at, updated_at
 `
 
 type CreateDataSourceParams struct {
@@ -74,6 +74,7 @@ func (q *Queries) CreateDataSource(ctx context.Context, arg CreateDataSourcePara
 		&i.LastSync,
 		&i.LastError,
 		&i.Health,
+		&i.RefreshIntervalSecs,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -99,7 +100,7 @@ func (q *Queries) DeleteWidgetSource(ctx context.Context, id int64) error {
 }
 
 const getDataSource = `-- name: GetDataSource :one
-SELECT id, name, type, config_json, secret_ciphertext, oauth_status, access_expiry, last_sync, last_error, health, created_at, updated_at FROM data_sources WHERE id = ?
+SELECT id, name, type, config_json, secret_ciphertext, oauth_status, access_expiry, last_sync, last_error, health, refresh_interval_secs, created_at, updated_at FROM data_sources WHERE id = ?
 `
 
 func (q *Queries) GetDataSource(ctx context.Context, id int64) (DataSource, error) {
@@ -116,6 +117,7 @@ func (q *Queries) GetDataSource(ctx context.Context, id int64) (DataSource, erro
 		&i.LastSync,
 		&i.LastError,
 		&i.Health,
+		&i.RefreshIntervalSecs,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -123,7 +125,7 @@ func (q *Queries) GetDataSource(ctx context.Context, id int64) (DataSource, erro
 }
 
 const listDataSources = `-- name: ListDataSources :many
-SELECT id, name, type, config_json, secret_ciphertext, oauth_status, access_expiry, last_sync, last_error, health, created_at, updated_at FROM data_sources ORDER BY name
+SELECT id, name, type, config_json, secret_ciphertext, oauth_status, access_expiry, last_sync, last_error, health, refresh_interval_secs, created_at, updated_at FROM data_sources ORDER BY name
 `
 
 func (q *Queries) ListDataSources(ctx context.Context) ([]DataSource, error) {
@@ -146,6 +148,7 @@ func (q *Queries) ListDataSources(ctx context.Context) ([]DataSource, error) {
 			&i.LastSync,
 			&i.LastError,
 			&i.Health,
+			&i.RefreshIntervalSecs,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -165,7 +168,7 @@ func (q *Queries) ListDataSources(ctx context.Context) ([]DataSource, error) {
 const listWidgetSources = `-- name: ListWidgetSources :many
 SELECT ws.id, ws.widget_id, ws.data_source_id, ws.filter, ws.resource, ws.color, ws.position,
        ds.name AS source_name, ds.type AS source_type, ds.config_json AS source_config,
-       ds.secret_ciphertext AS source_secret
+       ds.secret_ciphertext AS source_secret, ds.refresh_interval_secs AS refresh_interval_secs
 FROM widget_sources ws
 JOIN data_sources ds ON ds.id = ws.data_source_id
 WHERE ws.widget_id = ?
@@ -173,17 +176,18 @@ ORDER BY ws.position, ws.id
 `
 
 type ListWidgetSourcesRow struct {
-	ID           int64  `json:"id"`
-	WidgetID     int64  `json:"widget_id"`
-	DataSourceID int64  `json:"data_source_id"`
-	Filter       string `json:"filter"`
-	Resource     string `json:"resource"`
-	Color        string `json:"color"`
-	Position     int64  `json:"position"`
-	SourceName   string `json:"source_name"`
-	SourceType   string `json:"source_type"`
-	SourceConfig string `json:"source_config"`
-	SourceSecret string `json:"source_secret"`
+	ID                  int64  `json:"id"`
+	WidgetID            int64  `json:"widget_id"`
+	DataSourceID        int64  `json:"data_source_id"`
+	Filter              string `json:"filter"`
+	Resource            string `json:"resource"`
+	Color               string `json:"color"`
+	Position            int64  `json:"position"`
+	SourceName          string `json:"source_name"`
+	SourceType          string `json:"source_type"`
+	SourceConfig        string `json:"source_config"`
+	SourceSecret        string `json:"source_secret"`
+	RefreshIntervalSecs int64  `json:"refresh_interval_secs"`
 }
 
 func (q *Queries) ListWidgetSources(ctx context.Context, widgetID int64) ([]ListWidgetSourcesRow, error) {
@@ -207,6 +211,7 @@ func (q *Queries) ListWidgetSources(ctx context.Context, widgetID int64) ([]List
 			&i.SourceType,
 			&i.SourceConfig,
 			&i.SourceSecret,
+			&i.RefreshIntervalSecs,
 		); err != nil {
 			return nil, err
 		}
@@ -289,6 +294,20 @@ type UpdateDataSourceNameParams struct {
 
 func (q *Queries) UpdateDataSourceName(ctx context.Context, arg UpdateDataSourceNameParams) error {
 	_, err := q.db.ExecContext(ctx, updateDataSourceName, arg.Name, arg.ID)
+	return err
+}
+
+const updateDataSourceRefreshInterval = `-- name: UpdateDataSourceRefreshInterval :exec
+UPDATE data_sources SET refresh_interval_secs = ?, updated_at = datetime('now') WHERE id = ?
+`
+
+type UpdateDataSourceRefreshIntervalParams struct {
+	RefreshIntervalSecs int64 `json:"refresh_interval_secs"`
+	ID                  int64 `json:"id"`
+}
+
+func (q *Queries) UpdateDataSourceRefreshInterval(ctx context.Context, arg UpdateDataSourceRefreshIntervalParams) error {
+	_, err := q.db.ExecContext(ctx, updateDataSourceRefreshInterval, arg.RefreshIntervalSecs, arg.ID)
 	return err
 }
 

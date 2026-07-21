@@ -58,7 +58,11 @@ templ widgetCell(c CellVM) {
 			if len(c.Agenda) > 0 {
 				<ul class="w-list w-agenda cell-scroll" style={ listVars(len(c.Agenda)) }>
 					for _, ev := range c.Agenda {
-						<li style={ evStyle(ev.Color) }>{ ev.Text }</li>
+						if ev.Today {
+							<li class="w-today" style={ evStyle(ev.Color) }>{ ev.Text }</li>
+						} else {
+							<li style={ evStyle(ev.Color) }>{ ev.Text }</li>
+						}
 					}
 				</ul>
 			}

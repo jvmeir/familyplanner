@@ -85,7 +85,11 @@ func (s *Server) handleDataSourceEdit(w http.ResponseWriter, r *http.Request) {
 	values := map[string]string{}
 	_ = json.Unmarshal([]byte(ds.ConfigJson), &values)
 	typeName := i18n.T(r.Context(), typ.NameKey)
-	s.render(w, r, web.DataSourceEditPage(ds.ID, ds.Name, typeName, schemaFieldVMs(r.Context(), typ.Config, values)))
+	rm := ""
+	if ds.RefreshIntervalSecs > 0 {
+		rm = strconv.FormatInt(ds.RefreshIntervalSecs/60, 10)
+	}
+	s.render(w, r, web.DataSourceEditPage(ds.ID, ds.Name, typeName, schemaFieldVMs(r.Context(), typ.Config, values), rm))
 }
 
 // handleDataSourceUpdate saves edited config, keeping keys not present in the
@@ -118,6 +122,15 @@ func (s *Server) handleDataSourceUpdate(w http.ResponseWriter, r *http.Request) 
 	}
 	if name := r.FormValue("name"); name != "" && name != ds.Name {
 		_ = s.store.UpdateDataSourceName(r.Context(), dbgen.UpdateDataSourceNameParams{Name: name, ID: id})
+	}
+	// Per-source refresh override in minutes (0/blank = use the global default).
+	if m, perr := strconv.Atoi(r.FormValue("refresh_minutes")); perr == nil && m >= 0 {
+		if m > 1440 {
+			m = 1440
+		}
+		_ = s.store.UpdateDataSourceRefreshInterval(r.Context(), dbgen.UpdateDataSourceRefreshIntervalParams{
+			RefreshIntervalSecs: int64(m) * 60, ID: id,
+		})
 	}
 	s.refreshWidgetsUsingSource(r.Context(), id)
 	http.Redirect(w, r, "/admin/datasources", http.StatusSeeOther)

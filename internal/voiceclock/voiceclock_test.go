@@ -127,9 +127,3 @@ func TestInQuietBadBounds(t *testing.T) {
 	require.False(t, Config{QuietStart: "", QuietEnd: ""}.InQuiet(at(3, 0)))
 	require.False(t, Config{QuietStart: "08:00", QuietEnd: "08:00"}.InQuiet(at(8, 0)))
 }
-
-func TestUntilNextQuarter(t *testing.T) {
-	require.Equal(t, 5*time.Minute, UntilNextQuarter(at(15, 10)))
-	require.Equal(t, 15*time.Minute, UntilNextQuarter(at(15, 0)))
-	require.Equal(t, 1*time.Minute, UntilNextQuarter(at(15, 44)))
-}

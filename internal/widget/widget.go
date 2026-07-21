@@ -32,6 +32,10 @@ type SourceInput struct {
 	Filter   string          // per-(widget,source) filter expression
 	Resource string          // per-(widget,source) chosen resource id (list/calendar/folder/album)
 	Color    string          // per-(widget,source) colour (e.g. calendar event colour coding)
+	// RefreshIntervalSecs is the data source's configured background-refresh
+	// cadence (0 = use the global default). The broker caps a data-backed
+	// widget's cache TTL to the smallest non-zero interval among its sources.
+	RefreshIntervalSecs int64
 }
 
 // FieldType is the input kind for a config field (drives the admin form widget).

@@ -35,6 +35,7 @@ type CalendarEvent struct {
 	When  string `json:"when"`
 	Title string `json:"title"`
 	Color string `json:"color,omitempty"`
+	Today bool   `json:"today,omitempty"` // event falls on the current day
 }
 
 // DayCell is one day in the month grid.
@@ -428,7 +429,7 @@ func buildAgenda(now time.Time, all []calEvent, cfg CalendarConfig) []CalendarEv
 	for _, e := range evs {
 		when := fmt.Sprintf("%s %d %s %02d:%02d",
 			nlWeekday[e.t.Weekday()], e.t.Day(), nlMonthShort[int(e.t.Month())-1], e.t.Hour(), e.t.Minute())
-		out = append(out, CalendarEvent{When: when, Title: e.title, Color: e.color})
+		out = append(out, CalendarEvent{When: when, Title: e.title, Color: e.color, Today: sameDate(e.t, now)})
 	}
 	return out
 }

@@ -7,27 +7,6 @@ import (
 	"strings"
 )
 
-// GraphListFolders lists top-level OneDrive folders (for the configure picker).
-func GraphListFolders(ctx context.Context, token string) ([]ResourceOption, error) {
-	var body struct {
-		Value []struct {
-			ID     string    `json:"id"`
-			Name   string    `json:"name"`
-			Folder *struct{} `json:"folder"`
-		} `json:"value"`
-	}
-	if err := graphGet(ctx, token, graphBase+"/me/drive/root/children?$select=id,name,folder&$top=200", &body); err != nil {
-		return nil, err
-	}
-	out := make([]ResourceOption, 0, len(body.Value))
-	for _, it := range body.Value {
-		if it.Folder != nil {
-			out = append(out, ResourceOption{ID: it.ID, Name: it.Name})
-		}
-	}
-	return out, nil
-}
-
 // GraphListAlbums lists OneDrive photo albums (personal OneDrive "bundles" with
 // an album facet). An album's photos are fetched with GraphFolderPhotos, since a
 // bundle is a driveItem whose children are its photos.

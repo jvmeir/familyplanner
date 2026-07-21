@@ -69,7 +69,7 @@ templ DataSourceList(sources []DataSourceVM) {
 
 // DataSourceEditPage edits a data source's config fields (e.g. iCal/RSS URL,
 // text lines) after creation.
-templ DataSourceEditPage(id int64, name string, typeName string, fields []FieldVM) {
+templ DataSourceEditPage(id int64, name string, typeName string, fields []FieldVM, refreshMinutes string) {
 	@AdminPage("datasources") {
 		<h1>{ name }</h1>
 		<form class="card form" method="post" action={ templ.SafeURL("/admin/datasources/" + fmt.Sprint(id)) }>
@@ -80,6 +80,11 @@ templ DataSourceEditPage(id int64, name string, typeName string, fields []FieldV
 			</label>
 			<p class="muted">{ i18n.T(ctx, "admin.field_type") }: { typeName }</p>
 			@WidgetFields(fields)
+			<label>
+				{ i18n.T(ctx, "datasource.refresh_minutes") }
+				<input type="number" name="refresh_minutes" value={ refreshMinutes } min="0" max="1440" placeholder={ i18n.T(ctx, "datasource.refresh_global") }/>
+			</label>
+			<p class="muted">{ i18n.T(ctx, "datasource.refresh_help") }</p>
 			<div class="btn-row">
 				<button type="submit">{ i18n.T(ctx, "admin.save") }</button>
 				<a class="btn ghost" href="/admin/datasources">{ i18n.T(ctx, "admin.back") }</a>

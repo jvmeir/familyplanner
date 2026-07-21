@@ -54,6 +54,15 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 	if v := r.FormValue("banner_date"); v != "" {
 		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{Key: "banner_date", Value: v})
 	}
+	// Global data-source background refresh cadence (minutes → seconds).
+	if v, err := strconv.Atoi(r.FormValue("refresh_minutes")); err == nil && v > 0 {
+		if v > 1440 {
+			v = 1440
+		}
+		_ = s.store.SetSetting(r.Context(), dbgen.SetSettingParams{
+			Key: "refresh_interval_secs", Value: strconv.Itoa(v * 60),
+		})
+	}
 	// Slide transition when rotating to a new screen (checkbox; default on).
 	transition := "0"
 	if r.FormValue("transition") != "" {
@@ -95,8 +104,27 @@ func (s *Server) settingsVM(ctx context.Context, saved bool) web.SettingsVM {
 		Transition:     s.kioskTransition(ctx),
 		Themes:         s.themeOpts(),
 		Theme:          s.defaultTheme(ctx),
+		RefreshMinutes: strconv.Itoa(s.refreshMinutes(ctx)),
 		Saved:          saved,
 	}
+}
+
+// refreshMinutes is the global data-source refresh cadence in minutes (default
+// 15), read from the "refresh_interval_secs" setting.
+func (s *Server) refreshMinutes(ctx context.Context) int {
+	v, err := s.store.GetSetting(ctx, "refresh_interval_secs")
+	if err != nil || v == "" {
+		return 15
+	}
+	secs, err := strconv.Atoi(v)
+	if err != nil || secs <= 0 {
+		return 15
+	}
+	m := secs / 60
+	if m < 1 {
+		m = 1
+	}
+	return m
 }
 
 // tickerSpeed is the ticker scroll-loop duration in seconds (default 60).

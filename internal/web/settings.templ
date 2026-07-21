@@ -25,6 +25,7 @@ type SettingsVM struct {
 	Transition     bool         // slide animation on screen change
 	Themes         []ThemeOptVM // available themes
 	Theme          string       // selected global theme id
+	RefreshMinutes string       // global data-source refresh cadence (minutes)
 	Saved          bool
 }
 
@@ -151,6 +152,14 @@ templ SettingsPage(vm SettingsVM) {
 					}
 				</select>
 			</label>
+			<fieldset class="subsection">
+				<legend>{ i18n.T(ctx, "settings.refresh") }</legend>
+				<p class="muted">{ i18n.T(ctx, "settings.refresh_help") }</p>
+				<label>
+					{ i18n.T(ctx, "settings.refresh_minutes") }
+					<input type="number" name="refresh_minutes" value={ vm.RefreshMinutes } min="1" max="1440"/>
+				</label>
+			</fieldset>
 			<h2>{ i18n.T(ctx, "settings.scale") }</h2>
 			<p class="muted">{ i18n.T(ctx, "settings.scale_help") }</p>
 			<label>

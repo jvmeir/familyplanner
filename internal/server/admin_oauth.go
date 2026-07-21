@@ -133,31 +133,23 @@ func (s *Server) listResources(ctx context.Context, ds dbgen.DataSource) ([]widg
 			return nil, err
 		}
 		return widget.GraphListCalendars(ctx, tok)
-	case "google_albums":
+	case "onedrive_albums":
 		tok, err := s.freshAccessToken(ctx, ds)
 		if err != nil {
 			return nil, err
 		}
-		return widget.GoogleListAlbums(ctx, tok)
-	case "onedrive_folders":
-		tok, err := s.freshAccessToken(ctx, ds)
+		// Albums only (personal-OneDrive photo albums / "bundles"): predictable,
+		// curated sets keep the slideshow workable. Folder browsing was dropped.
+		albums, err := widget.GraphListAlbums(ctx, tok)
 		if err != nil {
-			return nil, err
-		}
-		// Offer both folders and photo albums; both resolve to a driveItem id
-		// whose children are the photos. Albums are labelled distinctly.
-		opts, err := widget.GraphListFolders(ctx, tok)
-		if err != nil {
-			return nil, err
-		}
-		if albums, aerr := widget.GraphListAlbums(ctx, tok); aerr != nil {
 			// Albums (bundles) are a personal-OneDrive feature; OneDrive for
 			// Business returns an error here. Log it so "no albums" is diagnosable.
-			slog.Warn("onedrive: list albums failed (likely OneDrive for Business, which has no albums)", "source", ds.ID, "err", aerr)
-		} else {
-			for _, a := range albums {
-				opts = append(opts, widget.ResourceOption{ID: a.ID, Name: "📷 " + a.Name})
-			}
+			slog.Warn("onedrive: list albums failed (likely OneDrive for Business, which has no albums)", "source", ds.ID, "err", err)
+			return nil, err
+		}
+		opts := make([]widget.ResourceOption, 0, len(albums))
+		for _, a := range albums {
+			opts = append(opts, widget.ResourceOption{ID: a.ID, Name: "📷 " + a.Name})
 		}
 		return opts, nil
 	case "ms_todo_lists":

@@ -195,19 +195,6 @@ func parseHM(s string) (int, bool) {
 	return t.Hour()*60 + t.Minute(), true
 }
 
-// UntilNextQuarter returns the duration from now to the next :00/:15/:30/:45
-// wall-clock boundary.
-func UntilNextQuarter(now time.Time) time.Duration {
-	elapsed := time.Duration(now.Minute()%15)*time.Minute +
-		time.Duration(now.Second())*time.Second +
-		time.Duration(now.Nanosecond())
-	d := 15*time.Minute - elapsed
-	if d <= 0 {
-		d = 15 * time.Minute
-	}
-	return d
-}
-
 var dutchHours = [...]string{
 	"twaalf", "één", "twee", "drie", "vier", "vijf",
 	"zes", "zeven", "acht", "negen", "tien", "elf",

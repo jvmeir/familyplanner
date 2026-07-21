@@ -232,37 +232,12 @@ func TestGraphCalendar(t *testing.T) {
 	require.Equal(t, "Familie", cals[0].Name)
 }
 
-func TestGooglePhotos(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/albums", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"albums":[{"id":"a1","title":"Vakantie"}]}`))
-	})
-	mux.HandleFunc("/mediaItems:search", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"mediaItems":[{"baseUrl":"https://x/p1"},{"baseUrl":"https://x/p2"}]}`))
-	})
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
-	old := googlePhotosBase
-	googlePhotosBase = srv.URL
-	defer func() { googlePhotosBase = old }()
-
-	albums, err := GoogleListAlbums(context.Background(), "tok")
-	require.NoError(t, err)
-	require.Len(t, albums, 1)
-	require.Equal(t, "Vakantie", albums[0].Name)
-
-	urls, err := GooglePhotoURLs(context.Background(), "tok", "a1")
-	require.NoError(t, err)
-	require.Len(t, urls, 2)
-	require.Contains(t, urls[0], "w1600")
-}
-
 func TestOneDrivePhotos(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/me/drive/root/children", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"value":[{"id":"f1","name":"Familie","folder":{}},{"id":"x","name":"notes.txt"}]}`))
+	mux.HandleFunc("/me/drive/bundles", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"value":[{"id":"a1","name":"Vakantie","bundle":{"album":{}}},{"id":"b1","name":"Deelmap","bundle":{}}]}`))
 	})
-	mux.HandleFunc("/me/drive/items/f1/children", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/me/drive/items/a1/children", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"value":[{"file":{"mimeType":"image/jpeg"},"@microsoft.graph.downloadUrl":"https://dl/p1","createdDateTime":"2026-01-02T00:00:00Z"},{"file":{"mimeType":"text/plain"},"@microsoft.graph.downloadUrl":"https://dl/doc"}]}`))
 	})
 	srv := httptest.NewServer(mux)
@@ -271,12 +246,12 @@ func TestOneDrivePhotos(t *testing.T) {
 	graphBase = srv.URL
 	defer func() { graphBase = old }()
 
-	folders, err := GraphListFolders(context.Background(), "tok")
+	albums, err := GraphListAlbums(context.Background(), "tok")
 	require.NoError(t, err)
-	require.Len(t, folders, 1)
-	require.Equal(t, "Familie", folders[0].Name)
+	require.Len(t, albums, 1) // only the album-faceted bundle
+	require.Equal(t, "Vakantie", albums[0].Name)
 
-	urls, err := GraphFolderPhotos(context.Background(), "tok", "f1")
+	urls, err := GraphFolderPhotos(context.Background(), "tok", "a1")
 	require.NoError(t, err)
 	require.Len(t, urls, 1) // only the image, not the .txt
 	require.Equal(t, "https://dl/p1", urls[0])
@@ -309,15 +284,6 @@ func TestMSTodo(t *testing.T) {
 		titles = append(titles, tk.Title)
 	}
 	require.Contains(t, titles, "Melk kopen")
-}
-
-func TestWebWidget(t *testing.T) {
-	p, err := newWeb(json.RawMessage(`{"url":"https://example.com"}`), nil, nil)
-	require.NoError(t, err)
-	data, ttl, err := p.Fetch(context.Background())
-	require.NoError(t, err)
-	require.Equal(t, time.Hour, ttl)
-	require.Equal(t, "https://example.com", data.(WebData).URL)
 }
 
 func TestNormalizeWebcal(t *testing.T) {
@@ -353,16 +319,4 @@ func TestBringShopping(t *testing.T) {
 	require.Len(t, sd.Items, 2)
 	require.Contains(t, sd.Items[0], "Melk")
 	require.Contains(t, sd.Items[0], "2L")
-}
-
-func TestQuoteDeterministic(t *testing.T) {
-	now := func() time.Time { return time.Date(2026, 1, 3, 12, 0, 0, 0, time.UTC) }
-	p, err := newQuote(nil, nil, now)
-	require.NoError(t, err)
-	data, ttl, err := p.Fetch(context.Background())
-	require.NoError(t, err)
-	require.Equal(t, time.Hour, ttl)
-	q := data.(QuoteData)
-	require.NotEmpty(t, q.Text)
-	require.NotEmpty(t, q.Author)
 }

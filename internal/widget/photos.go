@@ -50,21 +50,11 @@ func (p photosProvider) Fetch(ctx context.Context) (Data, time.Duration, error) 
 		if sec.AccessToken == "" {
 			continue
 		}
-		var us []string
-		var err error
-		switch s.Type {
-		case "google_photos":
-			// Album chosen per widget↔source link (resource).
-			if s.Resource == "" {
-				continue
-			}
-			us, err = GooglePhotoURLs(ctx, sec.AccessToken, s.Resource)
-		case "onedrive":
-			// Folder/album chosen per link (resource); "" = drive root.
-			us, err = GraphFolderPhotos(ctx, sec.AccessToken, s.Resource)
-		default:
+		if s.Type != "onedrive" {
 			continue
 		}
+		// Folder/album chosen per widget↔source link (resource); "" = drive root.
+		us, err := GraphFolderPhotos(ctx, sec.AccessToken, s.Resource)
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err

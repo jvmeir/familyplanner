@@ -5,18 +5,19 @@
 package dbgen
 
 type DataSource struct {
-	ID               int64  `json:"id"`
-	Name             string `json:"name"`
-	Type             string `json:"type"`
-	ConfigJson       string `json:"config_json"`
-	SecretCiphertext string `json:"secret_ciphertext"`
-	OauthStatus      string `json:"oauth_status"`
-	AccessExpiry     string `json:"access_expiry"`
-	LastSync         string `json:"last_sync"`
-	LastError        string `json:"last_error"`
-	Health           string `json:"health"`
-	CreatedAt        string `json:"created_at"`
-	UpdatedAt        string `json:"updated_at"`
+	ID                  int64  `json:"id"`
+	Name                string `json:"name"`
+	Type                string `json:"type"`
+	ConfigJson          string `json:"config_json"`
+	SecretCiphertext    string `json:"secret_ciphertext"`
+	OauthStatus         string `json:"oauth_status"`
+	AccessExpiry        string `json:"access_expiry"`
+	LastSync            string `json:"last_sync"`
+	LastError           string `json:"last_error"`
+	Health              string `json:"health"`
+	RefreshIntervalSecs int64  `json:"refresh_interval_secs"`
+	CreatedAt           string `json:"created_at"`
+	UpdatedAt           string `json:"updated_at"`
 }
 
 type KioskDevice struct {

@@ -50,9 +50,19 @@ type Server struct {
 	bootID     string // changes each server start; kiosks auto-reload when it changes
 	handler    http.Handler
 
-	refMu      sync.Mutex     // guards refreshing
-	refreshing map[int64]bool // widget IDs with an in-flight background refresh (de-dupe)
+	refMu       sync.Mutex          // guards refreshing + lastRefresh
+	refreshing  map[int64]bool      // widget IDs with an in-flight background refresh (de-dupe)
+	lastRefresh map[int64]time.Time // widget ID → last on-show refresh (throttle)
+
+	photoMu    sync.Mutex      // guards photoOrder + photoPos
+	photoOrder map[int64][]int // photos widget ID → shuffled index order (no-repeat slideshow)
+	photoPos   map[int64]int   // photos widget ID → next position in photoOrder
 }
+
+// onShowRefreshThrottle is the minimum gap between background refreshes triggered
+// by a widget being shown; rapid re-renders (30s in-place refresh, quick
+// next/prev) within this window reuse the cache instead of stampeding a source.
+const onShowRefreshThrottle = 10 * time.Second
 
 // New builds a Server: configures sessions, runs first-run bootstrap, wires routes.
 func New(cfg *config.Config, store *db.Store, reg *widget.Registry, i18nSvc *i18n.Service) (*Server, error) {
@@ -760,8 +770,12 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 			s.bgRefresh(wgt)
 			return web.FormatCell(ctx, wgt.Type, nil, false, style)
 		}
-	} else if cacheExpired(cache.ExpiresAt, s.now()) {
-		s.bgRefresh(wgt) // stale: render current cache now, refresh for next time
+	} else {
+		// Refresh the data source on EVERY show so the widget is as fresh as
+		// possible: render the current cache immediately, kick a background fetch
+		// for next tick. bgRefresh throttles per-widget so rapid re-renders (the
+		// 30s in-place refresh, quick next/prev) can't stampede a slow source.
+		s.bgRefresh(wgt)
 	}
 
 	var data any
@@ -772,6 +786,12 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 		} else {
 			stale = true
 		}
+	}
+	// Photo slideshow: each time a photos widget is shown, advance to the next
+	// photo in a per-widget shuffled order so no picture repeats until the whole
+	// album has been shown once.
+	if pd, ok := data.(widget.PhotosData); ok && len(pd.URLs) > 0 {
+		data = widget.PhotosData{URLs: []string{s.nextPhoto(widgetID, pd.URLs)}, Mode: "single"}
 	}
 	vm := web.FormatCell(ctx, wgt.Type, data, stale, style)
 	// Standardized widget title: every widget shows its own name as the header,
@@ -807,6 +827,39 @@ func pick(v string, allowed ...string) string {
 	return allowed[0]
 }
 
+// nextPhoto returns the next photo URL for a widget's slideshow, advancing a
+// per-widget shuffled order so every picture in the album is shown once before
+// any repeats. The order is reshuffled when the album changes or is exhausted.
+func (s *Server) nextPhoto(widgetID int64, urls []string) string {
+	n := len(urls)
+	if n == 0 {
+		return ""
+	}
+	s.photoMu.Lock()
+	defer s.photoMu.Unlock()
+	if s.photoOrder == nil {
+		s.photoOrder = map[int64][]int{}
+		s.photoPos = map[int64]int{}
+	}
+	order := s.photoOrder[widgetID]
+	pos := s.photoPos[widgetID]
+	if len(order) != n || pos >= len(order) {
+		order = make([]int, n)
+		for i := range order {
+			order[i] = i
+		}
+		rand.Shuffle(n, func(i, j int) { order[i], order[j] = order[j], order[i] })
+		pos = 0
+	}
+	idx := order[pos]
+	s.photoOrder[widgetID] = order
+	s.photoPos[widgetID] = pos + 1
+	if idx < 0 || idx >= n {
+		idx = 0
+	}
+	return urls[idx]
+}
+
 // bgRefresh fetches a widget's data in the background (detached context),
 // de-duplicating concurrent refreshes of the same widget so a busy rotation
 // can't stampede a slow source.
@@ -815,11 +868,19 @@ func (s *Server) bgRefresh(wgt dbgen.Widget) {
 	if s.refreshing == nil {
 		s.refreshing = map[int64]bool{}
 	}
+	if s.lastRefresh == nil {
+		s.lastRefresh = map[int64]time.Time{}
+	}
 	if s.refreshing[wgt.ID] {
 		s.refMu.Unlock()
 		return
 	}
+	if t, ok := s.lastRefresh[wgt.ID]; ok && s.now().Sub(t) < onShowRefreshThrottle {
+		s.refMu.Unlock()
+		return // refreshed too recently; reuse cache
+	}
 	s.refreshing[wgt.ID] = true
+	s.lastRefresh[wgt.ID] = s.now()
 	s.refMu.Unlock()
 	go func() {
 		defer func() {
