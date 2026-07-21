@@ -92,10 +92,9 @@ func (s *Server) routes() http.Handler {
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(web.Assets()))))
 
-	// PWA: service worker (root scope) + manifests, public so any page installs.
+	// PWA: service worker (root scope) + manifest, public so any page installs.
 	r.Get("/sw.js", s.handleServiceWorker)
 	r.Get("/manifest.webmanifest", s.handleManifest)
-	r.Get("/manifest.kiosk.webmanifest", s.handleKioskManifest)
 
 	// Session-backed routes (admin + auth + pairing).
 	r.Group(func(r chi.Router) {
@@ -166,13 +165,6 @@ func (s *Server) routes() http.Handler {
 		r.Get("/kiosk/view/{id}", s.handleKioskView)
 		r.Get("/kiosk/stream", s.handleKioskStream)
 		r.Post("/kiosk/control/{cmd}", s.handleKioskControl)
-
-		// JSON API + SPA client (API+SPA variant of the kiosk). Same device-cookie
-		// auth; reuses /kiosk/stream (SSE) and /kiosk/control for push + playback.
-		r.Get("/api/kiosk/state", s.handleAPIKioskState)
-		r.Get("/api/kiosk/view/{id}", s.handleAPIKioskView)
-		r.Get("/api/kiosk/health", s.handleAPIKioskHealth)
-		r.Get("/spa", s.handleSPA)
 	})
 
 	return r
@@ -317,7 +309,9 @@ func (s *Server) handleKioskView(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "view not found", http.StatusNotFound)
 		return
 	}
-	s.render(w, r, s.renderViewComponent(r.Context(), view))
+	// Wrap with the health badge so it persists across SSE view swaps and
+	// refreshes with the latest health on each tick.
+	s.render(w, r, web.KioskBody(s.renderViewComponent(r.Context(), view), s.healthVM(r.Context())))
 }
 
 func (s *Server) handleKioskControl(w http.ResponseWriter, r *http.Request) {

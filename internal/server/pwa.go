@@ -28,16 +28,10 @@ func (s *Server) handleServiceWorker(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write(b)
 }
 
-// handleManifest serves the general (phone/admin) manifest: installs to /,
-// standalone. Used by every server-rendered page via the shared Layout.
+// handleManifest serves the web app manifest (installs to /, standalone). Used
+// by every server-rendered page via the shared Layout.
 func (s *Server) handleManifest(w http.ResponseWriter, _ *http.Request) {
 	writeManifest(w, generalManifest)
-}
-
-// handleKioskManifest serves the kiosk manifest: installs to /spa, fullscreen —
-// intended for the wall display. Linked from the WASM SPA bootstrap.
-func (s *Server) handleKioskManifest(w http.ResponseWriter, _ *http.Request) {
-	writeManifest(w, kioskManifest)
 }
 
 func writeManifest(w http.ResponseWriter, body string) {
@@ -56,23 +50,6 @@ const generalManifest = `{
   "display": "standalone",
   "background_color": "#f4f6fb",
   "theme_color": "#2f6df6",
-  "icons": [
-    {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
-    {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
-  ]
-}`
-
-const kioskManifest = `{
-  "name": "Family Planner Kiosk",
-  "short_name": "Kiosk",
-  "description": "Familie-planner kioskweergave.",
-  "lang": "nl",
-  "start_url": "/spa",
-  "scope": "/",
-  "display": "fullscreen",
-  "orientation": "landscape",
-  "background_color": "#0f1220",
-  "theme_color": "#0f1220",
   "icons": [
     {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
     {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}

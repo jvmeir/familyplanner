@@ -37,7 +37,6 @@ func TestManifestsServed(t *testing.T) {
 		wantDisplay string
 	}{
 		{"/manifest.webmanifest", "/", "standalone"},
-		{"/manifest.kiosk.webmanifest", "/spa", "fullscreen"},
 	} {
 		resp, err := http.Get(ts.URL + tc.path)
 		require.NoError(t, err)

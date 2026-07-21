@@ -16,16 +16,7 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM) {
 			<span id="ktime" class="ktime"></span>
 		</header>
 		<div id="stage" data-view-id={ fmt.Sprint(controls.CurrentID) }>
-			@body
-			if health.Bad() {
-				<div class={ "khealth", "khealth-" + health.Level } role="status">
-					<span class="khealth-dot"></span>
-					<span class="khealth-msg">{ health.Message }</span>
-					if health.Count > 1 {
-						<span class="khealth-more">+{ fmt.Sprint(health.Count - 1) }</span>
-					}
-				</div>
-			}
+			@KioskBody(body, health)
 		</div>
 		<footer class="kfooter">
 			<span class="kfooter-label">
@@ -54,5 +45,22 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM) {
 			</span>
 		</footer>
 		<script src="/static/kiosk.js"></script>
+	}
+}
+
+// KioskBody is the swappable stage content: the current view plus the corner
+// health badge. It is rendered both inline (initial page) and as the
+// /kiosk/view/{id} fragment the SSE client swaps in, so the badge persists
+// across view changes and refreshes with the latest health each tick.
+templ KioskBody(body templ.Component, health HealthVM) {
+	@body
+	if health.Bad() {
+		<div class={ "khealth", "khealth-" + health.Level } role="status">
+			<span class="khealth-dot"></span>
+			<span class="khealth-msg">{ health.Message }</span>
+			if health.Count > 1 {
+				<span class="khealth-more">+{ fmt.Sprint(health.Count - 1) }</span>
+			}
+		</div>
 	}
 }

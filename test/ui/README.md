@@ -1,7 +1,7 @@
 # Synthetic UI tests
 
-Playwright-driven browser tests for the kiosk **SPA** (Go→WASM client) and its
-**PWA** behaviour (service worker + offline rendering).
+Playwright-driven browser tests for the server-rendered **kiosk** (templ + HTMX
++ SSE) and its **PWA** behaviour (service worker + offline rendering).
 
 ## Run
 
@@ -19,7 +19,7 @@ node run.mjs
 ```
 
 `run.mjs` starts a fresh server on a throwaway SQLite DB (port 8099), waits for
-`/health`, runs `spa.test.mjs` (Node's built-in test runner), then stops the
+`/health`, runs `kiosk.test.mjs` (Node's built-in test runner), then stops the
 server and propagates the exit code.
 
 ## Requirements

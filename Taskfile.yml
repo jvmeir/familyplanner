@@ -10,23 +10,15 @@ tasks:
       - templ generate
       - sqlc generate
 
-  spa:
-    desc: Build the kiosk SPA client (Go -> WebAssembly) into the embedded assets
-    env:
-      GOOS: js
-      GOARCH: wasm
-    cmds:
-      - go build -o internal/web/assets/app.wasm ./cmd/kioskspa
-
   build:
     desc: Build the server binary
-    deps: [gen, spa]
+    deps: [gen]
     cmds:
       - go build -o {{.BIN}} ./cmd/server
 
   run:
     desc: Run the server
-    deps: [gen, spa]
+    deps: [gen]
     cmds:
       - go run ./cmd/server
 

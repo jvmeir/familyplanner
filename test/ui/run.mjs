@@ -59,7 +59,7 @@ if (!up) {
   shutdown(1);
 }
 
-const tests = spawn(process.execPath, ['--test', 'spa.test.mjs'], {
+const tests = spawn(process.execPath, ['--test', 'kiosk.test.mjs'], {
   env: { ...process.env, FP_UI_BASE: BASE },
   stdio: 'inherit',
 });

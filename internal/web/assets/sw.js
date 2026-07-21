@@ -16,12 +16,11 @@ const CACHE = 'fp-v1';
 // so we never cache a login redirect.
 const SHELL = [
   '/static/app.css',
-  '/static/wasm_exec.js',
-  '/static/app.wasm',
+  '/static/htmx.min.js',
+  '/static/kiosk.js',
   '/static/icon-192.png',
   '/static/icon-512.png',
   '/manifest.webmanifest',
-  '/manifest.kiosk.webmanifest',
 ];
 
 self.addEventListener('install', (e) => {
@@ -56,19 +55,28 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin) return; // cross-origin (iframes, photos) untouched
   if (url.pathname === '/kiosk/stream') return;     // SSE stream: never cache
 
-  if (url.pathname.startsWith('/api/')) {
-    // Network-first with last-good fallback.
+  // Dynamic HTML (the kiosk/admin pages + the SSE-swapped view fragments):
+  // network-first so an online kiosk always shows fresh data/health, falling
+  // back to the last-good cached response only when the server is unreachable.
+  const dynamic =
+    req.mode === 'navigate' ||
+    url.pathname.startsWith('/kiosk/view/') ||
+    url.pathname.startsWith('/admin');
+  if (dynamic) {
     e.respondWith(
-      fetch(req).then((res) => putInCache(req, res)).catch(() => caches.match(req))
+      fetch(req)
+        .then((res) => putInCache(req, res))
+        .catch(() => caches.match(req).then((c) => c || caches.match('/kiosk'))),
     );
     return;
   }
 
-  // Shell / static / navigations: serve cache immediately, refresh in background.
+  // Static shell (css/js/icons/manifest): serve cache immediately, refresh in
+  // the background (stale-while-revalidate).
   e.respondWith(
     caches.match(req).then((cached) => {
       const network = fetch(req).then((res) => putInCache(req, res)).catch(() => cached);
       return cached || network;
-    })
+    }),
   );
 });

@@ -1,9 +1,11 @@
-// Synthetic browser tests for the kiosk SPA + PWA, using Playwright to drive a
-// real Chrome/Edge against a running server (started by run.mjs). Covers:
-//   - the WASM client renders the shell + widgets,
-//   - the footer "next" control swaps the view through the full SSE loop,
+// Synthetic browser tests for the server-rendered kiosk (templ + HTMX + SSE) and
+// its PWA behaviour, using Playwright to drive a real Chrome/Edge against a
+// running server (started by run.mjs). Covers:
+//   - the kiosk page renders the shell + widgets,
+//   - the footer "next" control swaps the view through the SSE loop,
 //   - the service worker registers and precaches the shell,
-//   - the kiosk still renders offline (PWA resilience).
+//   - the kiosk still renders offline (PWA resilience),
+//   - the health badge appears when an OAuth source needs reconnect.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
@@ -38,8 +40,8 @@ async function waitForSWControl() {
   });
 }
 
-test('SPA renders the shell and widgets', async () => {
-  await page.goto(BASE + '/spa', { waitUntil: 'load' });
+test('kiosk renders the shell and widgets', async () => {
+  await page.goto(BASE + '/kiosk', { waitUntil: 'load' });
   await page.waitForSelector('.view .widget', { timeout: 15000 });
   const s = await page.evaluate(() => ({
     widgets: document.querySelectorAll('.view .widget').length,
@@ -56,25 +58,23 @@ test('SPA renders the shell and widgets', async () => {
 });
 
 test('next control swaps the view via the SSE loop', async () => {
-  await page.goto(BASE + '/spa', { waitUntil: 'load' });
-  await page.waitForSelector('.kfooter-controls button');
-  const labelSel = '.kfooter-label > span:last-child';
-  const before = (await page.textContent(labelSel))?.trim();
-  await page.click('.kfooter-controls button:nth-child(4)'); // ⏭
+  await page.goto(BASE + '/kiosk', { waitUntil: 'load' });
+  await page.waitForSelector('#kview');
+  // Wait for the SSE stream to set the initial footer view label.
+  await page.waitForFunction(() => (document.querySelector('#kview')?.textContent || '').trim() !== '', null, { timeout: 10000 });
+  const before = (await page.textContent('#kview'))?.trim();
+  await page.click('.kfooter-controls button:nth-child(4)'); // ⏭ next -> fpCtl('next')
   await page.waitForFunction(
-    ([sel, prev]) => {
-      const el = document.querySelector(sel);
-      return el && el.textContent.trim() && el.textContent.trim() !== prev;
-    },
-    [labelSel, before],
+    (prev) => (document.querySelector('#kview')?.textContent || '').trim() !== prev,
+    before,
     { timeout: 10000 },
   );
-  const after = (await page.textContent(labelSel))?.trim();
+  const after = (await page.textContent('#kview'))?.trim();
   assert.notEqual(after, before, 'view label changed after next');
 });
 
 test('service worker registers and precaches the shell', async () => {
-  await page.goto(BASE + '/spa', { waitUntil: 'load' });
+  await page.goto(BASE + '/kiosk', { waitUntil: 'load' });
   await waitForSWControl();
   const sw = await page.evaluate(async () => {
     if (!('serviceWorker' in navigator)) return { supported: false };
@@ -84,18 +84,18 @@ test('service worker registers and precaches the shell', async () => {
     return {
       supported: true,
       controlled: !!navigator.serviceWorker.controller,
-      hasWasm: keys.includes('/static/app.wasm'),
       hasCss: keys.includes('/static/app.css'),
+      hasKioskJs: keys.includes('/static/kiosk.js'),
     };
   });
   assert.ok(sw.supported, 'service workers supported');
   assert.ok(sw.controlled, 'service worker controls the page');
-  assert.ok(sw.hasWasm, 'app.wasm precached');
   assert.ok(sw.hasCss, 'app.css precached');
+  assert.ok(sw.hasKioskJs, 'kiosk.js precached');
 });
 
 test('renders offline from cache (PWA resilience)', async () => {
-  await page.goto(BASE + '/spa', { waitUntil: 'load' });
+  await page.goto(BASE + '/kiosk', { waitUntil: 'load' });
   await page.waitForSelector('.view .widget', { timeout: 15000 });
   await waitForSWControl();
 
@@ -110,24 +110,20 @@ test('renders offline from cache (PWA resilience)', async () => {
   }
 });
 
-// Runs last: it creates an OAuth source, which makes every kiosk screen show the
-// health badge from then on.
+// Runs last: creating an OAuth source makes the badge appear on the kiosk.
 test('kiosk shows the health badge when an OAuth source needs reconnect', async () => {
-  // Admin login (session cookie coexists with the device cookie).
   await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded' });
   await page.fill('input[name="passphrase"]', PASSPHRASE);
   await Promise.all([page.waitForNavigation(), page.click('button[type="submit"]')]);
 
-  // Create an ms_graph data source and never connect it -> reconnect needed.
   await page.goto(BASE + '/admin/datasources', { waitUntil: 'load' });
   await page.fill('input[name="name"]', 'Outlook Test');
   await page.selectOption('select[name="type"]', 'ms_graph');
-  await page.waitForTimeout(300); // let the fields HTMX-swap
+  await page.waitForTimeout(300);
   await page.click('form[hx-post="/admin/datasources"] button[type="submit"]');
   await page.waitForTimeout(500);
 
-  // The kiosk badge should now be visible, red, and say "opnieuw verbinden".
-  await page.goto(BASE + '/spa', { waitUntil: 'load' });
+  await page.goto(BASE + '/kiosk', { waitUntil: 'load' });
   await page.waitForSelector('.khealth', { state: 'visible', timeout: 15000 });
   const badge = await page.evaluate(() => {
     const el = document.querySelector('.khealth');

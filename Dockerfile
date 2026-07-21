@@ -10,9 +10,6 @@ RUN go mod download
 
 # Generated code (templ/sqlc) is committed, so the image build needs no codegen tools.
 COPY . .
-# Build the kiosk SPA client to WebAssembly first so it is embedded (go:embed
-# assets/*) into the server binary; then build the server.
-RUN GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o internal/web/assets/app.wasm ./cmd/kioskspa
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/familyplanner ./cmd/server
 
 # ---- runtime stage ----

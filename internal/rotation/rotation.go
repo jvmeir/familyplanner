@@ -170,21 +170,6 @@ func (m *Manager) Goto(deviceID, viewID int64) bool {
 	return true
 }
 
-// Peek reports a connected device's current view and paused flag without
-// mutating anything. ok is false if the device has no live stream (in which
-// case callers fall back to the playlist's first item / not-paused).
-func (m *Manager) Peek(deviceID int64) (viewID int64, paused, ok bool) {
-	c := m.lookup(deviceID)
-	if c == nil {
-		return 0, false, false
-	}
-	it, has := c.state.Current()
-	if !has {
-		return 0, c.state.Paused(), true
-	}
-	return it.ViewID, c.state.Paused(), true
-}
-
 func (m *Manager) lookup(deviceID int64) *conn {
 	m.mu.Lock()
 	defer m.mu.Unlock()
