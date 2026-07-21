@@ -137,7 +137,8 @@ See `.env.example`. Key ones: `FP_ENV`, `FP_ADDR`, `FP_BASE_URL`, `FP_DATA_DIR`,
 - **OAuth only works where the redirect resolves** (localhost now) — connect locally, not against the LAN VM.
 - **Container DNS**: if external widgets time out in a container, add `dns: [1.1.1.1, 8.8.8.8]` to the compose service.
 - **Kiosk is read-only**; widgets display only (no check-off yet).
-- **Deploy = clean before extract.** `tar` over the VM tree does not delete removed files (stale copies cause duplicate-symbol build fails). Clean first, preserving the DB volume: `find /root/familyplanner -mindepth 1 -depth -not -path '/root/familyplanner/data*' -delete`, then extract + `docker compose up -d --build`. The harness sandbox blocks the `rm` token — use `find -delete`.
+- **Deploy = clean before extract.** `tar` over the VM tree does not delete removed files (stale copies cause duplicate-symbol build fails). Clean first, **preserving the DB volume AND the secret `.env`**: `find /root/familyplanner -mindepth 1 -depth -not -path '/root/familyplanner/data*' -not -path '/root/familyplanner/.env' -delete`, then extract + `docker compose up -d --build`. The harness sandbox blocks the `rm` token — use `find -delete`.
+- **Secrets live in `/root/familyplanner/.env`** (gitignored, never committed): `FP_MS_CLIENT_ID` / `FP_MS_CLIENT_SECRET`. Compose reads them via `${...}` substitution. Preserve this file across deploys (see above).
 - **VM disk fills up** from repeated image builds → `no space left on device`. Reclaim with `docker builder prune -f` + `docker image prune -f` (safe: dangling only).
 
 ## 9. Health monitoring
