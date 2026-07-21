@@ -14,9 +14,10 @@ import (
 	"github.com/jvmeir/familyplanner/internal/i18n"
 )
 
-// Kiosk is the full-screen shell: a static date/time header, the rotating view
-// content, and a footer showing "playlist · view" plus the playback controls.
-// The header clock runs client-side; the footer view label updates on SSE.
+// Kiosk is the full-screen shell: the rotating view content fills the screen,
+// with a single merged bottom bar holding the live clock, a scrolling ticker,
+// and the "playlist · screen" label + playback controls. The clock runs
+// client-side; the view label + ticker update over SSE.
 func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -50,14 +51,14 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"kheader\"><span id=\"kdate\" class=\"kdate\"></span> <span id=\"ktime\" class=\"ktime\"></span></header><div id=\"stage\" data-view-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"stage\" data-view-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprint(controls.CurrentID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 18, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 15, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -71,14 +72,14 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><footer class=\"kfooter\"><span class=\"kfooter-label\"><span id=\"kplaylist\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><footer class=\"kbar\"><span class=\"kclock\"><span id=\"kdate\" class=\"kdate\"></span> <span id=\"ktime\" class=\"ktime\"></span></span> <span class=\"kticker\" id=\"kticker\"></span> <span class=\"kbar-right\"><span class=\"kfooter-label\"><span id=\"kplaylist\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(controls.PlaylistName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 23, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 26, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -91,7 +92,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.prev"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 28, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 31, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -104,7 +105,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.pause"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 29, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 32, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -117,7 +118,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.play"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 30, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 33, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 			if templ_7745c5c3_Err != nil {
@@ -130,7 +131,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.next"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 31, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 34, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -143,7 +144,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.jump"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 32, Col: 91}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 35, Col: 92}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 			if templ_7745c5c3_Err != nil {
@@ -156,7 +157,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.jump"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 33, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 36, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -174,7 +175,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprint(v.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 35, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 38, Col: 39}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 				if templ_7745c5c3_Err != nil {
@@ -197,7 +198,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(v.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 35, Col: 90}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 38, Col: 91}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -216,7 +217,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.all_views"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 38, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 41, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 				if templ_7745c5c3_Err != nil {
@@ -234,7 +235,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprint(v.ID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 40, Col: 40}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 43, Col: 41}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 					if templ_7745c5c3_Err != nil {
@@ -247,7 +248,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 					var templ_7745c5c3_Var15 string
 					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(v.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 40, Col: 51}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 43, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 					if templ_7745c5c3_Err != nil {
@@ -263,7 +264,7 @@ func Kiosk(body templ.Component, controls ControlsVM, health HealthVM) templ.Com
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</select></span></footer><script src=\"/static/kiosk.js\"></script> <script src=\"/static/voiceclock.js\"></script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</select></span></span></footer><script src=\"/static/kiosk.js\"></script> <script src=\"/static/voiceclock.js\"></script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -332,7 +333,7 @@ func KioskBody(body templ.Component, health HealthVM) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(health.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 61, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 65, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -350,7 +351,7 @@ func KioskBody(body templ.Component, health HealthVM) templ.Component {
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(health.Count - 1))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 63, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/kiosk.templ`, Line: 67, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {

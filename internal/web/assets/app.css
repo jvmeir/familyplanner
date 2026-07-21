@@ -132,19 +132,22 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 @media (prefers-reduced-motion: reduce) {
   .view.kslide { animation: none; }
 }
-.kheader, .kfooter {
+/* Single merged bottom bar: clock · ticker · (playlist·screen + controls). */
+.kbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 0.6em;
+  gap: 1em;
   padding: 0.4em 0.9em;
   background: rgba(15, 18, 26, .92);
   color: #fff;
+  font-size: .95rem;
 }
-.kheader { justify-content: space-between; font-variant-numeric: tabular-nums; }
+.kclock { display: flex; align-items: baseline; gap: 0.5em; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .kdate { color: rgba(255, 255, 255, .7); text-transform: capitalize; }
-.ktime { font-weight: 800; font-size: 1.3rem; }
-.kfooter { justify-content: space-between; font-size: .9rem; }
+.ktime { font-weight: 800; font-size: 1.25rem; }
+.kticker { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; color: rgba(255, 255, 255, .82); }
+.kbar-right { display: flex; align-items: center; gap: 0.8em; margin-left: auto; white-space: nowrap; }
 .kfooter-label { color: rgba(255, 255, 255, .85); }
 .kfooter-label .sep { opacity: .5; margin: 0 6px; }
 .kfooter-controls { display: flex; gap: 6px; align-items: center; }
