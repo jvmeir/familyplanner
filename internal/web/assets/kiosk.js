@@ -18,21 +18,13 @@
     if (f === "short") return { day: "2-digit", month: "2-digit", year: "numeric" };
     return { weekday: "long", day: "numeric", month: "long", year: "numeric" }; // long
   }
-  function tick() {
-    const now = new Date();
-    if (dateEl) dateEl.textContent = dateFmt === "none" ? "" : fmtDate.format(now);
-    if (timeEl) timeEl.textContent = fmtTime.format(now);
-    tickCountdowns();
-    maybeNightlyReload(now);
-  }
-  tick();
-  setInterval(tick, 1000);
-
   // Nightly sanity reload: a 24/7 kiosk browser slowly accumulates cruft (SSE
   // reconnects, long-lived YouTube iframes, timers). A single full reload at a
   // dead hour (04:00 local) keeps it fresh without ever interrupting daytime
   // viewing. Updates already reload via the "version" event; this covers the
   // long-uptime-between-updates case. Guarded so it fires once per night.
+  // NOTE: declared before tick() runs — tick() reads these, so they must not be
+  // in the temporal dead zone when the first tick() fires synchronously below.
   const RELOAD_HOUR = 4;
   let reloadedToday = false;
   function maybeNightlyReload(now) {
@@ -45,6 +37,16 @@
       reloadedToday = false; // re-arm once we leave the reload hour
     }
   }
+
+  function tick() {
+    const now = new Date();
+    if (dateEl) dateEl.textContent = dateFmt === "none" ? "" : fmtDate.format(now);
+    if (timeEl) timeEl.textContent = fmtTime.format(now);
+    tickCountdowns();
+    maybeNightlyReload(now);
+  }
+  tick();
+  setInterval(tick, 1000);
 
   // Live "days, hours, minutes, seconds" countdown widgets (Precision=dhms).
   function tickCountdowns() {
