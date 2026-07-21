@@ -17,3 +17,6 @@ SELECT * FROM kiosk_devices WHERE id = ?;
 
 -- name: DeleteDevice :exec
 DELETE FROM kiosk_devices WHERE id = ?;
+
+-- name: UpdateDeviceName :exec
+UPDATE kiosk_devices SET name = ? WHERE id = ?;

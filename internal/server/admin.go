@@ -189,6 +189,18 @@ func (s *Server) handleViewCreate(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, web.ViewList(s.viewVMs(r.Context())))
 }
 
+func (s *Server) handleViewRename(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	if name := r.FormValue("name"); name != "" {
+		_ = s.store.UpdateViewName(r.Context(), dbgen.UpdateViewNameParams{Name: name, ID: id})
+	}
+	s.render(w, r, web.ViewList(s.viewVMs(r.Context())))
+}
+
 func (s *Server) handleViewDelete(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {

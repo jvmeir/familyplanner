@@ -41,7 +41,16 @@ templ DataSourceList(sources []DataSourceVM) {
 		}
 		for _, d := range sources {
 			<div class="row">
-				<span class="row-name">{ d.Name }</span>
+				<input
+					class="row-name rename"
+					name="name"
+					value={ d.Name }
+					hx-post={ "/admin/datasources/" + fmt.Sprint(d.ID) + "/name" }
+					hx-trigger="change"
+					hx-target="#dslist"
+					hx-swap="outerHTML"
+					aria-label={ i18n.T(ctx, "admin.rename") }
+				/>
 				<span class="row-type">{ d.Type }</span>
 				if d.HealthText != "" {
 					<span class={ "hpill", "hpill-" + d.HealthLevel } title={ d.LastError }>{ d.HealthText }</span>

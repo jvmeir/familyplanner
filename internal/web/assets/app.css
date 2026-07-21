@@ -143,9 +143,9 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
   color: #fff;
   font-size: .95rem;
 }
-.kclock { display: flex; align-items: baseline; gap: 0.5em; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.kdate { color: rgba(255, 255, 255, .7); text-transform: capitalize; }
+.kclock { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.05; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ktime { font-weight: 800; font-size: 1.25rem; }
+.kdate { color: rgba(255, 255, 255, .65); text-transform: capitalize; font-size: .68rem; }
 .kticker { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; color: rgba(255, 255, 255, .82); }
 .kticker-track {
   display: inline-block;
@@ -160,11 +160,25 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
   from { transform: translateX(0); }
   to { transform: translateX(-100%); }
 }
-.kbar-right { display: flex; align-items: center; gap: 0.8em; margin-left: auto; white-space: nowrap; }
+.kbar-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.1em; margin-left: auto; white-space: nowrap; }
 /* Full-width dwell progress bar under the bar (screen bottom edge). */
 .kprogress { flex: 0 0 auto; height: 5px; background: rgba(0, 0, 0, .15); }
 .kprogress-fill { height: 100%; width: 0; background: var(--accent, #2f6df6); }
-.kfooter-label { color: rgba(255, 255, 255, .85); }
+
+/* Inline-editable name (rename) in admin lists. */
+.row-name.rename {
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  padding: 4px 8px;
+  min-width: 12ch;
+  color: inherit;
+}
+.row-name.rename:hover { border-color: color-mix(in srgb, var(--text) 15%, transparent); }
+.row-name.rename:focus { outline: none; border-color: var(--accent); background: var(--bg); }
+.kfooter-label { color: rgba(255, 255, 255, .6); font-size: .68rem; }
 .kfooter-label .sep { opacity: .5; margin: 0 6px; }
 .kfooter-controls { display: flex; gap: 6px; align-items: center; }
 .kfooter-controls button {
@@ -207,12 +221,13 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
   padding: 2px 0;
   border-bottom: 0;
 }
-.w-title { color: var(--text-muted); font-size: 1.1rem; font-weight: 600; }
-/* rem-based so both the viewport auto-scale (root font-size) and the admin scale
-   slider drive the hero number. */
-.w-big { font-size: 5rem; font-weight: 800; line-height: 1; color: var(--accent); }
-.w-sub { font-size: 1.2rem; color: var(--text-muted); margin-top: 6px; }
-.w-body { font-size: 1.3rem; line-height: 1.45; margin: 6px 0 0; }
+/* Widget text is sized relative to its own cell (container query units) so it
+   fits in multi-widget layouts without clipping, times the admin scale slider.
+   (.widget sets container-type: size.) */
+.w-title { color: var(--text-muted); font-weight: 600; font-size: calc(6.5cqmin * var(--kiosk-scale, 1)); }
+.w-big { font-weight: 800; line-height: 1; color: var(--accent); font-size: calc(20cqmin * var(--kiosk-scale, 1)); }
+.w-sub { color: var(--text-muted); margin-top: 6px; font-size: calc(5cqmin * var(--kiosk-scale, 1)); }
+.w-body { line-height: 1.45; margin: 6px 0 0; font-size: calc(5.5cqmin * var(--kiosk-scale, 1)); }
 .w-list { list-style: none; padding: 0; margin: 8px 0 0; width: 100%; text-align: left; overflow: hidden; }
 .w-list li {
   padding: 6px 2px;
@@ -239,7 +254,7 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 .wm-day.out { opacity: .35; }
 .wm-day.today { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .wm-num { display: block; font-size: 1.15rem; font-weight: 700; }
-.wm-ev { display: block; font-size: .95rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--accent); }
+.wm-ev { display: block; font-size: .95rem; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; color: var(--accent); margin-bottom: 2px; }
 .wm-more { font-size: .85rem; color: var(--text-muted); }
 
 /* relative day-by-day schedule */

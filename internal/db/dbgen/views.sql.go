@@ -209,3 +209,17 @@ func (q *Queries) UpdateView(ctx context.Context, arg UpdateViewParams) error {
 	)
 	return err
 }
+
+const updateViewName = `-- name: UpdateViewName :exec
+UPDATE views SET name = ?, updated_at = datetime('now') WHERE id = ?
+`
+
+type UpdateViewNameParams struct {
+	Name string `json:"name"`
+	ID   int64  `json:"id"`
+}
+
+func (q *Queries) UpdateViewName(ctx context.Context, arg UpdateViewNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateViewName, arg.Name, arg.ID)
+	return err
+}

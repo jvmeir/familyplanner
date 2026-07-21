@@ -11,7 +11,7 @@
   // ---- clock (client-side; date format pushed via the config event) ----
   const dateEl = document.getElementById("kdate");
   const timeEl = document.getElementById("ktime");
-  const fmtTime = new Intl.DateTimeFormat("nl-BE", { hour: "2-digit", minute: "2-digit" });
+  const fmtTime = new Intl.DateTimeFormat("nl-BE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   let dateFmt = "long";
   let fmtDate = new Intl.DateTimeFormat("nl-BE", dateOpts(dateFmt));
   function dateOpts(f) {
@@ -61,6 +61,7 @@
   es.addEventListener("navigate", function (e) {
     var changed = e.data !== currentViewID;
     currentViewID = e.data;
+    stage.dataset.viewId = e.data; // keep the DOM in sync with the active view
     updateViewLabel(currentViewID);
     loadView(currentViewID, changed);
   });

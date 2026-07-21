@@ -47,6 +47,18 @@ func (s *Server) handleDeviceDelete(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, web.DeviceList(s.deviceVMs(r.Context()), s.playlistRefs(r.Context()), s.viewRefs(r.Context())))
 }
 
+func (s *Server) handleDeviceRename(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	if name := r.FormValue("name"); name != "" {
+		_ = s.store.UpdateDeviceName(r.Context(), dbgen.UpdateDeviceNameParams{Name: name, ID: id})
+	}
+	s.render(w, r, web.DeviceList(s.deviceVMs(r.Context()), s.playlistRefs(r.Context()), s.viewRefs(r.Context())))
+}
+
 // handleDeviceControl is the phone "remote": it drives a specific device's
 // rotation (works only while that device has an open SSE stream).
 func (s *Server) handleDeviceControl(w http.ResponseWriter, r *http.Request) {

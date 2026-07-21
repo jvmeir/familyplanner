@@ -201,6 +201,18 @@ func (s *Server) dataSourceVMs(ctx context.Context) []web.DataSourceVM {
 	return out
 }
 
+func (s *Server) handleDataSourceRename(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	if name := r.FormValue("name"); name != "" {
+		_ = s.store.UpdateDataSourceName(r.Context(), dbgen.UpdateDataSourceNameParams{Name: name, ID: id})
+	}
+	s.render(w, r, web.DataSourceList(s.dataSourceVMs(r.Context())))
+}
+
 // dsHealthDisplay maps a data source's stored health into a status pill
 // (level, Dutch label). Non-OAuth sources have no auth to report.
 func dsHealthDisplay(d dbgen.DataSource, isOAuth bool, now time.Time) (level, text string) {

@@ -21,5 +21,8 @@ UPDATE views SET layout_json = ?, updated_at = datetime('now') WHERE id = ?;
 -- name: UpdateView :exec
 UPDATE views SET name = ?, cols = ?, rows = ?, theme_id = ?, updated_at = datetime('now') WHERE id = ?;
 
+-- name: UpdateViewName :exec
+UPDATE views SET name = ?, updated_at = datetime('now') WHERE id = ?;
+
 -- name: DeleteView :exec
 DELETE FROM views WHERE id = ?;

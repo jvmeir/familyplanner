@@ -275,6 +275,20 @@ func (q *Queries) UpdateDataSourceHealth(ctx context.Context, arg UpdateDataSour
 	return err
 }
 
+const updateDataSourceName = `-- name: UpdateDataSourceName :exec
+UPDATE data_sources SET name = ?, updated_at = datetime('now') WHERE id = ?
+`
+
+type UpdateDataSourceNameParams struct {
+	Name string `json:"name"`
+	ID   int64  `json:"id"`
+}
+
+func (q *Queries) UpdateDataSourceName(ctx context.Context, arg UpdateDataSourceNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateDataSourceName, arg.Name, arg.ID)
+	return err
+}
+
 const updateDataSourceSecret = `-- name: UpdateDataSourceSecret :exec
 UPDATE data_sources SET secret_ciphertext = ?, oauth_status = ?, updated_at = datetime('now') WHERE id = ?
 `

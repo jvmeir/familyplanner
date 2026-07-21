@@ -126,3 +126,17 @@ func (q *Queries) TouchDevice(ctx context.Context, arg TouchDeviceParams) error 
 	_, err := q.db.ExecContext(ctx, touchDevice, arg.LastSeen, arg.ID)
 	return err
 }
+
+const updateDeviceName = `-- name: UpdateDeviceName :exec
+UPDATE kiosk_devices SET name = ? WHERE id = ?
+`
+
+type UpdateDeviceNameParams struct {
+	Name string `json:"name"`
+	ID   int64  `json:"id"`
+}
+
+func (q *Queries) UpdateDeviceName(ctx context.Context, arg UpdateDeviceNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateDeviceName, arg.Name, arg.ID)
+	return err
+}

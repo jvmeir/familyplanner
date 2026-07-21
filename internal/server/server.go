@@ -115,6 +115,7 @@ func (s *Server) routes() http.Handler {
 			r.Get("/admin", s.handleAdmin)
 			r.Get("/admin/views", s.handleViews)
 			r.Post("/admin/views", s.handleViewCreate)
+			r.Post("/admin/views/{id}/name", s.handleViewRename)
 			r.Delete("/admin/views/{id}", s.handleViewDelete)
 			r.Get("/admin/views/{id}/layout", s.handleViewLayout)
 			r.Post("/admin/views/{id}/layout/split", s.handleLayoutSplit)
@@ -142,11 +143,13 @@ func (s *Server) routes() http.Handler {
 			r.Post("/admin/settings", s.handleSettingsSave)
 
 			r.Get("/admin/devices", s.handleDevices)
+			r.Post("/admin/devices/{id}/name", s.handleDeviceRename)
 			r.Delete("/admin/devices/{id}", s.handleDeviceDelete)
 			r.Post("/admin/devices/{id}/playlist", s.handleDeviceAssign)
 			r.Post("/admin/devices/{id}/control/{cmd}", s.handleDeviceControl)
 
 			r.Get("/admin/datasources", s.handleDataSources)
+			r.Post("/admin/datasources/{id}/name", s.handleDataSourceRename)
 			r.Get("/admin/datasources/fields", s.handleDataSourceFields)
 			r.Get("/admin/datasources/oauth/callback", s.handleOAuthCallback)
 			r.Post("/admin/datasources", s.handleDataSourceCreate)
@@ -584,10 +587,12 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 		return web.FormatCell(ctx, wgt.Type, nil, true, style)
 	}
 
-	// Read from the broker-maintained cache. On a cold cache, populate it once
-	// synchronously so the first render isn't empty.
+	// Lazy on-show refresh: pull the source (incl. API) when this widget is
+	// rendered onto a screen and its cache is missing or past its TTL. Bounded by
+	// each widget's TTL (expires_at), so a shown screen is fresh without hammering
+	// the source on every rotation tick.
 	cache, err := s.store.GetWidgetCache(ctx, widgetID)
-	if err != nil {
+	if err != nil || cacheExpired(cache.ExpiresAt, s.now()) {
 		s.brk.RefreshWidget(ctx, wgt)
 		cache, err = s.store.GetWidgetCache(ctx, widgetID)
 		if err != nil {
@@ -609,6 +614,17 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 		vm.Title = wgt.Name // fall back to the widget's name (e.g. "Schoolagenda")
 	}
 	return vm
+}
+
+// cacheExpired reports whether a widget_cache expiry (SQLite UTC timestamp
+// "2006-01-02 15:04:05") is in the past. A blank/unparseable value is treated as
+// expired so it gets refreshed.
+func cacheExpired(expiresAt string, now time.Time) bool {
+	t, err := time.Parse("2006-01-02 15:04:05", expiresAt)
+	if err != nil {
+		return true
+	}
+	return now.UTC().After(t)
 }
 
 // resolvePlaylist returns the device's assigned playlist, or the default.

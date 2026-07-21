@@ -24,8 +24,17 @@ templ DeviceList(devices []DeviceVM, playlists []PlaylistRef, views []ViewRef) {
 		for _, d := range devices {
 			<div class="card devicecard">
 				<div class="row">
-					<span class="row-name">{ d.Name } #{ fmt.Sprint(d.ID) }</span>
-					<span class="row-type">{ i18n.T(ctx, "device.last_seen") }: { d.LastSeen }</span>
+					<input
+						class="row-name rename"
+						name="name"
+						value={ d.Name }
+						hx-post={ "/admin/devices/" + fmt.Sprint(d.ID) + "/name" }
+						hx-trigger="change"
+						hx-target="#devicelist"
+						hx-swap="outerHTML"
+						aria-label={ i18n.T(ctx, "admin.rename") }
+					/>
+					<span class="row-type">#{ fmt.Sprint(d.ID) } · { i18n.T(ctx, "device.last_seen") }: { d.LastSeen }</span>
 					<button
 						class="btn ghost"
 						hx-delete={ "/admin/devices/" + fmt.Sprint(d.ID) }

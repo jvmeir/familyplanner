@@ -31,7 +31,16 @@ templ ViewList(views []ViewVM) {
 		}
 		for _, v := range views {
 			<div class="row">
-				<span class="row-name">{ v.Name }</span>
+				<input
+					class="row-name rename"
+					name="name"
+					value={ v.Name }
+					hx-post={ "/admin/views/" + fmt.Sprint(v.ID) + "/name" }
+					hx-trigger="change"
+					hx-target="#viewlist"
+					hx-swap="outerHTML"
+					aria-label={ i18n.T(ctx, "admin.rename") }
+				/>
 				<a class="btn ghost" href={ templ.SafeURL("/admin/views/" + fmt.Sprint(v.ID) + "/layout") }>{ i18n.T(ctx, "view.edit_layout") }</a>
 				<button class="btn ghost" hx-delete={ "/admin/views/" + fmt.Sprint(v.ID) } hx-target="#viewlist" hx-swap="outerHTML" hx-confirm={ i18n.T(ctx, "admin.confirm_delete") }>×</button>
 			</div>
