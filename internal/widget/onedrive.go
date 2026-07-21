@@ -2,6 +2,7 @@ package widget
 
 import (
 	"context"
+	"net/url"
 	"sort"
 	"strings"
 )
@@ -23,6 +24,27 @@ func GraphListFolders(ctx context.Context, token string) ([]ResourceOption, erro
 		if it.Folder != nil {
 			out = append(out, ResourceOption{ID: it.ID, Name: it.Name})
 		}
+	}
+	return out, nil
+}
+
+// GraphListAlbums lists OneDrive photo albums (personal OneDrive "bundles" with
+// an album facet). An album's photos are fetched with GraphFolderPhotos, since a
+// bundle is a driveItem whose children are its photos.
+func GraphListAlbums(ctx context.Context, token string) ([]ResourceOption, error) {
+	var body struct {
+		Value []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"value"`
+	}
+	u := graphBase + "/me/drive/bundles?$filter=" + url.QueryEscape("bundle/album ne null") + "&$select=id,name&$top=200"
+	if err := graphGet(ctx, token, u, &body); err != nil {
+		return nil, err
+	}
+	out := make([]ResourceOption, 0, len(body.Value))
+	for _, it := range body.Value {
+		out = append(out, ResourceOption{ID: it.ID, Name: it.Name})
 	}
 	return out, nil
 }

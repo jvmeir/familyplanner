@@ -151,7 +151,18 @@ func (s *Server) listResources(ctx context.Context, ds dbgen.DataSource) ([]widg
 		if err != nil {
 			return nil, err
 		}
-		return widget.GraphListFolders(ctx, tok)
+		// Offer both folders and photo albums; both resolve to a driveItem id
+		// whose children are the photos. Albums are labelled distinctly.
+		opts, err := widget.GraphListFolders(ctx, tok)
+		if err != nil {
+			return nil, err
+		}
+		if albums, aerr := widget.GraphListAlbums(ctx, tok); aerr == nil {
+			for _, a := range albums {
+				opts = append(opts, widget.ResourceOption{ID: a.ID, Name: "📷 " + a.Name})
+			}
+		}
+		return opts, nil
 	case "ms_todo_lists":
 		tok, err := s.freshAccessToken(ctx, ds)
 		if err != nil {
