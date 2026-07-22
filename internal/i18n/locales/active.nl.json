@@ -191,6 +191,7 @@
   "widget.ticker.field.order": "Volgorde",
   "widget.ticker.order.sequential": "Op volgorde (per bron)",
   "widget.ticker.order.random": "Willekeurig",
+  "widget.missing": "Widget ontbreekt — wijs opnieuw toe in de indeling",
   "widget.photos.name": "Foto's",
   "widget.photos.empty": "Geen foto's",
   "widget.photos.field.interval": "Seconden per foto (diavoorstelling, standaard 8)",

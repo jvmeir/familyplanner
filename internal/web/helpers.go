@@ -392,10 +392,18 @@ func RegisterFormatter(kind string, f CellFormatter) { formatters[kind] = f }
 // and stale flag. Unknown/failed widgets degrade gracefully.
 func FormatCell(ctx context.Context, kind string, data any, stale bool, style templ.SafeCSS) CellVM {
 	var vm CellVM
-	if f, ok := formatters[kind]; ok && data != nil {
-		vm = f(ctx, data)
-	} else {
-		vm = CellVM{Title: kind}
+	switch {
+	case kind == "missing":
+		// The view's layout references a widget that no longer exists.
+		vm = CellVM{Sub: i18n.T(ctx, "widget.missing")}
+	case data != nil:
+		if f, ok := formatters[kind]; ok {
+			vm = f(ctx, data)
+		} else {
+			vm = CellVM{Sub: i18n.T(ctx, "widget.missing")} // unknown widget type
+		}
+	default:
+		vm = CellVM{} // known type, not fetched yet — render blank until the bg fetch fills it
 	}
 	vm.Kind = kind
 	vm.Stale = stale
