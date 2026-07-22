@@ -287,6 +287,18 @@ func (s *Server) handlePairPost(w http.ResponseWriter, r *http.Request) {
 	if plID, _ := strconv.ParseInt(r.FormValue("playlist_id"), 10, 64); plID > 0 {
 		_ = s.store.SetDevicePlaylist(r.Context(), dbgen.SetDevicePlaylistParams{PlaylistID: plID, ID: dev.ID})
 	}
+	// Optional corner PiP playlist chosen at pairing (0 = none).
+	if pipID, _ := strconv.ParseInt(r.FormValue("pip_playlist_id"), 10, 64); pipID > 0 {
+		pc := devicePip{
+			Corner: pick(r.FormValue("pip_corner"), "br", "bl", "tr", "tl", "right", "left"),
+			Size:   pick(r.FormValue("pip_size"), "m", "s", "l"),
+			Muted:  r.FormValue("pip_muted") != "",
+		}
+		cj, _ := json.Marshal(pc)
+		_ = s.store.SetDevicePip(r.Context(), dbgen.SetDevicePipParams{
+			PipPlaylistID: pipID, PipConfigJson: string(cj), ID: dev.ID,
+		})
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "fp_kiosk",
 		Value:    token,
