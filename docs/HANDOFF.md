@@ -2,7 +2,7 @@
 
 A self-hosted **family planner**: a read-only **kiosk** for a living-room TV plus a phone-based **admin** to configure it. Dutch by default, i18n-ready. Built in **Go**. This doc is the single place to pick the project back up on a new machine.
 
-> Status (2026-07): **M0–M4 + health + voice clock built, green, deployed to the dev VM, and pushed to a public GitHub repo.** Kiosk + admin + recursive layouts + playlists + devices + a full widget/datasource framework with OAuth + per-source health, a global voice clock, corner picture-in-picture video, weather forecasts, a configurable refresh cadence, and a self-healing kiosk runtime with security hardening (SSRF guard, login/pair rate-limit). Not yet on a production host.
+> Status (2026-07): **M0–M4 + health + voice clock built, green, deployed to the dev VM, and pushed to a public GitHub repo.** Kiosk + admin + recursive layouts + playlists + devices + a full widget/datasource framework with OAuth + per-source health, a global voice clock, a **per-device corner PiP playlist** (a second playlist rotated in a corner), weather forecasts, a configurable refresh cadence, and a self-healing kiosk runtime with security hardening (SSRF guard, login/pair rate-limit). Not yet on a production host.
 
 ## 0. Final architecture at a glance (read this first)
 
@@ -64,7 +64,7 @@ internal/broker       cache refresh (on-show + configurable interval) + OAuth to
 internal/voiceclock   quarter/half/hour chime + Dutch hourly announcement timing/phrasing (pure)
 internal/widget       widget types + connectors (countdown, clock, calendar/iCal+Graph,
                       weather/Open-Meteo + geocoding, shopping/Bring, photos/OneDrive albums,
-                      todolist/MS To Do, ticker/RSS, video/YouTube). Shared HTTP client has an
+                      todolist/MS To Do, ticker/RSS, video/YouTube-embed). Shared HTTP client has an
                       SSRF guard; connectors have overridable base URLs + mocked tests.
 internal/server       chi routes, auth/session/CSRF mw + login/pair rate-limit, SSE kiosk
                       (rotation + PiP + cmd), admin CRUD, OAuth flow, cache-schema invalidation
@@ -76,7 +76,7 @@ internal/web           templ views + render formatters + assets (app.css, htmx.m
 
 ## 3. Widgets & data sources
 
-**Widgets:** countdown, clock, calendar (modes agenda/dagen-lijst/dagen-tabel/week/maand; per-source filter; RRULE expansion; today-highlight; agenda spans the whole current week + configured look-ahead), weather (Open-Meteo, no key — current conditions **+ N-day forecast** with hi/lo and a condition emoji; location by **place name** (geocoded) or lat/lon), shopping (Bring, category grouping, nl localization), photos (OneDrive **album slideshow**, no-repeat), todolist (MS To Do, due labels, hide-undated), ticker (RSS), video (YouTube, per-video sources; also drives the corner PiP).
+**Widgets:** countdown, clock, calendar (modes agenda/dagen-lijst/dagen-tabel/week/maand; per-source filter; RRULE expansion; today-highlight; agenda spans the whole current week + configured look-ahead), weather (Open-Meteo, no key — current conditions **+ N-day forecast** with hi/lo and a condition emoji; location by **place name** (geocoded) or lat/lon), shopping (Bring, category grouping, nl localization), photos (OneDrive **album slideshow**, client-side, no-repeat, seconds-per-photo), todolist (MS To Do, due labels, hide-undated), ticker (RSS), video (one YouTube URL in the widget; compose several as playlist views).
 
 **Data-source types & credential kinds:**
 
@@ -89,7 +89,8 @@ internal/web           templ views + render formatters + assets (app.css, htmx.m
 | `ms_graph` (Outlook calendar) | oauth2 | which calendar |
 | `onedrive` (photos) | oauth2 | which **album** |
 | `ms_todo` | oauth2 | which list |
-| `video` (YouTube) | none (video url) | — |
+
+(The video widget takes a YouTube URL directly — it is **not** a data source.)
 
 **Resource selection is per widget→source link** (`widget_sources.resource`), with a live picker on the widget's edit page — so one data source (e.g. one Bring account, one Outlook connection) is reused across widgets that each show a different list/calendar/album. Each data source also has a **refresh interval** field (0 = use the global default at `/admin/settings`).
 
@@ -123,9 +124,11 @@ See `.env.example`. Key ones: `FP_ENV`, `FP_ADDR`, `FP_BASE_URL`, `FP_DATA_DIR`,
 
 ## 7. What's done vs. pending
 
-**Done & deployed:** M0 (skeleton/auth/kiosk/SSE), M1 (CRUD, recursive split/merge layout editor w/ drag-resize, playlists, devices, phone remote, HTMX), M2 (broker+cache, calendar/weather/countdown widgets), M3 (OAuth framework + Outlook calendar + OneDrive photos + MS To Do; Bring shopping; per-link resource pickers; app-level OAuth creds), **health monitoring** (§9), **voice clock** (quarter/half/hour + Dutch hourly announcement), and **M4**: corner **PiP** video (dock + interval) + video/ticker widgets; **weather forecast** (hi/lo, N-day, address geocoding); photos **album slideshow**; agenda **today-highlight + full-week window**; **configurable refresh cadence** (global + per-source) with on-show refresh; **per-item playlist intervals**; kiosk **self-healing** (SSE-heartbeat watchdog + nightly reload + version auto-reload); **security** (SSRF guard, login/pair rate-limit, prod compose, cache-schema invalidation). Pushed to `github.com/jvmeir/familyplanner`; deployed to the dev VM.
+**Done & deployed:** M0 (skeleton/auth/kiosk/SSE), M1 (CRUD, recursive split/merge layout editor w/ drag-resize, playlists, devices, phone remote, HTMX), M2 (broker+cache, calendar/weather/countdown widgets), M3 (OAuth framework + Outlook calendar + OneDrive photos + MS To Do; Bring shopping; per-link resource pickers; app-level OAuth creds), **health monitoring** (§9), **voice clock** (quarter/half/hour + Dutch hourly announcement), and **M4**: **per-device PiP playlist** (a second playlist rotated in a corner; dockable) + single-URL video/ticker widgets; **weather forecast** (hi/lo, N-day, address geocoding); photos **client-side album slideshow**; agenda **today-highlight + full-week window**; **configurable refresh cadence** (global + per-source) with on-show refresh; **per-item playlist intervals**; kiosk **self-healing** (SSE-heartbeat watchdog + nightly reload + version auto-reload); **security** (SSRF guard, login/pair rate-limit, prod compose, cache-schema invalidation). Pushed to `github.com/jvmeir/familyplanner`; deployed to the dev VM.
 
-**Removed (do not reintroduce without a reason):** the *quote of the day* and *web page* widgets; the *Google Photos* data source (Library API readonly restricted Mar 2025 — OneDrive is the photo source, so `FP_GOOGLE_*` creds are gone); OneDrive **folder** browsing (albums only, for a predictable slideshow); a yt-dlp downloader (YouTube bot-check — embeds are used instead). Also an API+SPA Go→WASM kiosk and a PWA layer were prototyped and reverted — the kiosk stays plain server-rendered.
+**Removed (do not reintroduce without a reason):** the *quote of the day* and *web page* widgets; the *Google Photos* data source (Library API readonly restricted Mar 2025 — OneDrive is the photo source, so `FP_GOOGLE_*` creds are gone); the *video* data source type (a video widget now carries its YouTube URL directly — compose several clips as playlist views); OneDrive **folder** browsing (albums only, for a predictable slideshow); the old playlist-level PiP (`pip_widget_id` — superseded by the per-device PiP playlist); a yt-dlp downloader (YouTube bot-check — embeds are used instead). Also an API+SPA Go→WASM kiosk and a PWA layer were prototyped and reverted — the kiosk stays plain server-rendered.
+
+**Corner PiP model:** a device has a **primary** playlist (`kiosk_devices.playlist_id`, main stage) and an optional **PiP** playlist (`pip_playlist_id` + `pip_config_json`: corner/size/muted). The SSE loop pushes the PiP playlist's items on a `pip` event; the client rotates them into `.kpip` (fetching `/kiosk/view/{id}?bare=1`), advancing on dwell or on video-end for advance-on-end video views. Assigned on both the pairing page and the admin Devices page. Migrations: `00012` (per-source `refresh_interval_secs`), `00013` (`kiosk_devices.pip_playlist_id` + `pip_config_json`).
 
 **Pending / next:**
 - **CI/GHCR**: wire the build workflow to actually push images (Watchtower redeploy) + the production Hetzner deploy.
@@ -147,6 +150,6 @@ See `.env.example`. Key ones: `FP_ENV`, `FP_ADDR`, `FP_BASE_URL`, `FP_DATA_DIR`,
 - **VM disk fills up** from repeated image builds → `no space left on device`. Reclaim with `docker builder prune -f` + `docker image prune -f` (safe: dangling only).
 
 ## 9. Health monitoring
-The broker records each data source's health (migration `00007` adds `access_expiry` / `last_sync` / `last_error` / `health` to `data_sources`). For **OAuth** sources it's set during token refresh (`oauth.ClassifyError` maps `invalid_grant` → "refresh token dead → reconnect"); for **non-OAuth** sources (iCal/RSS/text/video/Bring) it's set from the widget's fetch outcome (ok / error). The pure `internal/health` package aggregates four signals — **refresh-token dead** (red), **access expired**, **failed sync**, **stale data** (>1h) (amber) — ranked by severity. It's read-only (never calls external APIs; reads the state the broker already stored).
+The broker records each data source's health (migration `00007` adds `access_expiry` / `last_sync` / `last_error` / `health` to `data_sources`). For **OAuth** sources it's set during token refresh (`oauth.ClassifyError` maps `invalid_grant` → "refresh token dead → reconnect"); for **non-OAuth** sources (iCal/RSS/text/Bring) it's set from the widget's fetch outcome (ok / error). The pure `internal/health` package aggregates four signals — **refresh-token dead** (red), **access expired**, **failed sync**, **stale data** (>1h) (amber) — ranked by severity. It's read-only (never calls external APIs; reads the state the broker already stored).
 
 Surfaced as a **subtle corner badge** on every kiosk screen (hidden when healthy; rendered via `web.KioskBody` so it persists across SSE view swaps and refreshes each tick) and a **status pill** on the admin Gegevensbronnen page. Note: health is recorded for sources touched by an active widget, plus never-connected sources (via `oauth_status`); there's no periodic all-source sweep yet.

@@ -24,7 +24,7 @@ TV (kiosk)     ─►  Kiosk UI (templ + SSE)   │  HTTP (chi): sessions, auth,
         Render registry (web)
         Broker: cache + last-good + OAuth token refresh + per-source health   ◄── goroutines
                 (refresh cadence: on-show + configurable interval, TTL-capped)
-        Connectors: iCal / RSS / text / MS Graph / Bring / Open-Meteo / YouTube
+        Connectors: iCal / RSS / text / MS Graph / Bring / Open-Meteo (+geocoding)
                 (shared HTTP client with an SSRF guard on the dialer)
         Crypto (AES-GCM at rest, credentials/tokens) · scs sessions
         SQLite (modernc, pure-Go) + sqlc + goose
@@ -33,7 +33,7 @@ TV (kiosk)     ─►  Kiosk UI (templ + SSE)   │  HTTP (chi): sessions, auth,
 ## Data model
 
 - `data_sources` — a reusable, **typed** connection: `type` (ical / rss / text / bring /
-  ms_graph / onedrive / ms_todo / video / …), `config_json` (non-secret config),
+  ms_graph / onedrive / ms_todo), `config_json` (non-secret config),
   `secret_ciphertext` (credentials/tokens, AES-GCM encrypted), `oauth_status`, health
   columns (`access_expiry` / `last_sync` / `last_error` / `health`), and
   `refresh_interval_secs` (0 = use the global default; see *Data freshness*). The
@@ -48,10 +48,11 @@ TV (kiosk)     ─►  Kiosk UI (templ + SSE)   │  HTTP (chi): sessions, auth,
   random_single) + `advance_mode` (timer / on_end) + rotation fields. Parked views are
   addressable but not rotated.
 - `playlists` / `playlist_items` — an ordered list of views with a default interval and
-  a **per-item interval override** (`dwell_seconds`, 0 = default); a playlist can also
-  carry a corner **PiP** video (`pip_widget_id` + `pip_config_json`).
+  a **per-item interval override** (`dwell_seconds`, 0 = default).
 - `placements` — a widget placed in a legacy grid view (per-placement overrides).
-- `kiosk_devices` — paired displays (token hash + last-seen + assigned playlist).
+- `kiosk_devices` — paired displays (token hash + last-seen), each with a **primary
+  playlist** (`playlist_id`) and an optional **PiP playlist** (`pip_playlist_id` +
+  `pip_config_json`) rotated independently in a corner.
 - `settings`, `sessions` (scs).
 
 ### Settings scopes (where does a setting live?)
@@ -206,12 +207,19 @@ commands (next/prev/pause/resume/goto, and the client-only mute/PiP `cmd`s) reac
 its SSE loop. Manual next/prev reset the timer but do **not** pause — only an
 explicit pause freezes a screen.
 
-**Picture-in-picture (PiP)** — a playlist can carry a corner YouTube video
-(`pip_widget_id` + `pip_config_json`: corner, size, hide/show interval, muted) that
-keeps playing while views rotate (`yt.js`, YouTube IFrame API). It can dock left/right
-(reflowing the main content) or float in a corner. Controls: keyboard (Shift+arrows),
-the footer buttons, and the admin device remote (🔇 mute, 📺 show/hide, ⏪/⏩ prev/next),
-the last routed over the `cmd` SSE event.
+**Picture-in-picture (PiP)** — a **device** can be assigned a second playlist that
+rotates in a corner, independent of the main stage: `kiosk_devices.pip_playlist_id`
+(0 = none → corner hidden) + `pip_config_json` (corner/size/muted). The corner is
+just "another kiosk surface" — the server pushes the PiP playlist's items
+(`[{viewID, dwell, onEnd}]`) on the `pip` SSE event and the client rotates them into
+`.kpip`, fetching each view fragment (`/kiosk/view/{id}?bare=1`, no health badge) and
+advancing on the dwell timer or, for a video view marked advance-on-end, when the
+video finishes. So "mostly photos, occasionally a video" is just a corner playlist
+like `[Photos, Weather, Video (on-end)]` — no special media model. It can dock
+left/right (reflowing the main content) or float in a corner. Controls: keyboard
+(Shift+arrows), footer buttons, and the admin device remote (🔇 mute, 📺 show/hide,
+⏪/⏩ prev/next), the last routed over the `cmd` SSE event. Both the pairing page and
+the admin Devices page assign the primary + PiP playlists.
 
 **Resilience** — the kiosk is just a fullscreen browser, so it self-heals two ways:
 an independent inline **watchdog** in the shell (runs even if `kiosk.js` throws)
@@ -272,16 +280,20 @@ cache-schema check clears `widget_cache` if the shape changed.
 - **Voice clock** — global quarter/half/hour chimes + hourly Dutch announcement
   (NMBS-style, attention chime + configurable rate/auto-lead), server-synced via
   SSE, quiet hours, admin toggle. ✅
-- **M4** — corner **PiP** video (dock/interval) + video widget; **weather forecast**
-  (hi/lo, N-day, address geocoding); photos **album slideshow** (no-repeat); RSS
-  ticker; agenda today-highlight + full-period window; configurable refresh cadence;
-  per-item playlist intervals; kiosk **self-healing** (watchdog + nightly reload);
-  **security** hardening (SSRF guard, login/pair rate-limit, prod compose). ✅
+- **M4** — **per-device PiP playlist** (a second playlist rotated in a corner) +
+  single-URL video widget; **weather forecast** (hi/lo, N-day, address geocoding);
+  photos **client-side album slideshow** (no-repeat); RSS ticker; agenda
+  today-highlight + full-week window; configurable refresh cadence; per-item playlist
+  intervals; kiosk **self-healing** (watchdog + nightly reload); **security** hardening
+  (SSRF guard, login/pair rate-limit, prod compose). ✅
 - **M5** — further voice (spoken commands) + kiosk write-back later.
 
 **Removed (do not reintroduce without a reason):** the *quote of the day* and *web
-page* widgets, and the *Google Photos* data source (Library API readonly was
-restricted; OneDrive is the photo source). An API+SPA Go→WASM kiosk and a PWA layer
+page* widgets; the *Google Photos* data source (Library API readonly restricted;
+OneDrive is the photo source); the *video* data source type (a video widget now
+carries its URL directly — compose multiple clips as playlist views); OneDrive
+*folder* browsing (albums only); the old playlist-level PiP (`pip_widget_id`,
+superseded by the per-device PiP playlist). An API+SPA Go→WASM kiosk and a PWA layer
 were also prototyped and reverted.
 
 ## Global kiosk behaviours (voice clock)
