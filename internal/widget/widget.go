@@ -179,8 +179,8 @@ func RegisterDefaults(r *Registry) {
 		}},
 	})
 	r.Register(Type{
-		ID:             "video",
-		NameKey:        "widget.video.name",
+		ID:          "video",
+		NameKey:     "widget.video.name",
 		NewProvider: newVideo,
 		Decode:      decodeVideo,
 		Schema: Schema{Fields: []Field{
@@ -246,6 +246,11 @@ func RegisterDefaults(r *Registry) {
 		AcceptsSources: []string{"onedrive"},
 		Schema: Schema{Fields: []Field{
 			{Name: "interval", LabelKey: "widget.photos.field.interval", Type: FieldNumber},
+			{Name: "caption", LabelKey: "widget.photos.field.caption", Type: FieldSelect, Options: []Option{
+				{Value: "", LabelKey: "widget.photos.caption.none"},
+				{Value: "date", LabelKey: "widget.photos.caption.date"},
+				{Value: "full", LabelKey: "widget.photos.caption.full"},
+			}},
 		}},
 	})
 }

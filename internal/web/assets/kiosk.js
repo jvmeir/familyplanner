@@ -81,16 +81,22 @@
     if (!root) return;
     root.querySelectorAll(".w-slideshow").forEach(function (img) {
       if (img.__fpSlide) return; // already cycling
-      var urls = [];
+      var urls = [], caps = [];
       try { urls = JSON.parse(img.dataset.photoUrls || "[]"); } catch (e) {}
+      try { caps = JSON.parse(img.dataset.photoCaptions || "[]"); } catch (e) {}
       if (urls.length < 2) return;
       var secs = parseInt(img.dataset.photoSecs, 10) || 8;
-      var order = fpShuffle(urls.slice()), pos = 0;
+      var cap = img.parentElement && img.parentElement.querySelector(".w-photo-cap");
+      // Shuffle INDICES so the caption stays paired with its photo.
+      var idxs = urls.map(function (_, i) { return i; });
+      var order = fpShuffle(idxs.slice()), pos = 0;
       img.__fpSlide = setInterval(function () {
         if (!document.body.contains(img)) { clearInterval(img.__fpSlide); img.__fpSlide = null; return; }
         pos++;
-        if (pos >= order.length) { order = fpShuffle(urls.slice()); pos = 0; }
-        img.src = order[pos];
+        if (pos >= order.length) { order = fpShuffle(idxs.slice()); pos = 0; }
+        var i = order[pos];
+        img.src = urls[i];
+        if (cap) cap.textContent = caps[i] || "";
       }, Math.max(2, secs) * 1000);
     });
   }
@@ -262,13 +268,26 @@
   // we fetch each view "bare" and swap it in, advancing on the dwell timer or,
   // for a video view marked onEnd, when the video finishes.
   var kpip = document.querySelector(".kpip");
+  var kpipBody = null, kpipProg = null; // set up once in pipStart
   var pipItems = [], pipIdx = 0, pipTimer = null, pipPlayers = [], pipHidden = false;
   function pipStopPlayers() {
     pipPlayers.forEach(function (c) { try { c.player.destroy(); } catch (e) {} });
     pipPlayers = [];
   }
+  // Animate the corner progress bar over `secs` (mirrors the main .kprogress);
+  // secs <= 0 leaves it empty (e.g. a video view that advances on end).
+  function pipProgress(secs) {
+    if (!kpipProg) return;
+    kpipProg.style.transition = "none";
+    kpipProg.style.width = "0%";
+    void kpipProg.offsetWidth;
+    if (secs > 0) {
+      kpipProg.style.transition = "width " + secs + "s linear";
+      kpipProg.style.width = "100%";
+    }
+  }
   function pipRotate(i) {
-    if (!kpip || !pipItems.length) return;
+    if (!kpipBody || !pipItems.length) return;
     pipIdx = (i % pipItems.length + pipItems.length) % pipItems.length;
     var item = pipItems[pipIdx];
     clearTimeout(pipTimer);
@@ -276,12 +295,12 @@
     fetch("/kiosk/view/" + item.id + "?bare=1", { headers: { Accept: "text/html" } })
       .then(function (r) { return r.ok ? r.text() : Promise.reject(); })
       .then(function (html) {
-        kpip.innerHTML = html;
-        startSlideshows(kpip);
-        var hasVideo = !!kpip.querySelector(".w-yt");
+        kpipBody.innerHTML = html;
+        startSlideshows(kpipBody);
+        var hasVideo = !!kpipBody.querySelector(".w-yt");
         var onEnd = item.onEnd && hasVideo ? function () { pipNext(); } : null;
-        pipPlayers = window.fpVideosIn ? window.fpVideosIn(kpip, { mute: true, onAllEnded: onEnd }) : [];
-        if (!onEnd) pipTimer = setTimeout(pipNext, Math.max(3, item.dwell) * 1000);
+        pipPlayers = window.fpVideosIn ? window.fpVideosIn(kpipBody, { mute: true, onAllEnded: onEnd }) : [];
+        if (onEnd) { pipProgress(0); } else { pipProgress(Math.max(3, item.dwell)); pipTimer = setTimeout(pipNext, Math.max(3, item.dwell) * 1000); }
       })
       .catch(function () { pipTimer = setTimeout(pipNext, 10000); }); // retry-ish on error
   }
@@ -292,7 +311,14 @@
     clearTimeout(pipTimer);
     pipStopPlayers();
     if (!kpip) return;
-    if (!pipItems.length) { kpip.style.display = "none"; kpip.innerHTML = ""; return; }
+    if (!pipItems.length) { kpip.style.display = "none"; kpip.innerHTML = ""; kpipBody = null; return; }
+    // Build the persistent body + progress skeleton once (rotation only swaps
+    // the body, so the progress bar survives).
+    if (!kpipBody) {
+      kpip.innerHTML = '<div class="kpip-body"></div><div class="kpip-prog"><i></i></div>';
+      kpipBody = kpip.querySelector(".kpip-body");
+      kpipProg = kpip.querySelector(".kpip-prog > i");
+    }
     kpip.style.display = pipHidden ? "none" : "";
     pipRotate(0);
   }

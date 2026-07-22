@@ -288,11 +288,15 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 .w-list li.w-head { list-style: none; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--text-muted); margin-top: .35em; }
 .w-list li.w-head::before { content: none; margin: 0; }
 .w-list.grouped li.w-item { padding-left: 1.4em; }
-/* agenda-style widgets read better top-aligned */
-.kind-calendar .widget, .widget.kind-calendar { justify-content: flex-start; align-items: stretch; }
-/* The calendar keeps its title in normal flow (above the grid) so the absolute
-   corner-title default doesn't overlap the month/week table. */
-.kind-calendar .w-title {
+/* list/agenda widgets read better top-aligned */
+.kind-calendar .widget, .widget.kind-calendar,
+.kind-shopping .widget, .widget.kind-shopping,
+.kind-todolist .widget, .widget.kind-todolist { justify-content: flex-start; align-items: stretch; }
+/* These keep their title in normal flow (above the list/grid) so the absolute
+   corner-title default doesn't overlap the first row / category header. */
+.kind-calendar .w-title,
+.kind-shopping .w-title,
+.kind-todolist .w-title {
   position: static;
   top: auto;
   left: auto;
@@ -364,6 +368,18 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 /* photo — show the WHOLE image, centered, scaled to fit the cell keeping aspect
    ratio (contain: never crops faces; letterboxes on black where aspects differ). */
 .kind-photos .widget, .widget.photo { padding: 0; background: #000; }
+/* Optional photo caption (date · place) — a subtle gradient strip at the bottom. */
+.w-photo-cap {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+  padding: 0.6em 0.8em 0.5em;
+  color: #fff;
+  font-size: clamp(0.7rem, calc(3cqmin * var(--kiosk-scale, 1)), 1.3rem);
+  font-weight: 600;
+  text-align: left;
+  background: linear-gradient(to top, rgba(0, 0, 0, .6), transparent);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+  pointer-events: none;
+}
 .w-photo { width: 100%; height: 100%; object-fit: contain; object-position: center; border-radius: var(--radius, 18px); display: block; background: #000; }
 
 /* video (YouTube embed via the IFrame API) */
@@ -372,8 +388,12 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 .w-yt iframe { width: 100%; height: 100%; border: 0; display: block; }
 
 /* Corner picture-in-picture video (persistent, over the rotating content). */
-.kpip { position: fixed; z-index: 20; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, .5); }
-.kpip .w-yt, .kpip iframe { width: 100%; height: 100%; border: 0; border-radius: 12px; display: block; }
+.kpip { position: fixed; z-index: 20; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, .5); display: flex; flex-direction: column; }
+.kpip-body { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.kpip-body > .view, .kpip .w-yt, .kpip iframe { width: 100%; height: 100%; border: 0; display: block; }
+/* corner rotation progress (mirrors the main .kprogress bar) */
+.kpip-prog { flex: 0 0 auto; height: 3px; background: rgba(255, 255, 255, .2); }
+.kpip-prog > i { display: block; height: 100%; width: 0; background: var(--accent, #2f6df6); }
 .kpip-s { width: 18vw; }
 .kpip-m { width: 26vw; }
 .kpip-l { width: 36vw; }

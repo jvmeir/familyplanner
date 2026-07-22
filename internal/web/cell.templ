@@ -22,8 +22,12 @@ templ widgetCell(c CellVM) {
 				src={ templ.SafeURL(c.ImageURL) }
 				alt=""
 				data-photo-urls={ videoIDsAttr(c.PhotoURLs) }
+				data-photo-captions={ videoIDsAttr(c.PhotoCaptions) }
 				data-photo-secs={ fmt.Sprint(c.PhotoSecs) }
 			/>
+			if len(c.PhotoCaptions) > 0 {
+				<div class="w-photo-cap">{ c.PhotoCaptions[0] }</div>
+			}
 		</div>
 	} else if len(c.VideoIDs) > 0 {
 		<div class="widget video">

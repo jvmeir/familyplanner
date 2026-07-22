@@ -99,6 +99,7 @@ type CellVM struct {
 	IframeURL     string          // embedded web page
 	ImageURL      string          // single photo (first frame; slideshow if PhotoURLs set)
 	PhotoURLs     []string        // photos: full album, cycled client-side
+	PhotoCaptions []string        // photos: parallel captions (date/place), empty = none
 	PhotoSecs     int             // photos: seconds per photo
 	VideoIDs      []string        // YouTube video ids (embedded via the IFrame API, cycled)
 	VideoMute     bool            // play muted
@@ -530,7 +531,7 @@ func init() {
 		if secs <= 0 {
 			secs = 8
 		}
-		return CellVM{ImageURL: d.URLs[0], PhotoURLs: d.URLs, PhotoSecs: secs}
+		return CellVM{ImageURL: d.URLs[0], PhotoURLs: d.URLs, PhotoCaptions: d.Captions, PhotoSecs: secs}
 	})
 }
 

@@ -251,10 +251,10 @@ func TestOneDrivePhotos(t *testing.T) {
 	require.Len(t, albums, 1) // only the album-faceted bundle
 	require.Equal(t, "Vakantie", albums[0].Name)
 
-	urls, err := GraphFolderPhotos(context.Background(), "tok", "a1")
+	photos, err := GraphFolderPhotos(context.Background(), "tok", "a1")
 	require.NoError(t, err)
-	require.Len(t, urls, 1) // only the image, not the .txt
-	require.Equal(t, "https://dl/p1", urls[0])
+	require.Len(t, photos, 1) // only the image, not the .txt
+	require.Equal(t, "https://dl/p1", photos[0].URL)
 }
 
 func TestMSTodo(t *testing.T) {
