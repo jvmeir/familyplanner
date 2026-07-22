@@ -15,15 +15,10 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker [
 		<div id="stage" data-view-id={ fmt.Sprint(controls.CurrentID) }>
 			@KioskBody(body, health)
 		</div>
-		if pip != nil && len(pip.IDs) > 0 {
-			<div class={ pipClass(pip.Corner, pip.Size) }>
-				<div
-					class="w-yt"
-					data-video-ids={ videoIDsAttr(pip.IDs) }
-					data-mute={ boolAttr(pip.Muted) }
-					data-interval={ fmt.Sprint(pip.Interval) }
-				></div>
-			</div>
+		if pip != nil {
+			// Empty positioned corner container; the client rotates the assigned
+			// PiP playlist's view fragments into it (see kiosk.js).
+			<div class={ pipClass(pip.Corner, pip.Size) } data-mute={ boolAttr(pip.Muted) }></div>
 		}
 		<footer class="kbar">
 			<span class="kclock">

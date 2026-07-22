@@ -54,10 +54,6 @@ type Server struct {
 	refreshing  map[int64]bool      // widget IDs with an in-flight background refresh (de-dupe)
 	lastRefresh map[int64]time.Time // widget ID → last on-show refresh (throttle)
 
-	photoMu    sync.Mutex      // guards photoOrder + photoPos
-	photoOrder map[int64][]int // photos widget ID → shuffled index order (no-repeat slideshow)
-	photoPos   map[int64]int   // photos widget ID → next position in photoOrder
-
 	authLimiter *rateLimiter // throttles passphrase attempts on /login + /pair
 }
 
@@ -160,7 +156,6 @@ func (s *Server) routes() http.Handler {
 			r.Post("/admin/playlists/{id}/default", s.handlePlaylistSetDefault)
 			r.Get("/admin/playlists/{id}", s.handlePlaylistDetail)
 			r.Post("/admin/playlists/{id}", s.handlePlaylistUpdate)
-			r.Post("/admin/playlists/{id}/pip", s.handlePlaylistPip)
 			r.Post("/admin/playlists/{id}/items", s.handlePlaylistAddItem)
 			r.Delete("/admin/playlists/items/{itemID}", s.handlePlaylistItemDelete)
 			r.Post("/admin/playlists/items/{itemID}/move", s.handlePlaylistItemMove)
@@ -329,34 +324,50 @@ func (s *Server) handleKiosk(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, web.Kiosk(body, s.buildControls(r.Context(), dev, view.ID), health, ticker, pip))
 }
 
-// pipVM resolves the device's playlist corner-PiP: the configured video widget's
-// cached video ids plus its presentation. Returns nil when no PiP is set.
+// pipVM returns the device's corner-PiP presentation (position/size/muted), or
+// nil when no PiP playlist is assigned. The corner's CONTENT is a second,
+// independent playlist rotated client-side (see pipItems); the shell only needs
+// to render the empty positioned container.
 func (s *Server) pipVM(ctx context.Context, dev dbgen.KioskDevice) *web.PipVM {
-	pl, ok := s.resolvePlaylist(ctx, dev)
-	if !ok || pl.PipWidgetID == 0 {
+	if dev.PipPlaylistID == 0 {
 		return nil
 	}
-	cache, err := s.store.GetWidgetCache(ctx, pl.PipWidgetID)
+	pc := parseDevicePip(dev.PipConfigJson)
+	return &web.PipVM{Corner: pc.Corner, Size: pc.Size, Muted: pc.Muted}
+}
+
+// pipItems resolves the device's PiP playlist into the corner rotation payload:
+// one entry per view with its dwell (seconds) and whether it ends on the video
+// (advance-on-end). Empty when no PiP playlist is assigned. Marshalled to JSON
+// and pushed over SSE so the client rotates the corner.
+func (s *Server) pipItems(ctx context.Context, dev dbgen.KioskDevice) []web.PipItem {
+	if dev.PipPlaylistID == 0 {
+		return nil
+	}
+	pl, err := s.store.GetPlaylist(ctx, dev.PipPlaylistID)
 	if err != nil {
-		if wgt, gerr := s.store.GetWidget(ctx, pl.PipWidgetID); gerr == nil {
-			s.bgRefresh(wgt)
+		return nil
+	}
+	rows, err := s.store.ListPlaylistItems(ctx, pl.ID)
+	if err != nil {
+		return nil
+	}
+	out := make([]web.PipItem, 0, len(rows))
+	for _, it := range rows {
+		secs := it.DwellSeconds
+		if secs <= 0 {
+			secs = pl.DefaultDwellSeconds
 		}
-		return nil
+		if secs < 3 {
+			secs = 3
+		}
+		onEnd := false
+		if v, verr := s.store.GetView(ctx, it.ViewID); verr == nil {
+			onEnd = v.AdvanceMode == "on_end" && s.viewHasEndWidget(ctx, v)
+		}
+		out = append(out, web.PipItem{ViewID: it.ViewID, Dwell: int(secs), OnEnd: onEnd})
 	}
-	typ, ok := s.registry.Get("video")
-	if !ok || typ.Decode == nil {
-		return nil
-	}
-	d, derr := typ.Decode(json.RawMessage(cache.DataJson))
-	if derr != nil {
-		return nil
-	}
-	vd, ok := d.(widget.VideoData)
-	if !ok || len(vd.IDs) == 0 {
-		return nil
-	}
-	pc := parsePipConfig(pl.PipConfigJson)
-	return &web.PipVM{IDs: vd.IDs, Corner: pc.Corner, Size: pc.Size, Muted: pc.Muted, Interval: pc.Interval}
+	return out
 }
 
 // tickerItems resolves the configured global ticker widget's cached items (empty
@@ -420,6 +431,11 @@ func (s *Server) handleKioskView(w http.ResponseWriter, r *http.Request) {
 	view, err := s.store.GetView(r.Context(), id)
 	if err != nil {
 		http.Error(w, "view not found", http.StatusNotFound)
+		return
+	}
+	// The corner PiP fetches views "bare" (no health badge — the main stage owns it).
+	if r.URL.Query().Get("bare") == "1" {
+		s.render(w, r, s.renderViewComponent(r.Context(), view))
 		return
 	}
 	// Wrap with the health badge so it persists across SSE view swaps and
@@ -530,6 +546,12 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 		b, _ := json.Marshal(names)
 		return send("names", string(b))
 	}
+	// sendPip pushes the corner playlist's rotation payload; the client rotates
+	// the assigned PiP playlist independently of the main stage ("[]" = no PiP).
+	sendPip := func() bool {
+		b, _ := json.Marshal(s.pipItems(r.Context(), dev))
+		return send("pip", string(b))
+	}
 	reset := func(t *time.Timer, d time.Duration) {
 		if !t.Stop() {
 			select {
@@ -545,6 +567,7 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 	}
 	sendConfig()              // push scale + ticker speed + date format on connect
 	sendNames()               // push the view-name map (banner labels)
+	sendPip()                 // push the corner playlist rotation (if any)
 	send("version", s.bootID) // kiosks reload when this changes (i.e. after a redeploy)
 	advance := time.NewTimer(dwell())
 	defer advance.Stop()
@@ -578,6 +601,7 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 			}
 			sendConfig()
 			sendNames() // keep banner labels current as screens are added/renamed
+			sendPip()   // pick up PiP playlist/assignment edits live
 		case <-advance.C: // dwell elapsed -> advance unless paused
 			if !state.Paused() {
 				state.Next()
@@ -796,12 +820,6 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 			stale = true
 		}
 	}
-	// Photo slideshow: each time a photos widget is shown, advance to the next
-	// photo in a per-widget shuffled order so no picture repeats until the whole
-	// album has been shown once.
-	if pd, ok := data.(widget.PhotosData); ok && len(pd.URLs) > 0 {
-		data = widget.PhotosData{URLs: []string{s.nextPhoto(widgetID, pd.URLs)}, Mode: "single"}
-	}
 	vm := web.FormatCell(ctx, wgt.Type, data, stale, style)
 	// Standardized widget title: every widget shows its own name as the header,
 	// uniformly, unless the generic per-widget "hide title" flag (config_json
@@ -834,39 +852,6 @@ func pick(v string, allowed ...string) string {
 		}
 	}
 	return allowed[0]
-}
-
-// nextPhoto returns the next photo URL for a widget's slideshow, advancing a
-// per-widget shuffled order so every picture in the album is shown once before
-// any repeats. The order is reshuffled when the album changes or is exhausted.
-func (s *Server) nextPhoto(widgetID int64, urls []string) string {
-	n := len(urls)
-	if n == 0 {
-		return ""
-	}
-	s.photoMu.Lock()
-	defer s.photoMu.Unlock()
-	if s.photoOrder == nil {
-		s.photoOrder = map[int64][]int{}
-		s.photoPos = map[int64]int{}
-	}
-	order := s.photoOrder[widgetID]
-	pos := s.photoPos[widgetID]
-	if len(order) != n || pos >= len(order) {
-		order = make([]int, n)
-		for i := range order {
-			order[i] = i
-		}
-		rand.Shuffle(n, func(i, j int) { order[i], order[j] = order[j], order[i] })
-		pos = 0
-	}
-	idx := order[pos]
-	s.photoOrder[widgetID] = order
-	s.photoPos[widgetID] = pos + 1
-	if idx < 0 || idx >= n {
-		idx = 0
-	}
-	return urls[idx]
 }
 
 // bgRefresh fetches a widget's data in the background (detached context),
@@ -1019,7 +1004,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, c templ.Componen
 // cacheSchemaVersion identifies the shape of the JSON stored in widget_cache.
 // Bump it whenever a widget's cached Data struct changes incompatibly so stale
 // rows from an older build are dropped (and re-fetched) instead of mis-decoded.
-const cacheSchemaVersion = "5" // v5: weather forecast (hi/lo + N-day) data shape
+const cacheSchemaVersion = "6" // v6: PhotosData = full album + interval (client slideshow)
 
 // invalidateStaleCache clears widget_cache when the running build's cache schema
 // differs from what produced the stored rows.

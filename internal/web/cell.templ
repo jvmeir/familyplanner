@@ -17,7 +17,13 @@ templ widgetCell(c CellVM) {
 		</div>
 	} else if c.ImageURL != "" {
 		<div class="widget photo">
-			<img class="w-photo" src={ templ.SafeURL(c.ImageURL) } alt=""/>
+			<img
+				class="w-photo w-slideshow"
+				src={ templ.SafeURL(c.ImageURL) }
+				alt=""
+				data-photo-urls={ videoIDsAttr(c.PhotoURLs) }
+				data-photo-secs={ fmt.Sprint(c.PhotoSecs) }
+			/>
 		</div>
 	} else if len(c.VideoIDs) > 0 {
 		<div class="widget video">

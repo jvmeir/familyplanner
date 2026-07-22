@@ -12,7 +12,7 @@ import (
 const createDevice = `-- name: CreateDevice :one
 INSERT INTO kiosk_devices (name, token_hash)
 VALUES (?, ?)
-RETURNING id, name, token_hash, playlist_id, created_at, last_seen
+RETURNING id, name, token_hash, playlist_id, pip_playlist_id, pip_config_json, created_at, last_seen
 `
 
 type CreateDeviceParams struct {
@@ -28,6 +28,8 @@ func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (Kio
 		&i.Name,
 		&i.TokenHash,
 		&i.PlaylistID,
+		&i.PipPlaylistID,
+		&i.PipConfigJson,
 		&i.CreatedAt,
 		&i.LastSeen,
 	)
@@ -44,7 +46,7 @@ func (q *Queries) DeleteDevice(ctx context.Context, id int64) error {
 }
 
 const getDevice = `-- name: GetDevice :one
-SELECT id, name, token_hash, playlist_id, created_at, last_seen FROM kiosk_devices WHERE id = ?
+SELECT id, name, token_hash, playlist_id, pip_playlist_id, pip_config_json, created_at, last_seen FROM kiosk_devices WHERE id = ?
 `
 
 func (q *Queries) GetDevice(ctx context.Context, id int64) (KioskDevice, error) {
@@ -55,6 +57,8 @@ func (q *Queries) GetDevice(ctx context.Context, id int64) (KioskDevice, error) 
 		&i.Name,
 		&i.TokenHash,
 		&i.PlaylistID,
+		&i.PipPlaylistID,
+		&i.PipConfigJson,
 		&i.CreatedAt,
 		&i.LastSeen,
 	)
@@ -62,7 +66,7 @@ func (q *Queries) GetDevice(ctx context.Context, id int64) (KioskDevice, error) 
 }
 
 const getDeviceByTokenHash = `-- name: GetDeviceByTokenHash :one
-SELECT id, name, token_hash, playlist_id, created_at, last_seen FROM kiosk_devices WHERE token_hash = ?
+SELECT id, name, token_hash, playlist_id, pip_playlist_id, pip_config_json, created_at, last_seen FROM kiosk_devices WHERE token_hash = ?
 `
 
 func (q *Queries) GetDeviceByTokenHash(ctx context.Context, tokenHash string) (KioskDevice, error) {
@@ -73,6 +77,8 @@ func (q *Queries) GetDeviceByTokenHash(ctx context.Context, tokenHash string) (K
 		&i.Name,
 		&i.TokenHash,
 		&i.PlaylistID,
+		&i.PipPlaylistID,
+		&i.PipConfigJson,
 		&i.CreatedAt,
 		&i.LastSeen,
 	)
@@ -80,7 +86,7 @@ func (q *Queries) GetDeviceByTokenHash(ctx context.Context, tokenHash string) (K
 }
 
 const listDevices = `-- name: ListDevices :many
-SELECT id, name, token_hash, playlist_id, created_at, last_seen FROM kiosk_devices ORDER BY id
+SELECT id, name, token_hash, playlist_id, pip_playlist_id, pip_config_json, created_at, last_seen FROM kiosk_devices ORDER BY id
 `
 
 func (q *Queries) ListDevices(ctx context.Context) ([]KioskDevice, error) {
@@ -97,6 +103,8 @@ func (q *Queries) ListDevices(ctx context.Context) ([]KioskDevice, error) {
 			&i.Name,
 			&i.TokenHash,
 			&i.PlaylistID,
+			&i.PipPlaylistID,
+			&i.PipConfigJson,
 			&i.CreatedAt,
 			&i.LastSeen,
 		); err != nil {

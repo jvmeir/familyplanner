@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand/v2"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/a-h/templ"
 	"github.com/jvmeir/familyplanner/internal/db/dbgen"
@@ -99,7 +97,9 @@ type CellVM struct {
 	Schedule      []ScheduleDayVM // relative day-by-day (calendar days modes)
 	ScheduleTable bool            // render Schedule as a table (days_table) vs list (days)
 	IframeURL     string          // embedded web page
-	ImageURL      string          // single photo
+	ImageURL      string          // single photo (first frame; slideshow if PhotoURLs set)
+	PhotoURLs     []string        // photos: full album, cycled client-side
+	PhotoSecs     int             // photos: seconds per photo
 	VideoIDs      []string        // YouTube video ids (embedded via the IFrame API, cycled)
 	VideoMute     bool            // play muted
 	VideoLoop     bool            // loop playback
@@ -173,12 +173,19 @@ type HealthVM struct {
 func (h HealthVM) Bad() bool { return h.Level == "warn" || h.Level == "error" }
 
 // PipVM drives the persistent corner picture-in-picture video on the kiosk.
+// PipVM is the corner overlay's presentation; its content is a playlist rotated
+// client-side (see PipItem), so this only positions/sizes the empty container.
 type PipVM struct {
-	IDs      []string
-	Corner   string // br | bl | tr | tl
-	Size     string // s | m | l
-	Muted    bool
-	Interval int // seconds hidden between videos (0 = continuous)
+	Corner string // br | bl | tr | tl | right | left
+	Size   string // s | m | l
+	Muted  bool
+}
+
+// PipItem is one view in the corner playlist's client-side rotation.
+type PipItem struct {
+	ViewID int64 `json:"id"`
+	Dwell  int   `json:"dwell"` // seconds
+	OnEnd  bool  `json:"onEnd"` // advance when the view's video ends (vs fixed dwell)
 }
 
 // ControlsVM drives the kiosk control bar: the current playlist's views, all
@@ -310,21 +317,18 @@ type PlaylistDetailVM struct {
 	DefaultDwell   int64
 	Items          []PlaylistItemVM
 	AvailableViews []ViewRef
-	// Corner picture-in-picture video for this playlist.
-	VideoWidgets []ViewRef // widgets of type "video" (id + name)
-	PipWidgetID  int64     // selected video widget (0 = no PiP)
-	PipCorner    string    // br | bl | tr | tl
-	PipSize      string    // s | m | l
-	PipInterval  int64     // seconds hidden between videos (0 = continuous)
-	PipMuted     bool
 }
 
 // DeviceVM is a row on the devices page.
 type DeviceVM struct {
-	ID         int64
-	Name       string
-	LastSeen   string
-	PlaylistID int64
+	ID            int64
+	Name          string
+	LastSeen      string
+	PlaylistID    int64
+	PipPlaylistID int64  // corner playlist (0 = no PiP)
+	PipCorner     string // br | bl | tr | tl | right | left
+	PipSize       string // s | m | l
+	PipMuted      bool
 }
 
 // DataSourceVM is a row on the data sources page / source dropdown.
@@ -512,15 +516,13 @@ func init() {
 		if len(d.URLs) == 0 {
 			return CellVM{Sub: i18n.T(ctx, "widget.photos.empty")}
 		}
-		idx := 0
-		switch d.Mode {
-		case "random":
-			idx = rand.IntN(len(d.URLs)) // re-rolled on every render (per display)
-		case "by_date":
-			// advance chronologically over time (~every 15s) without server state
-			idx = int(time.Now().Unix()/15) % len(d.URLs)
+		// Emit the whole album; the client cycles it as a shuffled, no-repeat
+		// slideshow (ImageURL is the first paint before JS takes over).
+		secs := d.IntervalSecs
+		if secs <= 0 {
+			secs = 8
 		}
-		return CellVM{ImageURL: d.URLs[idx]}
+		return CellVM{ImageURL: d.URLs[0], PhotoURLs: d.URLs, PhotoSecs: secs}
 	})
 }
 

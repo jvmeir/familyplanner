@@ -3,18 +3,20 @@ package widget
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"time"
 )
 
 // PhotosConfig is the per-instance configuration.
 type PhotosConfig struct {
-	Mode string `json:"mode"` // "single" (default) | "random"
+	Interval string `json:"interval"` // seconds per photo in the client slideshow (default 8)
 }
 
-// PhotosData is the normalized render data: candidate photo URLs + display mode.
+// PhotosData is the normalized render data: the full set of photo URLs (the
+// client cycles them as a shuffled, no-repeat slideshow) + seconds per photo.
 type PhotosData struct {
-	URLs []string `json:"urls"`
-	Mode string   `json:"mode"`
+	URLs         []string `json:"urls"`
+	IntervalSecs int      `json:"interval_secs"`
 }
 
 type photosProvider struct {
@@ -67,10 +69,10 @@ func (p photosProvider) Fetch(ctx context.Context) (Data, time.Duration, error) 
 	if ok == 0 && firstErr != nil {
 		return nil, 0, firstErr
 	}
-	mode := p.cfg.Mode
-	if mode == "" {
-		mode = "single"
+	secs := 8
+	if n, err := strconv.Atoi(p.cfg.Interval); err == nil && n > 0 {
+		secs = n
 	}
-	// Google base URLs expire ~60 min; refresh before then.
-	return PhotosData{URLs: urls, Mode: mode}, 45 * time.Minute, nil
+	// OneDrive thumbnail URLs expire ~60 min; refresh before then.
+	return PhotosData{URLs: urls, IntervalSecs: secs}, 45 * time.Minute, nil
 }

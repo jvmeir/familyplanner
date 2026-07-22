@@ -43,12 +43,14 @@ CREATE TABLE placements (
 );
 
 CREATE TABLE kiosk_devices (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    name        TEXT NOT NULL DEFAULT '',
-    token_hash  TEXT NOT NULL UNIQUE,
-    playlist_id INTEGER NOT NULL DEFAULT 0, -- 0 = unassigned (use default playlist)
-    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    last_seen   TEXT NOT NULL DEFAULT ''
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL DEFAULT '',
+    token_hash      TEXT NOT NULL UNIQUE,
+    playlist_id     INTEGER NOT NULL DEFAULT 0, -- 0 = unassigned (use default playlist)
+    pip_playlist_id INTEGER NOT NULL DEFAULT 0, -- 0 = no corner PiP
+    pip_config_json TEXT NOT NULL DEFAULT '',   -- corner/size/muted presentation
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    last_seen       TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE playlists (

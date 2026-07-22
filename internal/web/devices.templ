@@ -55,6 +55,38 @@ templ DeviceList(devices []DeviceVM, playlists []PlaylistRef, views []ViewRef) {
 							}
 						</select>
 					</label>
+					<label>
+						{ i18n.T(ctx, "device.pip_playlist") }
+						<select name="pip_playlist_id">
+							<option value="0">{ i18n.T(ctx, "playlist.pip_none") }</option>
+							for _, p := range playlists {
+								<option value={ fmt.Sprint(p.ID) } selected?={ p.ID == d.PipPlaylistID }>{ p.Name }</option>
+							}
+						</select>
+					</label>
+					<label>
+						{ i18n.T(ctx, "playlist.pip_corner") }
+						<select name="pip_corner">
+							<option value="right" selected?={ d.PipCorner == "right" }>{ i18n.T(ctx, "playlist.corner.right") }</option>
+							<option value="left" selected?={ d.PipCorner == "left" }>{ i18n.T(ctx, "playlist.corner.left") }</option>
+							<option value="br" selected?={ d.PipCorner == "br" }>{ i18n.T(ctx, "playlist.corner.br") }</option>
+							<option value="bl" selected?={ d.PipCorner == "bl" }>{ i18n.T(ctx, "playlist.corner.bl") }</option>
+							<option value="tr" selected?={ d.PipCorner == "tr" }>{ i18n.T(ctx, "playlist.corner.tr") }</option>
+							<option value="tl" selected?={ d.PipCorner == "tl" }>{ i18n.T(ctx, "playlist.corner.tl") }</option>
+						</select>
+					</label>
+					<label>
+						{ i18n.T(ctx, "playlist.pip_size") }
+						<select name="pip_size">
+							<option value="s" selected?={ d.PipSize == "s" }>{ i18n.T(ctx, "playlist.size.s") }</option>
+							<option value="m" selected?={ d.PipSize == "m" }>{ i18n.T(ctx, "playlist.size.m") }</option>
+							<option value="l" selected?={ d.PipSize == "l" }>{ i18n.T(ctx, "playlist.size.l") }</option>
+						</select>
+					</label>
+					<label class="check">
+						<input type="checkbox" name="pip_muted" checked?={ d.PipMuted }/>
+						{ i18n.T(ctx, "playlist.pip_muted") }
+					</label>
 					<button type="submit">{ i18n.T(ctx, "device.assign") }</button>
 				</form>
 				<div class="remote">

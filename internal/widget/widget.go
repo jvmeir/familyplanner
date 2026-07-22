@@ -245,11 +245,7 @@ func RegisterDefaults(r *Registry) {
 		Decode:         decodePhotos,
 		AcceptsSources: []string{"onedrive"},
 		Schema: Schema{Fields: []Field{
-			{Name: "mode", LabelKey: "widget.photos.field.mode", Type: FieldSelect, Options: []Option{
-				{Value: "single", LabelKey: "widget.photos.mode.single"},
-				{Value: "random", LabelKey: "widget.photos.mode.random"},
-				{Value: "by_date", LabelKey: "widget.photos.mode.by_date"},
-			}},
+			{Name: "interval", LabelKey: "widget.photos.field.interval", Type: FieldNumber},
 		}},
 	})
 }

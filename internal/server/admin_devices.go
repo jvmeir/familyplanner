@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -25,6 +26,20 @@ func (s *Server) handleDeviceAssign(w http.ResponseWriter, r *http.Request) {
 	playlistID, _ := strconv.ParseInt(r.FormValue("playlist_id"), 10, 64) // 0 = default
 	if err := s.store.SetDevicePlaylist(r.Context(), dbgen.SetDevicePlaylistParams{
 		PlaylistID: playlistID, ID: id,
+	}); err != nil {
+		http.Error(w, "assign failed", http.StatusInternalServerError)
+		return
+	}
+	// Corner PiP: an independent playlist rotating in a corner (0 = none).
+	pipID, _ := strconv.ParseInt(r.FormValue("pip_playlist_id"), 10, 64)
+	pc := devicePip{
+		Corner: pick(r.FormValue("pip_corner"), "br", "bl", "tr", "tl", "right", "left"),
+		Size:   pick(r.FormValue("pip_size"), "m", "s", "l"),
+		Muted:  r.FormValue("pip_muted") != "",
+	}
+	cj, _ := json.Marshal(pc)
+	if err := s.store.SetDevicePip(r.Context(), dbgen.SetDevicePipParams{
+		PipPlaylistID: pipID, PipConfigJson: string(cj), ID: id,
 	}); err != nil {
 		http.Error(w, "assign failed", http.StatusInternalServerError)
 		return
@@ -98,9 +113,35 @@ func (s *Server) deviceVMs(ctx context.Context) []web.DeviceVM {
 		if lastSeen == "" {
 			lastSeen = "—"
 		}
-		out = append(out, web.DeviceVM{ID: d.ID, Name: name, LastSeen: lastSeen, PlaylistID: d.PlaylistID})
+		pc := parseDevicePip(d.PipConfigJson)
+		out = append(out, web.DeviceVM{
+			ID: d.ID, Name: name, LastSeen: lastSeen, PlaylistID: d.PlaylistID,
+			PipPlaylistID: d.PipPlaylistID, PipCorner: pc.Corner, PipSize: pc.Size, PipMuted: pc.Muted,
+		})
 	}
 	return out
+}
+
+// devicePip is the JSON stored in kiosk_devices.pip_config_json (corner PiP
+// presentation; the content is the assigned pip playlist).
+type devicePip struct {
+	Corner string `json:"corner"`
+	Size   string `json:"size"`
+	Muted  bool   `json:"muted"`
+}
+
+func parseDevicePip(raw string) devicePip {
+	pc := devicePip{Corner: "br", Size: "m", Muted: true}
+	if raw != "" {
+		_ = json.Unmarshal([]byte(raw), &pc)
+	}
+	if pc.Corner == "" {
+		pc.Corner = "br"
+	}
+	if pc.Size == "" {
+		pc.Size = "m"
+	}
+	return pc
 }
 
 func (s *Server) playlistRefs(ctx context.Context) []web.PlaylistRef {

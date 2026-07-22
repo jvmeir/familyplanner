@@ -23,11 +23,11 @@ SELECT * FROM playlist_items WHERE playlist_id = ? ORDER BY position, id;
 -- name: SetDevicePlaylist :exec
 UPDATE kiosk_devices SET playlist_id = ? WHERE id = ?;
 
+-- name: SetDevicePip :exec
+UPDATE kiosk_devices SET pip_playlist_id = ?, pip_config_json = ? WHERE id = ?;
+
 -- name: UpdatePlaylist :exec
 UPDATE playlists SET name = ?, default_dwell_seconds = ?, updated_at = datetime('now') WHERE id = ?;
-
--- name: UpdatePlaylistPip :exec
-UPDATE playlists SET pip_widget_id = ?, pip_config_json = ?, updated_at = datetime('now') WHERE id = ?;
 
 -- name: DeletePlaylist :exec
 DELETE FROM playlists WHERE id = ?;

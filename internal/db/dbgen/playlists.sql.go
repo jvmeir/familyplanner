@@ -241,6 +241,21 @@ func (q *Queries) SetDefaultPlaylist(ctx context.Context, id int64) error {
 	return err
 }
 
+const setDevicePip = `-- name: SetDevicePip :exec
+UPDATE kiosk_devices SET pip_playlist_id = ?, pip_config_json = ? WHERE id = ?
+`
+
+type SetDevicePipParams struct {
+	PipPlaylistID int64  `json:"pip_playlist_id"`
+	PipConfigJson string `json:"pip_config_json"`
+	ID            int64  `json:"id"`
+}
+
+func (q *Queries) SetDevicePip(ctx context.Context, arg SetDevicePipParams) error {
+	_, err := q.db.ExecContext(ctx, setDevicePip, arg.PipPlaylistID, arg.PipConfigJson, arg.ID)
+	return err
+}
+
 const setDevicePlaylist = `-- name: SetDevicePlaylist :exec
 UPDATE kiosk_devices SET playlist_id = ? WHERE id = ?
 `
@@ -295,20 +310,5 @@ type UpdatePlaylistItemPositionParams struct {
 
 func (q *Queries) UpdatePlaylistItemPosition(ctx context.Context, arg UpdatePlaylistItemPositionParams) error {
 	_, err := q.db.ExecContext(ctx, updatePlaylistItemPosition, arg.Position, arg.ID)
-	return err
-}
-
-const updatePlaylistPip = `-- name: UpdatePlaylistPip :exec
-UPDATE playlists SET pip_widget_id = ?, pip_config_json = ?, updated_at = datetime('now') WHERE id = ?
-`
-
-type UpdatePlaylistPipParams struct {
-	PipWidgetID   int64  `json:"pip_widget_id"`
-	PipConfigJson string `json:"pip_config_json"`
-	ID            int64  `json:"id"`
-}
-
-func (q *Queries) UpdatePlaylistPip(ctx context.Context, arg UpdatePlaylistPipParams) error {
-	_, err := q.db.ExecContext(ctx, updatePlaylistPip, arg.PipWidgetID, arg.PipConfigJson, arg.ID)
 	return err
 }

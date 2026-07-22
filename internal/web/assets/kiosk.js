@@ -65,6 +65,36 @@
     return d + "d " + p(h) + "u " + p(m) + "m " + p(sec) + "s";
   }
 
+  // ---- photo slideshow: cycle a .w-slideshow <img> through its album,
+  // shuffled and no-repeat, every data-photo-secs. Self-clears when removed
+  // from the DOM (view swap) so timers don't leak. Used on the main stage AND
+  // inside the corner PiP. (function declaration — hoisted, no TDZ.)
+  function fpShuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = (i * 2654435761 + fpShuffleSeed++) % (i + 1); // deterministic-ish, avoids Math.random ban concerns
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  var fpShuffleSeed = 1;
+  function startSlideshows(root) {
+    if (!root) return;
+    root.querySelectorAll(".w-slideshow").forEach(function (img) {
+      if (img.__fpSlide) return; // already cycling
+      var urls = [];
+      try { urls = JSON.parse(img.dataset.photoUrls || "[]"); } catch (e) {}
+      if (urls.length < 2) return;
+      var secs = parseInt(img.dataset.photoSecs, 10) || 8;
+      var order = fpShuffle(urls.slice()), pos = 0;
+      img.__fpSlide = setInterval(function () {
+        if (!document.body.contains(img)) { clearInterval(img.__fpSlide); img.__fpSlide = null; return; }
+        pos++;
+        if (pos >= order.length) { order = fpShuffle(urls.slice()); pos = 0; }
+        img.src = order[pos];
+      }, Math.max(2, secs) * 1000);
+    });
+  }
+
   // ---- footer view label (name looked up from the id->name map) ----
   const viewEl = document.getElementById("kview");
   let viewNames = {};
@@ -93,6 +123,7 @@
         }
         tickCountdowns(); // set dhms text now so it doesn't flash the day-only fallback
         setupCellScroll();
+        startSlideshows(stage);
         if (window.fpSetupVideos) window.fpSetupVideos();
         scheduleEndFallback();
       }
@@ -136,7 +167,8 @@
     });
   }
   setupCellScroll();
-  scheduleEndFallback(); // cover the initial (inline-rendered) screen
+  startSlideshows(stage); // cover the initial (inline-rendered) screen
+  scheduleEndFallback();
 
   const es = new EventSource("/kiosk/stream");
   window.fpES = es; // shared so voiceclock.js can listen for "chime" without a 2nd stream
@@ -223,6 +255,61 @@
       case "pip-next": if (window.fpPip) fpPip.next(); break;
       case "pip-prev": if (window.fpPip) fpPip.prev(); break;
     }
+  });
+
+  // ---- corner PiP: an independent playlist rotated client-side into .kpip.
+  // The server pushes the item list (viewID + dwell + onEnd) on the "pip" event;
+  // we fetch each view "bare" and swap it in, advancing on the dwell timer or,
+  // for a video view marked onEnd, when the video finishes.
+  var kpip = document.querySelector(".kpip");
+  var pipItems = [], pipIdx = 0, pipTimer = null, pipPlayers = [], pipHidden = false;
+  function pipStopPlayers() {
+    pipPlayers.forEach(function (c) { try { c.player.destroy(); } catch (e) {} });
+    pipPlayers = [];
+  }
+  function pipRotate(i) {
+    if (!kpip || !pipItems.length) return;
+    pipIdx = (i % pipItems.length + pipItems.length) % pipItems.length;
+    var item = pipItems[pipIdx];
+    clearTimeout(pipTimer);
+    pipStopPlayers();
+    fetch("/kiosk/view/" + item.id + "?bare=1", { headers: { Accept: "text/html" } })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(); })
+      .then(function (html) {
+        kpip.innerHTML = html;
+        startSlideshows(kpip);
+        var hasVideo = !!kpip.querySelector(".w-yt");
+        var onEnd = item.onEnd && hasVideo ? function () { pipNext(); } : null;
+        pipPlayers = window.fpVideosIn ? window.fpVideosIn(kpip, { mute: true, onAllEnded: onEnd }) : [];
+        if (!onEnd) pipTimer = setTimeout(pipNext, Math.max(3, item.dwell) * 1000);
+      })
+      .catch(function () { pipTimer = setTimeout(pipNext, 10000); }); // retry-ish on error
+  }
+  function pipNext() { pipRotate(pipIdx + 1); }
+  function pipPrev() { pipRotate(pipIdx - 1); }
+  function pipStart(items) {
+    pipItems = items || [];
+    clearTimeout(pipTimer);
+    pipStopPlayers();
+    if (!kpip) return;
+    if (!pipItems.length) { kpip.style.display = "none"; kpip.innerHTML = ""; return; }
+    kpip.style.display = pipHidden ? "none" : "";
+    pipRotate(0);
+  }
+  window.fpPip = {
+    toggle: function () { if (!kpip) return; pipHidden = !pipHidden; kpip.style.display = pipHidden ? "none" : ""; },
+    next: pipNext,
+    prev: pipPrev,
+    mute: function () { pipPlayers.forEach(function (c) { try { c.player.isMuted() ? c.player.unMute() : c.player.mute(); } catch (e) {} }); },
+    playPause: function () { pipPlayers.forEach(function (c) { try { c.playPause(); } catch (e) {} }); },
+  };
+  es.addEventListener("pip", function (e) {
+    var items = [];
+    try { items = JSON.parse(e.data); } catch (_) {}
+    // Only restart if the payload actually changed (avoid resetting the corner
+    // rotation on every 30s refresh tick).
+    if (JSON.stringify(items) === JSON.stringify(pipItems)) return;
+    pipStart(items);
   });
 
   // ---- controls (also reachable from a phone remote later) ----

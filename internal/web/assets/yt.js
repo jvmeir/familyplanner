@@ -1,8 +1,9 @@
-// YouTube embeds via the IFrame Player API. Used two ways:
-//   1. On-screen video widgets inside #stage — recreated on each view swap; on an
-//      "advance on end" screen they advance the playlist after one pass.
-//   2. A persistent corner PiP (.kpip in the kiosk shell) that keeps playing while
-//      screens rotate, cycling its video list with an optional hide interval.
+// YouTube embeds via the IFrame Player API. Two entry points:
+//   1. window.fpSetupVideos() — (re)initialize the on-screen video widgets inside
+//      #stage after a view swap; on an "advance on end" screen it advances the
+//      playlist after one full pass.
+//   2. window.fpVideosIn(container, {mute, onAllEnded}) — initialize every video
+//      widget inside an arbitrary container (used by the corner PiP in kiosk.js).
 (function () {
   var stage = document.getElementById("stage");
 
@@ -29,8 +30,7 @@
 
   // makePlayer plays a list on el, cycling, and returns a small controller
   // (player + next/prev/playPause). onAllEnded (optional) is called after one full
-  // pass instead of looping (used to advance an "advance on end" screen).
-  // interval > 0 hides el between videos (corner PiP).
+  // pass instead of looping (used to advance an "advance on end" screen/corner).
   function makePlayer(el, list, opts, onAllEnded) {
     if (!list.length) return null;
     var holder = document.createElement("div");
@@ -51,71 +51,39 @@
         onStateChange: function (e) {
           if (e.data !== YT.PlayerState.ENDED) return;
           if (ctrl.i + 1 >= list.length && onAllEnded) { onAllEnded(); return; }
-          if (opts.interval > 0) {
-            el.style.visibility = "hidden";
-            try { ctrl.player.pauseVideo(); } catch (x) {} // idle while hidden (bandwidth)
-            setTimeout(function () { el.style.visibility = "visible"; ctrl.next(); }, opts.interval * 1000);
-          } else {
-            ctrl.next();
-          }
+          ctrl.next();
         },
       },
     });
     return ctrl;
   }
 
-  // ---- on-screen widgets (inside #stage) ----
+  // Initialize every .w-yt in a container. opts.mute overrides the widget's own
+  // data-mute (the PiP forces muted); opts.onAllEnded advances after one pass.
+  window.fpVideosIn = function (container, opts) {
+    opts = opts || {};
+    var players = [];
+    whenReady(function () {
+      container.querySelectorAll(".w-yt[data-video-ids]").forEach(function (el) {
+        var mute = opts.mute != null ? opts.mute : el.dataset.mute === "1";
+        var c = makePlayer(el, ids(el), { mute: mute }, opts.onAllEnded || null);
+        if (c) players.push(c);
+      });
+    });
+    return players;
+  };
+
+  // On-screen video widgets inside #stage, recreated on each view swap.
   var stagePlayers = [];
   window.fpSetupVideos = function () {
     if (!stage) return;
     stagePlayers.forEach(function (c) { try { c.player.destroy(); } catch (e) {} });
-    stagePlayers = [];
-    var els = stage.querySelectorAll(".w-yt[data-video-ids]");
-    if (!els.length) return;
     var view = stage.querySelector(".view");
     var onEnd = !!(view && view.dataset.advanceOnEnd === "1");
-    whenReady(function () {
-      els.forEach(function (el) {
-        var done = onEnd ? function () { if (window.fpCtl) fpCtl("next"); } : null;
-        var c = makePlayer(el, ids(el), { mute: el.dataset.mute === "1", interval: 0 }, done);
-        if (c) stagePlayers.push(c);
-      });
+    stagePlayers = window.fpVideosIn(stage, {
+      onAllEnded: onEnd ? function () { if (window.fpCtl) fpCtl("next"); } : null,
     });
-  };
-
-  // ---- persistent corner PiP (in the kiosk shell) ----
-  var pip = null;      // the PiP controller
-  var pipEl = null;    // the .kpip container
-  function setupPip() {
-    pipEl = document.querySelector(".kpip");
-    var el = pipEl && pipEl.querySelector(".w-yt");
-    if (!el || pip) return; // set up once; survives view swaps
-    var list = ids(el);
-    if (!list.length) return;
-    whenReady(function () {
-      pip = makePlayer(el, list, {
-        mute: el.dataset.mute !== "0", // PiP defaults muted
-        interval: parseInt(el.dataset.interval, 10) || 0,
-      }, null);
-    });
-  }
-
-  // PiP remote (Shift+arrows in kiosk.js): pause/resume, show/hide, next/prev.
-  window.fpPip = {
-    playPause: function () { if (pip) pip.playPause(); },
-    next: function () { if (pip) pip.next(); },
-    prev: function () { if (pip) pip.prev(); },
-    toggle: function () {
-      if (!pipEl) return;
-      var hidden = pipEl.style.display === "none";
-      pipEl.style.display = hidden ? "" : "none";
-      if (pip) { try { hidden ? pip.player.playVideo() : pip.player.pauseVideo(); } catch (x) {} }
-    },
-    mute: function () {
-      if (pip && pip.player) { try { pip.player.isMuted() ? pip.player.unMute() : pip.player.mute(); } catch (x) {} }
-    },
   };
 
   if (stage) window.fpSetupVideos(); // initial on-screen video
-  setupPip();
 })();

@@ -21,12 +21,14 @@ type DataSource struct {
 }
 
 type KioskDevice struct {
-	ID         int64  `json:"id"`
-	Name       string `json:"name"`
-	TokenHash  string `json:"token_hash"`
-	PlaylistID int64  `json:"playlist_id"`
-	CreatedAt  string `json:"created_at"`
-	LastSeen   string `json:"last_seen"`
+	ID            int64  `json:"id"`
+	Name          string `json:"name"`
+	TokenHash     string `json:"token_hash"`
+	PlaylistID    int64  `json:"playlist_id"`
+	PipPlaylistID int64  `json:"pip_playlist_id"`
+	PipConfigJson string `json:"pip_config_json"`
+	CreatedAt     string `json:"created_at"`
+	LastSeen      string `json:"last_seen"`
 }
 
 type Placement struct {
