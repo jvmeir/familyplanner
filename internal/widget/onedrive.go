@@ -73,10 +73,8 @@ func GraphFolderPhotos(ctx context.Context, token, folderID string) ([]PhotoItem
 				TakenDateTime string `json:"takenDateTime"`
 			} `json:"photo"`
 			Location *struct {
-				Coordinates *struct {
-					Latitude  float64 `json:"latitude"`
-					Longitude float64 `json:"longitude"`
-				} `json:"coordinates"`
+				Latitude  float64 `json:"latitude"`
+				Longitude float64 `json:"longitude"`
 			} `json:"location"`
 			Thumbnails []struct {
 				Large *struct {
@@ -113,12 +111,18 @@ func GraphFolderPhotos(ctx context.Context, token, folderID string) ([]PhotoItem
 		if it.Photo != nil && it.Photo.TakenDateTime != "" {
 			p.When = it.Photo.TakenDateTime
 		}
-		if it.Location != nil && it.Location.Coordinates != nil &&
-			(it.Location.Coordinates.Latitude != 0 || it.Location.Coordinates.Longitude != 0) {
-			p.Lat, p.Lon, p.HasGeo = it.Location.Coordinates.Latitude, it.Location.Coordinates.Longitude, true
+		if it.Location != nil && (it.Location.Latitude != 0 || it.Location.Longitude != 0) {
+			p.Lat, p.Lon, p.HasGeo = it.Location.Latitude, it.Location.Longitude, true
 		}
 		items = append(items, p)
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].When < items[j].When })
+	withGeo := 0
+	for _, it := range items {
+		if it.HasGeo {
+			withGeo++
+		}
+	}
+	slog.Info("onedrive: photos listed", "total", len(items), "withGeo", withGeo)
 	return items, nil
 }
