@@ -17,38 +17,33 @@ func youtubeID(s string) string {
 	return ""
 }
 
-// VideoConfig is the per-instance configuration. A video widget plays the videos
-// from its linked "video" data sources (like the ticker aggregates feeds). URL is
-// a legacy single-video fallback (no longer shown in the form) kept so widgets
-// configured before video data sources existed keep working.
+// VideoConfig is the per-instance configuration: one YouTube URL plus playback
+// options. To show several clips, add several video views to a playlist and let
+// the standard rotation cycle them (with advance-on-end).
 type VideoConfig struct {
 	URL  string `json:"url"`
 	Mute string `json:"mute"` // "yes" | "no" (default no)
 	Loop string `json:"loop"` // "yes" | "no" (default yes)
 }
 
-// VideoData is the normalized render data: the YouTube video ids to play (in
-// order) plus playback options. The kiosk embeds them with the YouTube IFrame
-// Player API, cycling the list and (for the corner PiP) honouring a hide interval.
+// VideoData is the normalized render data: the YouTube video id(s) to play plus
+// playback options. The kiosk embeds them with the YouTube IFrame Player API.
 type VideoData struct {
 	IDs  []string `json:"ids"`
 	Mute bool     `json:"mute"`
 	Loop bool     `json:"loop"`
 }
 
-type videoProvider struct {
-	cfg     VideoConfig
-	sources []SourceInput
-}
+type videoProvider struct{ cfg VideoConfig }
 
-func newVideo(raw json.RawMessage, sources []SourceInput, _ NowFunc) (Provider, error) {
+func newVideo(raw json.RawMessage, _ []SourceInput, _ NowFunc) (Provider, error) {
 	var cfg VideoConfig
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &cfg); err != nil {
 			return nil, err
 		}
 	}
-	return videoProvider{cfg: cfg, sources: sources}, nil
+	return videoProvider{cfg: cfg}, nil
 }
 
 func decodeVideo(raw json.RawMessage) (Data, error) {
@@ -59,22 +54,8 @@ func decodeVideo(raw json.RawMessage) (Data, error) {
 
 func (p videoProvider) Fetch(_ context.Context) (Data, time.Duration, error) {
 	var ids []string
-	for _, s := range p.sources {
-		if s.Type != "video" {
-			continue
-		}
-		var c struct {
-			URL string `json:"url"`
-		}
-		_ = json.Unmarshal(s.Config, &c)
-		if id := youtubeID(c.URL); id != "" {
-			ids = append(ids, id)
-		}
-	}
-	if len(ids) == 0 { // legacy fallback: a single video configured on the widget
-		if id := youtubeID(p.cfg.URL); id != "" {
-			ids = append(ids, id)
-		}
+	if id := youtubeID(p.cfg.URL); id != "" {
+		ids = append(ids, id)
 	}
 	return VideoData{
 		IDs:  ids,

@@ -87,14 +87,6 @@ func RegisterDefaults(r *Registry) {
 		}},
 	})
 	r.Register(Type{
-		ID:       "video",
-		NameKey:  "datasource.type.video",
-		CredKind: CredNone,
-		Config: widget.Schema{Fields: []widget.Field{
-			{Name: "url", LabelKey: "datasource.field.video_url", Type: widget.FieldText, Required: true},
-		}},
-	})
-	r.Register(Type{
 		ID:       "bring",
 		NameKey:  "datasource.type.bring",
 		CredKind: CredBasic,

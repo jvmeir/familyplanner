@@ -1036,8 +1036,57 @@ func (s *Server) invalidateStaleCache(ctx context.Context) {
 	slog.Info("widget cache cleared (schema version changed)", "from", cur, "to", cacheSchemaVersion)
 }
 
+// migrateVideoWidgets moves any legacy "video" data-source URL into the video
+// widget's own config (the widget now carries the URL directly), then removes
+// the retired "video" data sources (cascading their widget links). Idempotent.
+func (s *Server) migrateVideoWidgets(ctx context.Context) {
+	widgets, err := s.store.ListWidgets(ctx)
+	if err != nil {
+		return
+	}
+	for _, wgt := range widgets {
+		if wgt.Type != "video" {
+			continue
+		}
+		var cfg map[string]any
+		if json.Unmarshal([]byte(wgt.ConfigJson), &cfg) != nil || cfg == nil {
+			cfg = map[string]any{}
+		}
+		if u, _ := cfg["url"].(string); u != "" {
+			continue // already has a URL
+		}
+		rows, _ := s.store.ListWidgetSources(ctx, wgt.ID)
+		for _, r := range rows {
+			if r.SourceType != "video" {
+				continue
+			}
+			var sc struct {
+				URL string `json:"url"`
+			}
+			_ = json.Unmarshal([]byte(r.SourceConfig), &sc)
+			if sc.URL != "" {
+				cfg["url"] = sc.URL
+				if b, err := json.Marshal(cfg); err == nil {
+					_ = s.store.UpdateWidget(ctx, dbgen.UpdateWidgetParams{Name: wgt.Name, ConfigJson: string(b), ID: wgt.ID})
+				}
+				break
+			}
+		}
+	}
+	// Retire the "video" data-source type: delete any remaining video data
+	// sources (this cascades their widget_sources links).
+	if dss, err := s.store.ListDataSources(ctx); err == nil {
+		for _, d := range dss {
+			if d.Type == "video" {
+				_ = s.store.DeleteDataSource(ctx, d.ID)
+			}
+		}
+	}
+}
+
 func (s *Server) bootstrap(ctx context.Context) error {
 	s.invalidateStaleCache(ctx)
+	s.migrateVideoWidgets(ctx)
 	// Seed the admin passphrase from the bootstrap env var if none is stored yet.
 	if _, err := s.store.GetSetting(ctx, "passphrase_hash"); errors.Is(err, sql.ErrNoRows) {
 		if s.cfg.AdminPassphrase != "" {

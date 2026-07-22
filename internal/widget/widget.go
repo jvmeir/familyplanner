@@ -181,10 +181,10 @@ func RegisterDefaults(r *Registry) {
 	r.Register(Type{
 		ID:             "video",
 		NameKey:        "widget.video.name",
-		NewProvider:    newVideo,
-		Decode:         decodeVideo,
-		AcceptsSources: []string{"video"},
+		NewProvider: newVideo,
+		Decode:      decodeVideo,
 		Schema: Schema{Fields: []Field{
+			{Name: "url", LabelKey: "widget.video.field.url", Type: FieldText, Required: true},
 			{Name: "mute", LabelKey: "widget.video.field.mute", Type: FieldSelect, Options: []Option{
 				{Value: "no", LabelKey: "widget.video.mute.no"},
 				{Value: "yes", LabelKey: "widget.video.mute.yes"},
