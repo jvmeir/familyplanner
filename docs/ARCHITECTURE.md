@@ -25,6 +25,7 @@ TV (kiosk)     ─►  Kiosk UI (templ + SSE)   │  HTTP (chi): sessions, auth,
         Broker: cache + last-good + OAuth token refresh + per-source health   ◄── goroutines
                 (refresh cadence: on-show + configurable interval, TTL-capped)
         Connectors: iCal / RSS / text / MS Graph / Bring / Open-Meteo (+geocoding)
+                / BigDataCloud (reverse-geocode photo GPS → place)
                 (shared HTTP client with an SSRF guard on the dialer)
         Crypto (AES-GCM at rest, credentials/tokens) · scs sessions
         SQLite (modernc, pure-Go) + sqlc + goose
@@ -216,7 +217,8 @@ just "another kiosk surface" — the server pushes the PiP playlist's items
 advancing on the dwell timer or, for a video view marked advance-on-end, when the
 video finishes. So "mostly photos, occasionally a video" is just a corner playlist
 like `[Photos, Weather, Video (on-end)]` — no special media model. It can dock
-left/right (reflowing the main content) or float in a corner. Controls: keyboard
+left/right (reflowing the main content) or float in a corner, and shows its own
+rotation **progress bar** (mirrors the main stage's). Controls: keyboard
 (Shift+arrows), footer buttons, and the admin device remote (🔇 mute, 📺 show/hide,
 ⏪/⏩ prev/next), the last routed over the `cmd` SSE event. Both the pairing page and
 the admin Devices page assign the primary + PiP playlists.
@@ -282,7 +284,8 @@ cache-schema check clears `widget_cache` if the shape changed.
   SSE, quiet hours, admin toggle. ✅
 - **M4** — **per-device PiP playlist** (a second playlist rotated in a corner) +
   single-URL video widget; **weather forecast** (hi/lo, N-day, address geocoding);
-  photos **client-side album slideshow** (no-repeat); RSS ticker; agenda
+  photos **client-side album slideshow** (no-repeat) with optional date/place
+  captions (GPS reverse-geocoded); RSS ticker; agenda
   today-highlight + full-week window; configurable refresh cadence; per-item playlist
   intervals; kiosk **self-healing** (watchdog + nightly reload); **security** hardening
   (SSRF guard, login/pair rate-limit, prod compose). ✅
