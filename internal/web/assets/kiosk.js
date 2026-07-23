@@ -128,7 +128,7 @@
           if (v) v.classList.add("kslide");
         }
         tickCountdowns(); // set dhms text now so it doesn't flash the day-only fallback
-        setupCellScroll();
+        setupCellScroll(stage, lastDwellSecs);
         startSlideshows(stage);
         if (window.fpSetupVideos) window.fpSetupVideos();
         scheduleEndFallback();
@@ -153,26 +153,38 @@
     }
   }
 
-  // Auto-scroll any calendar cell/agenda that overflows: creep top→bottom→top so
-  // days with many events show them all without shrinking the text.
-  var scrollTimers = [];
-  function setupCellScroll() {
-    scrollTimers.forEach(clearInterval);
-    scrollTimers = [];
-    stage.querySelectorAll(".cell-scroll").forEach(function (el) {
+  // Auto-scroll any overflowing cell (calendar/agenda/list) so all content is
+  // shown without shrinking the text. Time-based: one full top→bottom→top trip
+  // spans the view's dwell (with brief holds at each end), so everything is
+  // reachable before the rotation advances. dwellSecs<=0 (paused) falls back to
+  // a steady 30s loop. Per-element rAF, cancelled + restarted on each call.
+  function setupCellScroll(root, dwellSecs) {
+    if (!root) return;
+    var cycleMs = (dwellSecs > 0 ? dwellSecs : 30) * 1000;
+    root.querySelectorAll(".cell-scroll").forEach(function (el) {
+      if (el.__fpScrollRAF) { cancelAnimationFrame(el.__fpScrollRAF); el.__fpScrollRAF = 0; }
+      el.scrollTop = 0;
       if (el.scrollHeight - el.clientHeight < 4) return; // fits: nothing to scroll
-      var dir = 1, pause = 24; // start paused at the top
-      var timer = setInterval(function () {
-        if (pause > 0) { pause--; return; }
-        var max = el.scrollHeight - el.clientHeight;
-        el.scrollTop += dir;
-        if (el.scrollTop >= max) { el.scrollTop = max; dir = -1; pause = 24; }
-        else if (el.scrollTop <= 0) { el.scrollTop = 0; dir = 1; pause = 24; }
-      }, 70);
-      scrollTimers.push(timer);
+      var start = null;
+      function frame(t) {
+        if (!document.body.contains(el)) { el.__fpScrollRAF = 0; return; } // swapped out
+        if (start === null) start = t;
+        var over = el.scrollHeight - el.clientHeight;
+        if (over >= 4) {
+          var phase = ((t - start) % cycleMs) / cycleMs; // 0..1 over one dwell
+          var pos;
+          if (phase < 0.12) pos = 0;                              // hold at top
+          else if (phase < 0.5) pos = over * (phase - 0.12) / 0.38; // scroll down
+          else if (phase < 0.62) pos = over;                      // hold at bottom
+          else pos = over * (1 - (phase - 0.62) / 0.38);          // scroll back up
+          el.scrollTop = pos;
+        }
+        el.__fpScrollRAF = requestAnimationFrame(frame);
+      }
+      el.__fpScrollRAF = requestAnimationFrame(frame);
     });
   }
-  setupCellScroll();
+  setupCellScroll(stage, lastDwellSecs);
   startSlideshows(stage); // cover the initial (inline-rendered) screen
   scheduleEndFallback();
 
@@ -231,6 +243,9 @@
   es.addEventListener("dwell", function (e) {
     var secs = parseInt(e.data, 10) || 0;
     lastDwellSecs = secs;
+    // Re-pace the auto-scroll to this view's actual dwell (the dwell event
+    // arrives just after navigate, so loadView used the previous value).
+    setupCellScroll(stage, lastDwellSecs);
     if (!progEl) return;
     progEl.style.transition = "none";
     progEl.style.width = "0%";
@@ -297,6 +312,7 @@
       .then(function (html) {
         kpipBody.innerHTML = html;
         startSlideshows(kpipBody);
+        setupCellScroll(kpipBody, item.dwell);
         var hasVideo = !!kpipBody.querySelector(".w-yt");
         var onEnd = item.onEnd && hasVideo ? function () { pipNext(); } : null;
         pipPlayers = window.fpVideosIn ? window.fpVideosIn(kpipBody, { mute: true, onAllEnded: onEnd }) : [];
