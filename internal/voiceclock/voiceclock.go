@@ -13,6 +13,8 @@ import (
 // Chime sounds (open / public-domain, synthesised in the browser).
 const (
 	SoundNone        = "none"
+	SoundBing        = "bing"        // single high tone (airplane-style single chime)
+	SoundBong        = "bong"        // single low tone
 	SoundBingBong    = "bingbong"    // two-tone PA "bing-bong"
 	SoundGong        = "gong"        // airport-style gong
 	SoundPips        = "pips"        // short time-signal beeps
@@ -21,7 +23,7 @@ const (
 )
 
 // allSounds is every selectable sound (any beat may use any of them).
-var allSounds = []string{SoundNone, SoundBingBong, SoundGong, SoundPips, SoundTimeSignal, SoundWestminster}
+var allSounds = []string{SoundNone, SoundBing, SoundBong, SoundBingBong, SoundGong, SoundPips, SoundTimeSignal, SoundWestminster}
 
 func validSound(s, def string) string {
 	for _, a := range allSounds {
@@ -35,8 +37,9 @@ func validSound(s, def string) string {
 // ValidQuarterSound normalises the :15/:45 sound (default bing-bong).
 func ValidQuarterSound(s string) string { return validSound(s, SoundBingBong) }
 
-// ValidHalfSound normalises the :30 sound (default bing-bong).
-func ValidHalfSound(s string) string { return validSound(s, SoundBingBong) }
+// ValidHalfSound normalises the :30 sound (default single "bong" — one tone, so
+// the half hour is unmistakably lesser than the hour's two-tone bing-bong).
+func ValidHalfSound(s string) string { return validSound(s, SoundBong) }
 
 // ValidHourSound normalises the :00 sound (default time-signal).
 func ValidHourSound(s string) string { return validSound(s, SoundTimeSignal) }
@@ -70,11 +73,11 @@ func rateValue(name string) float64 {
 }
 
 // Default is the seeded configuration: on, silent overnight; bing-bong on the
-// quarters + half hour, time-signal + spoken time on the hour.
+// quarters, a single "bong" on the half hour, time-signal + spoken time on the hour.
 func Default() Config {
 	return Config{
 		Enabled: true, QuietStart: "22:00", QuietEnd: "07:00",
-		QuarterSound: SoundBingBong, HalfSound: SoundBingBong, HourSound: SoundTimeSignal, Announce: true,
+		QuarterSound: SoundBingBong, HalfSound: SoundBong, HourSound: SoundTimeSignal, Announce: true,
 		Attention: true, AnnounceRate: "slow",
 	}
 }

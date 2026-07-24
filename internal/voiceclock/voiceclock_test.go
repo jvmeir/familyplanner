@@ -63,12 +63,13 @@ func TestValidSoundsAndDefaults(t *testing.T) {
 	require.Equal(t, SoundBingBong, ValidQuarterSound(""))
 	require.Equal(t, SoundTimeSignal, ValidQuarterSound("timesignal")) // any sound allowed per beat now
 	require.Equal(t, SoundWestminster, ValidQuarterSound(SoundWestminster))
-	require.Equal(t, SoundBingBong, ValidHalfSound(""))
+	require.Equal(t, SoundBong, ValidHalfSound("")) // half hour defaults to a single tone
+	require.Equal(t, SoundBing, ValidHalfSound(SoundBing))
 	require.Equal(t, SoundTimeSignal, ValidHourSound(""))
 	require.Equal(t, SoundTimeSignal, ValidHourSound("bogus"))
 	require.Equal(t, SoundGong, ValidHourSound(SoundGong))
 	require.Equal(t, SoundBingBong, Default().QuarterSound)
-	require.Equal(t, SoundBingBong, Default().HalfSound)
+	require.Equal(t, SoundBong, Default().HalfSound)
 	require.Equal(t, SoundTimeSignal, Default().HourSound)
 }
 

@@ -1084,9 +1084,30 @@ func (s *Server) migrateVideoWidgets(ctx context.Context) {
 	}
 }
 
+// migrateHalfChime sets the stored voice-clock half-hour sound to a single
+// "bong" once (so :30 reads as a lesser marker than the hour's two-tone
+// bing-bong). Guarded by a flag so it runs a single time and never overrides a
+// later manual change.
+func (s *Server) migrateHalfChime(ctx context.Context) {
+	if _, err := s.store.GetSetting(ctx, "half_chime_migrated"); !errors.Is(err, sql.ErrNoRows) {
+		return // already run (or lookup failed) — don't touch the user's choice
+	}
+	if v, err := s.store.GetSetting(ctx, "voiceclock"); err == nil && v != "" {
+		var cfg voiceclock.Config
+		if json.Unmarshal([]byte(v), &cfg) == nil {
+			cfg.HalfSound = voiceclock.SoundBong
+			if b, err := json.Marshal(cfg); err == nil {
+				_ = s.store.SetSetting(ctx, dbgen.SetSettingParams{Key: "voiceclock", Value: string(b)})
+			}
+		}
+	}
+	_ = s.store.SetSetting(ctx, dbgen.SetSettingParams{Key: "half_chime_migrated", Value: "1"})
+}
+
 func (s *Server) bootstrap(ctx context.Context) error {
 	s.invalidateStaleCache(ctx)
 	s.migrateVideoWidgets(ctx)
+	s.migrateHalfChime(ctx)
 	// Seed the admin passphrase from the bootstrap env var if none is stored yet.
 	if _, err := s.store.GetSetting(ctx, "passphrase_hash"); errors.Is(err, sql.ErrNoRows) {
 		if s.cfg.AdminPassphrase != "" {

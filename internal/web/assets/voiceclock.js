@@ -134,8 +134,19 @@
                "zes", "zeven", "acht", "negen", "tien", "elf"];
   function dutchHour(h) { return HOURS[((h % 12) + 12) % 12] + " uur"; }
 
+  // Single struck bell — airplane-style single chime. "bing" = high (E5),
+  // "bong" = low (C5). One tone reads as a lesser marker than the two-tone
+  // "bing-bong" (used on the hour), so :30 vs :00 is unambiguous by ear.
+  function singleBell(ac, freq) {
+    if (!ac) return 0;
+    bell(ac, freq, ac.currentTime, 1.9, 0.34);
+    return 1.9;
+  }
+
   function playSound(ac, sound, quarter, hour) {
     switch (sound) {
+      case "bing": return singleBell(ac, 659.25); // E5
+      case "bong": return singleBell(ac, 523.25); // C5
       case "bingbong": return bingbong(ac, quarter);
       case "gong": return gong(ac);
       case "pips": return pips(ac);
