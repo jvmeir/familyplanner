@@ -58,8 +58,16 @@ templ Kiosk(body templ.Component, controls ControlsVM, health HealthVM, ticker [
 					<li><kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd> — { i18n.T(ctx, "kiosk.sc.wscroll") }</li>
 					<li><kbd>Ctrl</kbd>+<kbd>+</kbd> / <kbd>−</kbd> — { i18n.T(ctx, "kiosk.sc.pdfzoom") }</li>
 					<li><kbd>Esc</kbd> — { i18n.T(ctx, "kiosk.sc.exit") }</li>
+					<li><kbd>o</kbd> — { i18n.T(ctx, "kiosk.sc.screens") }</li>
 					<li><kbd>i</kbd> — { i18n.T(ctx, "kiosk.sc.help") }</li>
 				</ul>
+			</div>
+		</div>
+		<div id="kscreens" class="kshortcuts" hidden>
+			<div class="kshortcuts-card">
+				<h2>{ i18n.T(ctx, "kiosk.screens.title") }</h2>
+				<p class="muted">{ i18n.T(ctx, "kiosk.screens.hint") }</p>
+				<ul class="kscreens-list"></ul>
 			</div>
 		</div>
 		<script>

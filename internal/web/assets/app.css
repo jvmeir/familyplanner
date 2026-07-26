@@ -436,6 +436,10 @@ body:has(.kpip-dock-left.kpip-l) { padding-left: 36vw; }
 .kshortcuts-card h2 { margin: 0 0 12px; }
 .kshortcuts-card ul { list-style: none; margin: 0; padding: 0; font-size: 1.05rem; line-height: 2; }
 .kshortcuts-card kbd { background: var(--bg, #eee); border: 1px solid color-mix(in srgb, var(--text) 25%, transparent); border-radius: 6px; padding: 1px 8px; font-weight: 700; font-family: inherit; }
+/* Screen picker (o overlay): a selectable list of all views. */
+.kscreens-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 60vh; overflow: auto; min-width: 16rem; }
+.kscreens-list li { padding: 8px 14px; border-radius: 8px; font-size: 1.1rem; font-weight: 600; }
+.kscreens-list li.sel { background: var(--accent, #2f6df6); color: #fff; }
 
 .badge {
   position: absolute;

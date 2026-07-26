@@ -111,6 +111,10 @@
 
   // ---- SSE: follow the server's current view ----
   let currentViewID = stage.dataset.viewId || null;
+  // A transient, off-playlist screen loaded via the picker (o overlay). It's kept
+  // (even across the 30s refresh) until the rotation advances to a new view —
+  // unless paused, when no advance fires, so it stays. null = follow the playlist.
+  let overrideViewID = null;
   let transitionOn = true; // slide animation on screen change (toggled via config)
   let lastDwellSecs = 30;  // most recent dwell (for the on_end no-video fallback)
   updateViewLabel(currentViewID);
@@ -216,8 +220,16 @@
     var changed = e.data !== currentViewID;
     currentViewID = e.data;
     stage.dataset.viewId = e.data; // keep the DOM in sync with the active view
-    updateViewLabel(currentViewID);
-    loadView(currentViewID, changed);
+    if (changed) {
+      // A real advance discards any transient (off-playlist) screen.
+      overrideViewID = null;
+      updateViewLabel(currentViewID);
+      loadView(currentViewID, true);
+    } else if (!overrideViewID) {
+      // Re-show of the same view (pause/resume) — keep a transient if one is up.
+      updateViewLabel(currentViewID);
+      loadView(currentViewID, false);
+    }
   });
   es.addEventListener("refresh", function () {
     beat();
@@ -227,7 +239,7 @@
     // Also skip while the user is manually focusing/scrolling a widget, so their
     // scroll position + focus survive the periodic refresh.
     if (focusIdx < 0 && !stage.querySelector(".w-yt")) {
-      loadView(currentViewID, false);
+      loadView(overrideViewID || currentViewID, false);
     }
     loadTicker();
   });
@@ -386,6 +398,48 @@
     fetch("/kiosk/control/goto?view=" + encodeURIComponent(id), { method: "POST" }).catch(function () {});
   };
 
+  // Load an off-playlist screen transiently: swap it in now, keep it until the
+  // rotation advances (or stays while paused). No server state changes.
+  function loadTransient(id) {
+    overrideViewID = id;
+    updateViewLabel(id);
+    loadView(id, true);
+  }
+
+  // ---- overlay state machine: i = info (shortcuts) / o = screen picker ----
+  // none --i--> info --o--> screens --o--> load selected; screens --i--> info;
+  // info --i--> none. Arrows move the selection in the picker.
+  var ovState = "none", scrSel = 0, scrIds = [];
+  function renderScreens() {
+    var scr = document.getElementById("kscreens");
+    var ul = scr && scr.querySelector("ul");
+    if (!ul) return;
+    scrIds = Object.keys(viewNames);
+    if (scrSel >= scrIds.length) scrSel = Math.max(0, scrIds.length - 1);
+    ul.innerHTML = "";
+    scrIds.forEach(function (id, i) {
+      var li = document.createElement("li");
+      li.textContent = viewNames[id] || id;
+      if (i === scrSel) li.className = "sel";
+      ul.appendChild(li);
+    });
+    var sel = ul.querySelector("li.sel");
+    if (sel) sel.scrollIntoView({ block: "nearest" });
+  }
+  function setOverlay(state) {
+    ovState = state;
+    var info = document.getElementById("kshortcuts");
+    var scr = document.getElementById("kscreens");
+    if (info) info.hidden = state !== "info";
+    if (scr) scr.hidden = state !== "screens";
+    if (state === "screens") renderScreens();
+  }
+  function loadSelectedScreen() {
+    var id = scrIds[scrSel];
+    if (id) loadTransient(id);
+    setOverlay("none");
+  }
+
   // ---- manual widget focus + scroll (Ctrl+arrows) ----
   // Ctrl+←/→ moves a focus outline between the widgets on the current screen;
   // Ctrl+↑/↓ scrolls the focused widget. Only the focused widget's auto-scroll
@@ -437,12 +491,27 @@
   // these clash with browser/OS shortcuts on a kiosk.
   var kbPaused = false;
   document.addEventListener("keydown", function (e) {
+    // Info / screen-picker overlay: i toggles info; o opens the picker (and, when
+    // already picking, loads the selected screen); arrows move the selection.
     if (e.key === "i" || e.key === "I") {
-      var sc = document.getElementById("kshortcuts");
-      if (sc) sc.hidden = !sc.hidden;
+      setOverlay(ovState === "none" ? "info" : (ovState === "screens" ? "info" : "none"));
       e.preventDefault();
       return;
     }
+    if (e.key === "o" || e.key === "O") {
+      if (ovState === "info") { scrSel = 0; setOverlay("screens"); e.preventDefault(); return; }
+      if (ovState === "screens") { loadSelectedScreen(); e.preventDefault(); return; }
+      return;
+    }
+    if (ovState === "screens") {
+      if (e.key === "ArrowDown") { scrSel = Math.min(scrIds.length - 1, scrSel + 1); renderScreens(); }
+      else if (e.key === "ArrowUp") { scrSel = Math.max(0, scrSel - 1); renderScreens(); }
+      else if (e.key === "Enter") { loadSelectedScreen(); }
+      else if (e.key === "Escape") { setOverlay("none"); }
+      e.preventDefault();
+      return;
+    }
+    if (ovState === "info" && e.key === "Escape") { setOverlay("none"); e.preventDefault(); return; }
     if (e.key === "Escape") { exitManual(); e.preventDefault(); return; }
     if (e.ctrlKey) {
       switch (e.key) {
