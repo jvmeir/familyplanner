@@ -49,6 +49,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdf.worker.min.mjs";
     if (!st || !st.doc || st.rendering) return;
     st.rendering = true;
     var scrollPage = st.slideshow && st.fit === "width";
+    if (st.slideshow) updatePageNo(el);
     var cw = el.clientWidth || 800, ch = el.clientHeight || 600;
     var pageNums = st.slideshow ? [st.page] : range(1, st.pages);
     var frag = document.createDocumentFragment();
@@ -85,6 +86,18 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdf.worker.min.mjs";
   function isFocused(el) {
     var w = el.closest ? el.closest(".widget") : null;
     return !!(w && w.classList.contains("w-focused"));
+  }
+
+  // Show "page / total" for a slideshow. The badge lives on the widget (a sibling
+  // of .w-pdf) so render()'s el.innerHTML reset doesn't wipe it.
+  function updatePageNo(el) {
+    var st = el.__fpPdf;
+    if (!st.pageno) {
+      st.pageno = document.createElement("div");
+      st.pageno.className = "w-pdf-pageno";
+      (el.parentNode || el).appendChild(st.pageno);
+    }
+    st.pageno.textContent = st.page + " / " + st.pages;
   }
 
   // Slideshow "width" auto-scroll: pace the current page top→bottom over the
@@ -134,15 +147,22 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdf.worker.min.mjs";
     if (!st || !st.slideshow || !st.doc) return;
     if (st.fit !== "width") { window.fpPdfStep(el, dir); return; }
     var over = el.scrollHeight - el.clientHeight;
-    if (dir > 0 && (over <= 4 || el.scrollTop >= over - 2)) { stepPage(el, 1); return; }
-    if (dir < 0 && (over <= 4 || el.scrollTop <= 2)) { stepPage(el, -1); return; }
+    if (dir > 0 && (over <= 4 || el.scrollTop >= over - 2)) {
+      if (st.page < st.pages) stepPage(el, 1); // last page: stay put at the bottom
+      return;
+    }
+    if (dir < 0 && (over <= 4 || el.scrollTop <= 2)) {
+      if (st.page > 1) stepPage(el, -1); // first page: stay put at the top
+      return;
+    }
     var step = Math.max(40, el.clientHeight * 0.5);
     el.scrollTop = Math.max(0, Math.min(over, el.scrollTop + dir * step));
   };
   function stepPage(el, dir) {
     var st = el.__fpPdf;
-    st.page = dir > 0 ? (st.page >= st.pages ? 1 : st.page + 1)
-                      : (st.page <= 1 ? st.pages : st.page - 1);
+    var n = st.page + dir;
+    if (n < 1 || n > st.pages) return; // no wrap when manually stepping
+    st.page = n;
     st.__toBottom = dir < 0; // going back a page → land at its bottom
     render(el);
     scheduleSlide(el);
