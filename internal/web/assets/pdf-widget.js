@@ -40,11 +40,15 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdf.worker.min.mjs";
     });
   }
 
-  // Render the current state: all pages (document) or one page (slideshow).
+  // Render the current state: all pages (document) or one page (slideshow). The
+  // scale follows `fit`: "width" fills the content width (page may overflow and
+  // scroll vertically), "page" fits the whole page (letterbox). A slideshow in
+  // "width" mode is the fill-and-scroll variant (auto-scroll + edge page-flip).
   function render(el) {
     var st = el.__fpPdf;
     if (!st || !st.doc || st.rendering) return;
     st.rendering = true;
+    var scrollPage = st.slideshow && st.fit === "width";
     var cw = el.clientWidth || 800, ch = el.clientHeight || 600;
     var pageNums = st.slideshow ? [st.page] : range(1, st.pages);
     var frag = document.createDocumentFragment();
@@ -53,7 +57,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdf.worker.min.mjs";
       chain = chain.then(function () {
         return st.doc.getPage(n).then(function (page) {
           var vp1 = page.getViewport({ scale: 1 });
-          var base = (st.slideshow || st.fit === "page")
+          var base = (st.fit === "page")
             ? Math.min(cw / vp1.width, ch / vp1.height)
             : cw / vp1.width;
           var vp = page.getViewport({ scale: base * st.zoom });
@@ -69,7 +73,39 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdf.worker.min.mjs";
       el.innerHTML = "";
       el.appendChild(frag);
       st.rendering = false;
+      el.classList.toggle("w-pdf-scrollpage", scrollPage);
+      if (scrollPage) {
+        el.scrollTop = st.__toBottom ? (el.scrollHeight - el.clientHeight) : 0;
+        st.__toBottom = false;
+        autoScroll(el);
+      }
     }).catch(function () { st.rendering = false; });
+  }
+
+  function isFocused(el) {
+    var w = el.closest ? el.closest(".widget") : null;
+    return !!(w && w.classList.contains("w-focused"));
+  }
+
+  // Slideshow "width" auto-scroll: pace the current page top→bottom over the
+  // interval so the whole page is seen before the timer advances. Held while the
+  // widget is focused (the user drives it via fpPdfScroll) or the page fits.
+  function autoScroll(el) {
+    var st = el.__fpPdf;
+    if (!st || !st.slideshow || st.fit !== "width") return;
+    cancelAnimationFrame(st.scrollRAF);
+    var startT = null, dur = Math.max(2, st.interval) * 1000;
+    function frame(t) {
+      if (!document.body.contains(el)) { st.scrollRAF = 0; return; }
+      if (isFocused(el)) { startT = null; st.scrollRAF = requestAnimationFrame(frame); return; }
+      var over = el.scrollHeight - el.clientHeight;
+      if (over > 4) {
+        if (startT === null) startT = t;
+        el.scrollTop = over * Math.min(1, (t - startT) / dur);
+      }
+      st.scrollRAF = requestAnimationFrame(frame);
+    }
+    st.scrollRAF = requestAnimationFrame(frame);
   }
 
   function scheduleSlide(el) {
@@ -78,6 +114,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdf.worker.min.mjs";
     clearTimeout(st.timer);
     st.timer = setTimeout(function () {
       if (!document.body.contains(el)) return;
+      if (isFocused(el)) { scheduleSlide(el); return; } // paused: user is navigating manually
       if (st.page >= st.pages) {
         if (st.onEnd) { st.onEnd(); return; } // play to end → advance the rotation
         st.page = 1; // otherwise loop
@@ -87,6 +124,28 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdf.worker.min.mjs";
       render(el);
       scheduleSlide(el);
     }, Math.max(2, st.interval) * 1000);
+  }
+
+  // Focused-widget control (Ctrl+↑/↓). In "width" slideshow, scroll the page and
+  // flip to the prev/next page only when scrolling past the top/bottom edge; in
+  // "page" (letterbox) mode there's nothing to scroll, so step pages directly.
+  window.fpPdfScroll = function (el, dir) {
+    var st = el.__fpPdf;
+    if (!st || !st.slideshow || !st.doc) return;
+    if (st.fit !== "width") { window.fpPdfStep(el, dir); return; }
+    var over = el.scrollHeight - el.clientHeight;
+    if (dir > 0 && (over <= 4 || el.scrollTop >= over - 2)) { stepPage(el, 1); return; }
+    if (dir < 0 && (over <= 4 || el.scrollTop <= 2)) { stepPage(el, -1); return; }
+    var step = Math.max(40, el.clientHeight * 0.5);
+    el.scrollTop = Math.max(0, Math.min(over, el.scrollTop + dir * step));
+  };
+  function stepPage(el, dir) {
+    var st = el.__fpPdf;
+    st.page = dir > 0 ? (st.page >= st.pages ? 1 : st.page + 1)
+                      : (st.page <= 1 ? st.pages : st.page - 1);
+    st.__toBottom = dir < 0; // going back a page → land at its bottom
+    render(el);
+    scheduleSlide(el);
   }
 
   // Zoom: delta +1 in, -1 out, 0 = reset to fit. Called from the control buttons

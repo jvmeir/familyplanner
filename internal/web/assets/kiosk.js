@@ -490,7 +490,11 @@
     var slide = w.querySelector(".w-slideshow");
     if (slide && slide.__fpStep) { slide.__fpStep(dir); if (slide.__fpReset) slide.__fpReset(); return; }
     var pdf = w.querySelector(".w-pdf");
-    if (pdf && (parseInt(pdf.dataset.pdfInterval, 10) || 0) > 0 && window.fpPdfStep) { window.fpPdfStep(pdf, dir); return; }
+    if (pdf && (parseInt(pdf.dataset.pdfInterval, 10) || 0) > 0) {
+      // "width" slideshow scrolls the page and flips at the edges; "page" (letterbox) steps directly.
+      if (pdf.dataset.pdfFit === "width" && window.fpPdfScroll) { window.fpPdfScroll(pdf, dir); return; }
+      if (window.fpPdfStep) { window.fpPdfStep(pdf, dir); return; }
+    }
     // Otherwise: scroll the focused widget's scroller.
     if (!frozenEl) freezeFocused(els);
     if (!frozenEl) return; // focused widget isn't scrollable
