@@ -238,17 +238,21 @@
     } else if (!overrideViewID) {
       // Re-show of the same view (pause/resume) — keep a transient if one is up.
       updateViewLabel(currentViewID);
-      loadView(currentViewID, false);
+      // But don't reload while a slideshow-PDF/video is mid-play: that would reset
+      // it to page 1. It keeps running; only the label needs updating.
+      if (!hasSlideshowPdf() && !stage.querySelector(".w-yt")) {
+        loadView(currentViewID, false);
+      }
     }
   });
   es.addEventListener("refresh", function () {
     beat();
-    // Don't reload the view while a video is playing — reloading destroys the
-    // player (restarting it) and, on a random-single screen, re-randomizes the
-    // widget. The video plays to its end undisturbed; only the ticker refreshes.
-    // Also skip while the user is manually focusing/scrolling a widget, so their
-    // scroll position + focus survive the periodic refresh.
-    if (focusIdx < 0 && !stage.querySelector(".w-yt")) {
+    // Don't reload the view while a video or slideshow-PDF is playing — reloading
+    // destroys the player / resets the slideshow to page 1 (and, on a random-single
+    // screen, re-randomizes the widget). It plays to its end undisturbed; only the
+    // ticker refreshes. Also skip while the user is manually focusing/scrolling a
+    // widget, so their scroll position + focus survive the periodic refresh.
+    if (focusIdx < 0 && !stage.querySelector(".w-yt") && !hasSlideshowPdf()) {
       loadView(overrideViewID || currentViewID, false);
     }
     loadTicker();
