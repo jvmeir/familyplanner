@@ -127,6 +127,7 @@
           const v = stage.querySelector(".view");
           if (v) v.classList.add("kslide");
         }
+        manualMode = false; focusIdx = -1; // a fresh view clears manual focus
         tickCountdowns(); // set dhms text now so it doesn't flash the day-only fallback
         setupCellScroll(stage, lastDwellSecs);
         startSlideshows(stage);
@@ -153,6 +154,10 @@
     }
   }
 
+  // Manual widget focus/scroll (Ctrl+arrows). While active, stage auto-scroll is
+  // frozen so the user drives it. focusIdx = -1 means nothing focused.
+  var manualMode = false, focusIdx = -1;
+
   // Auto-scroll any overflowing cell (calendar/agenda/list) so all content is
   // shown without shrinking the text. Time-based: one full top→bottom→top trip
   // spans the view's dwell (with brief holds at each end), so everything is
@@ -160,6 +165,7 @@
   // a steady 30s loop. Per-element rAF, cancelled + restarted on each call.
   function setupCellScroll(root, dwellSecs) {
     if (!root) return;
+    if (manualMode && root === stage) return; // manual focus/scroll owns the stage now
     var cycleMs = (dwellSecs > 0 ? dwellSecs : 30) * 1000;
     root.querySelectorAll(".cell-scroll").forEach(function (el) {
       if (el.__fpScrollRAF) { cancelAnimationFrame(el.__fpScrollRAF); el.__fpScrollRAF = 0; }
@@ -168,6 +174,7 @@
       var start = null;
       function frame(t) {
         if (!document.body.contains(el)) { el.__fpScrollRAF = 0; return; } // swapped out
+        if (manualMode && stage.contains(el)) { el.__fpScrollRAF = requestAnimationFrame(frame); return; } // frozen
         if (start === null) start = t;
         var over = el.scrollHeight - el.clientHeight;
         if (over >= 4) {
@@ -205,7 +212,9 @@
     // Don't reload the view while a video is playing — reloading destroys the
     // player (restarting it) and, on a random-single screen, re-randomizes the
     // widget. The video plays to its end undisturbed; only the ticker refreshes.
-    if (!stage.querySelector(".w-yt")) {
+    // Also skip while the user is manually focusing/scrolling a widget, so their
+    // scroll position + focus survive the periodic refresh.
+    if (!manualMode && !stage.querySelector(".w-yt")) {
       loadView(currentViewID, false);
     }
     loadTicker();
@@ -363,16 +372,62 @@
     fetch("/kiosk/control/goto?view=" + encodeURIComponent(id), { method: "POST" }).catch(function () {});
   };
 
+  // ---- manual widget focus + scroll (Ctrl+arrows) ----
+  // Ctrl+←/→ moves a focus outline between the widgets on the current screen;
+  // Ctrl+↑/↓ scrolls the focused widget. Entering this freezes the auto-scroll
+  // (manualMode) so the user is in control. Typical flow: pause rotation, Ctrl+→
+  // to pick a widget, Ctrl+↓ to read down it. Esc leaves manual mode.
+  function stageWidgets() { return Array.prototype.slice.call(stage.querySelectorAll(".widget")); }
+  function paintFocus(els) {
+    els.forEach(function (w, i) { w.classList.toggle("w-focused", i === focusIdx); });
+  }
+  function focusWidget(delta) {
+    var els = stageWidgets();
+    if (!els.length) return;
+    if (focusIdx < 0) focusIdx = delta > 0 ? 0 : els.length - 1;
+    else focusIdx = (focusIdx + delta) % els.length;
+    if (focusIdx < 0) focusIdx += els.length;
+    manualMode = true; // freeze auto-scroll
+    paintFocus(els);
+    els[focusIdx].scrollIntoView({ block: "nearest" });
+  }
+  function scrollFocused(dir) {
+    var els = stageWidgets();
+    if (focusIdx < 0 || focusIdx >= els.length) { focusWidget(1); return; } // focus first, then scroll
+    manualMode = true;
+    var sc = els[focusIdx].querySelector(".cell-scroll") || els[focusIdx];
+    var over = sc.scrollHeight - sc.clientHeight;
+    if (over <= 0) return;
+    var step = Math.max(40, sc.clientHeight * 0.4);
+    sc.scrollTop = Math.max(0, Math.min(over, sc.scrollTop + dir * step));
+  }
+  function exitManual() {
+    manualMode = false; focusIdx = -1;
+    stage.querySelectorAll(".w-focused").forEach(function (w) { w.classList.remove("w-focused"); });
+    setupCellScroll(stage, lastDwellSecs); // resume auto-scroll
+  }
+
   // Keyboard remote (e.g. a presentation clicker or a keyboard on the kiosk):
   // ←/→ previous/next screen, ↑ pause/resume, ↓ mute/unmute the voice clock.
-  // Plain arrows drive the playlist / voice clock; Shift+arrows drive the corner
-  // PiP video. Shift+arrow is only text-selection in a browser (nothing on a
-  // kiosk) and isn't an OS global shortcut, so there's no clash.
+  // Shift+arrows drive the corner PiP; Ctrl+arrows focus/scroll a widget. None of
+  // these clash with browser/OS shortcuts on a kiosk.
   var kbPaused = false;
   document.addEventListener("keydown", function (e) {
     if (e.key === "i" || e.key === "I") {
       var sc = document.getElementById("kshortcuts");
       if (sc) sc.hidden = !sc.hidden;
+      e.preventDefault();
+      return;
+    }
+    if (e.key === "Escape") { exitManual(); e.preventDefault(); return; }
+    if (e.ctrlKey) {
+      switch (e.key) {
+        case "ArrowRight": focusWidget(1); break;   // focus next widget
+        case "ArrowLeft": focusWidget(-1); break;    // focus previous widget
+        case "ArrowDown": scrollFocused(1); break;   // scroll focused widget down
+        case "ArrowUp": scrollFocused(-1); break;     // scroll focused widget up
+        default: return;
+      }
       e.preventDefault();
       return;
     }

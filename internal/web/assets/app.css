@@ -197,6 +197,8 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 }
 .kfooter-controls select option { color: #111; }
 .cell { min-height: 0; min-width: 0; }
+/* Manual focus outline (Ctrl+arrows select a widget to scroll). */
+.widget.w-focused { outline: 4px solid var(--accent, #2f6df6); outline-offset: -4px; }
 .widget {
   position: relative;
   height: 100%;
