@@ -139,23 +139,35 @@ func (s *Server) pdfCacheStale(path string) bool {
 	return s.now().Sub(st.ModTime()) > time.Hour
 }
 
-// widgetOneDriveToken returns a fresh access token from the widget's linked
-// OneDrive data source (the account used to browse + fetch the file).
+// widgetOneDriveToken returns a fresh OneDrive access token for browsing/fetching
+// a file. It prefers a source explicitly linked to this widget, but falls back to
+// any connected OneDrive data source — the household connects OneDrive once (for
+// photos), so a pdf widget can pick a file without a redundant per-widget link.
 func (s *Server) widgetOneDriveToken(ctx context.Context, widgetID int64) (string, error) {
-	rows, err := s.store.ListWidgetSources(ctx, widgetID)
+	if rows, err := s.store.ListWidgetSources(ctx, widgetID); err == nil {
+		for _, r := range rows {
+			if r.SourceType == "onedrive" {
+				if ds, derr := s.store.GetDataSource(ctx, r.DataSourceID); derr == nil {
+					if tok, terr := s.freshAccessToken(ctx, ds); terr == nil {
+						return tok, nil
+					}
+				}
+			}
+		}
+	}
+	// Fall back to any connected OneDrive account.
+	all, err := s.store.ListDataSources(ctx)
 	if err != nil {
 		return "", err
 	}
-	for _, r := range rows {
-		if r.SourceType == "onedrive" {
-			ds, derr := s.store.GetDataSource(ctx, r.DataSourceID)
-			if derr != nil {
-				continue
+	for _, ds := range all {
+		if ds.Type == "onedrive" {
+			if tok, terr := s.freshAccessToken(ctx, ds); terr == nil {
+				return tok, nil
 			}
-			return s.freshAccessToken(ctx, ds)
 		}
 	}
-	return "", errors.New("no OneDrive source linked")
+	return "", errors.New("no OneDrive account connected")
 }
 
 // fetchOneDrivePdf downloads the chosen OneDrive item into the widget's cache,
