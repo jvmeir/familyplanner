@@ -253,4 +253,18 @@ func RegisterDefaults(r *Registry) {
 			}},
 		}},
 	})
+	r.Register(Type{
+		ID:          "pdf",
+		NameKey:     "widget.pdf.name",
+		NewProvider: newPdf,
+		Decode:      decodePdf,
+		// The PDF file is uploaded on the widget's edit page (not a schema field).
+		Schema: Schema{Fields: []Field{
+			{Name: "interval", LabelKey: "widget.pdf.field.interval", Type: FieldNumber},
+			{Name: "fit", LabelKey: "widget.pdf.field.fit", Type: FieldSelect, Options: []Option{
+				{Value: "width", LabelKey: "widget.pdf.fit.width"},
+				{Value: "page", LabelKey: "widget.pdf.fit.page"},
+			}},
+		}},
+	})
 }

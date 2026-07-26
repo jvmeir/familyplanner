@@ -132,6 +132,11 @@
         setupCellScroll(stage, lastDwellSecs);
         startSlideshows(stage);
         if (window.fpSetupVideos) window.fpSetupVideos();
+        if (window.fpSetupPdfs) {
+          const vv = stage.querySelector(".view");
+          const oe = !!(vv && vv.dataset.advanceOnEnd === "1");
+          window.fpSetupPdfs(stage, { onEnd: oe ? function () { if (window.fpCtl) fpCtl("next"); } : null });
+        }
         scheduleEndFallback();
       }
     } catch (e) {
@@ -144,11 +149,17 @@
   // widget isn't a video (e.g. a random-single screen showed a calendar), fall
   // back to advancing after the normal dwell so rotation never gets stuck.
   var endFallback = null;
+  function hasSlideshowPdf() {
+    var el = stage.querySelector(".w-pdf");
+    return !!el && (parseInt(el.dataset.pdfInterval, 10) || 0) > 0;
+  }
   function scheduleEndFallback() {
     if (endFallback) { clearTimeout(endFallback); endFallback = null; }
     const v = stage.querySelector(".view");
     const onEnd = !!(v && v.dataset.advanceOnEnd === "1");
-    if (onEnd && !stage.querySelector(".w-yt")) {
+    // A video or a slideshow-PDF signals its own end; only fall back for other
+    // content on an advance-on-end screen so rotation never gets stuck.
+    if (onEnd && !stage.querySelector(".w-yt") && !hasSlideshowPdf()) {
       const secs = lastDwellSecs > 0 ? lastDwellSecs : 30;
       endFallback = setTimeout(function () { if (window.fpCtl) fpCtl("next"); }, secs * 1000);
     }
@@ -324,8 +335,10 @@
         startSlideshows(kpipBody);
         setupCellScroll(kpipBody, item.dwell);
         var hasVideo = !!kpipBody.querySelector(".w-yt");
-        var onEnd = item.onEnd && hasVideo ? function () { pipNext(); } : null;
-        pipPlayers = window.fpVideosIn ? window.fpVideosIn(kpipBody, { mute: true, onAllEnded: onEnd }) : [];
+        var pdfEnd = item.onEnd && kpipBody.querySelector(".w-pdf") && (parseInt(kpipBody.querySelector(".w-pdf").dataset.pdfInterval, 10) || 0) > 0;
+        var onEnd = item.onEnd && (hasVideo || pdfEnd) ? function () { pipNext(); } : null;
+        pipPlayers = window.fpVideosIn ? window.fpVideosIn(kpipBody, { mute: true, onAllEnded: hasVideo ? onEnd : null }) : [];
+        if (window.fpSetupPdfs) window.fpSetupPdfs(kpipBody, { onEnd: pdfEnd ? onEnd : null });
         if (onEnd) { pipProgress(0); } else { pipProgress(Math.max(3, item.dwell)); pipTimer = setTimeout(pipNext, Math.max(3, item.dwell) * 1000); }
       })
       .catch(function () { pipTimer = setTimeout(pipNext, 10000); }); // retry-ish on error
@@ -411,6 +424,12 @@
     focusIdx = -1;
     stage.querySelectorAll(".w-focused").forEach(function (w) { w.classList.remove("w-focused"); });
   }
+  // Zoom the focused widget's PDF (or the only PDF on screen if none focused).
+  function zoomFocusedPdf(delta) {
+    var els = stageWidgets();
+    var el = (focusIdx >= 0 && focusIdx < els.length) ? els[focusIdx].querySelector(".w-pdf") : stage.querySelector(".w-pdf");
+    if (el && window.fpPdfZoomEl) window.fpPdfZoomEl(el, delta);
+  }
 
   // Keyboard remote (e.g. a presentation clicker or a keyboard on the kiosk):
   // ←/→ previous/next screen, ↑ pause/resume, ↓ mute/unmute the voice clock.
@@ -431,6 +450,8 @@
         case "ArrowLeft": focusWidget(-1); break;    // focus previous widget
         case "ArrowDown": scrollFocused(1); break;   // scroll focused widget down
         case "ArrowUp": scrollFocused(-1); break;     // scroll focused widget up
+        case "+": case "=": zoomFocusedPdf(1); break; // zoom focused PDF in
+        case "-": case "_": zoomFocusedPdf(-1); break; // zoom focused PDF out
         default: return;
       }
       e.preventDefault();

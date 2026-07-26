@@ -11,6 +11,8 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -109,6 +111,8 @@ func (s *Server) routes() http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(web.Assets()))))
+	// Uploaded PDFs (served to the kiosk + admin preview; LAN/Tailscale-only).
+	r.Get("/media/pdf/{id}", s.handlePdfMedia)
 
 	// Session-backed routes (admin + auth + pairing).
 	r.Group(func(r chi.Router) {
@@ -148,6 +152,7 @@ func (s *Server) routes() http.Handler {
 			r.Get("/admin/widgets/{id}/edit", s.handleWidgetEdit)
 			r.Get("/admin/widgets/{id}/preview", s.handleWidgetPreview)
 			r.Post("/admin/widgets/{id}", s.handleWidgetUpdate)
+			r.Post("/admin/widgets/{id}/pdf", s.handleWidgetPdfUpload)
 			r.Delete("/admin/widgets/{id}", s.handleWidgetDelete)
 
 			r.Get("/admin/playlists", s.handlePlaylists)
@@ -691,10 +696,18 @@ func (s *Server) renderViewComponent(ctx context.Context, view dbgen.View) templ
 }
 
 // viewHasEndWidget reports whether a view contains a widget that emits an end
-// event (currently: a video), so its rotation timer can be suspended in on_end.
+// event — a video, or a pdf in slideshow mode (interval > 0) that plays to its
+// last page — so its rotation timer can be suspended in on_end.
 func (s *Server) viewHasEndWidget(ctx context.Context, view dbgen.View) bool {
 	for _, id := range s.viewWidgetIDs(ctx, view) {
-		if w, err := s.store.GetWidget(ctx, id); err == nil && w.Type == "video" {
+		w, err := s.store.GetWidget(ctx, id)
+		if err != nil {
+			continue
+		}
+		if w.Type == "video" {
+			return true
+		}
+		if w.Type == "pdf" && widget.PdfSlideshowInterval(w.ConfigJson) > 0 {
 			return true
 		}
 	}
@@ -833,6 +846,13 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 		}
 	}
 	vm := web.FormatCell(ctx, wgt.Type, data, stale, style)
+	// A pdf widget serves its uploaded file from /media/pdf/{id} (the widget id is
+	// only known here). Empty PdfURL → the cell shows the "upload a PDF" placeholder.
+	if wgt.Type == "pdf" {
+		if _, err := os.Stat(s.pdfPath(widgetID)); err == nil {
+			vm.PdfURL = "/media/pdf/" + strconv.FormatInt(widgetID, 10)
+		}
+	}
 	// Standardized widget title: every widget shows its own name as the header,
 	// uniformly, unless the generic per-widget "hide title" flag (config_json
 	// hide_title) is set. Full-bleed media (web page / photo) has no title bar.
@@ -845,7 +865,7 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 	switch {
 	case meta.HideTitle == "1":
 		vm.Title = ""
-	case vm.IframeURL != "" || vm.ImageURL != "" || len(vm.VideoIDs) > 0:
+	case vm.IframeURL != "" || vm.ImageURL != "" || len(vm.VideoIDs) > 0 || vm.PdfURL != "":
 		// full-bleed media: no title bar
 		vm.Title = ""
 	default:
@@ -854,6 +874,11 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 	vm.TitleSize = pick(meta.TitleSize, "small", "medium", "large")  // default small
 	vm.TitleAlign = pick(meta.TitleAlign, "left", "center", "right") // default left
 	return vm
+}
+
+// pdfPath is the on-disk location of a pdf widget's uploaded file.
+func (s *Server) pdfPath(widgetID int64) string {
+	return filepath.Join(s.cfg.DataDir, "pdf", strconv.FormatInt(widgetID, 10)+".pdf")
 }
 
 // pick returns v if it's one of the allowed values, else the first (default).

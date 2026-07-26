@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 
@@ -110,6 +111,8 @@ func (s *Server) handleWidgetEdit(w http.ResponseWriter, r *http.Request) {
 		len(typ.AcceptsSources) > 0,
 		s.widgetSourceVMs(r.Context(), wgt.ID),
 		s.availableSourcesFor(r.Context(), typ),
+		wgt.Type == "pdf",
+		cfg["file"],
 	))
 }
 
@@ -201,6 +204,7 @@ func (s *Server) handleWidgetDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "delete failed", http.StatusInternalServerError)
 		return
 	}
+	_ = os.Remove(s.pdfPath(id)) // clean up any uploaded PDF (no-op if none)
 	s.render(w, r, web.WidgetList(s.widgetVMs(r.Context())))
 }
 

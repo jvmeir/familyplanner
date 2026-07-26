@@ -34,9 +34,23 @@ templ WidgetsPage(types []WidgetTypeVM, initialFields []FieldVM, widgets []Widge
 }
 
 // WidgetEditPage edits an existing widget (type fixed; config fields prefilled).
-templ WidgetEditPage(id int64, name string, typeName string, fields []FieldVM, hideTitle bool, titleSize string, titleAlign string, acceptsSources bool, linked []WidgetSourceVM, available []DataSourceVM) {
+templ WidgetEditPage(id int64, name string, typeName string, fields []FieldVM, hideTitle bool, titleSize string, titleAlign string, acceptsSources bool, linked []WidgetSourceVM, available []DataSourceVM, isPdf bool, pdfFile string) {
 	@AdminPage("widgets") {
 		<h1>{ name }</h1>
+		if isPdf {
+			<form class="card form" method="post" action={ templ.SafeURL("/admin/widgets/" + fmt.Sprint(id) + "/pdf") } enctype="multipart/form-data">
+				@csrfInput()
+				<h2>{ i18n.T(ctx, "widget.pdf.upload") }</h2>
+				if pdfFile != "" {
+					<p class="muted">{ i18n.T(ctx, "widget.pdf.current") }: { pdfFile }</p>
+				}
+				<label>
+					{ i18n.T(ctx, "widget.pdf.file") }
+					<input type="file" name="pdf" accept="application/pdf" required/>
+				</label>
+				<button type="submit">{ i18n.T(ctx, "widget.pdf.upload") }</button>
+			</form>
+		}
 		<form class="card form" method="post" action={ templ.SafeURL("/admin/widgets/" + fmt.Sprint(id)) }>
 			@csrfInput()
 			<label>

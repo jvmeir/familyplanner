@@ -104,6 +104,9 @@ type CellVM struct {
 	VideoIDs      []string        // YouTube video ids (embedded via the IFrame API, cycled)
 	VideoMute     bool            // play muted
 	VideoLoop     bool            // loop playback
+	PdfURL        string          // uploaded PDF (empty = none uploaded yet)
+	PdfFit        string          // width | page
+	PdfInterval   int             // >0 = slideshow (seconds/page); 0 = scroll document
 	CountdownTo   int64           // >0: render a live dhms countdown to this Unix time
 	Stale         bool
 	Style         templ.SafeCSS
@@ -518,6 +521,13 @@ func init() {
 			return CellVM{Sub: i18n.T(ctx, "widget.todolist.empty")}
 		}
 		return CellVM{Lines: d.Items}
+	})
+
+	RegisterFormatter("pdf", func(ctx context.Context, data any) CellVM {
+		// The viewer URL is injected by cellForWidget (needs the widget id). Here
+		// we just carry the fit/interval + a placeholder when no file is uploaded.
+		d, _ := data.(widget.PdfData)
+		return CellVM{Sub: i18n.T(ctx, "widget.pdf.empty"), PdfFit: d.Fit, PdfInterval: d.IntervalSecs}
 	})
 
 	RegisterFormatter("photos", func(ctx context.Context, data any) CellVM {

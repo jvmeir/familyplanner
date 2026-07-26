@@ -29,6 +29,20 @@ templ widgetCell(c CellVM) {
 				<div class="w-photo-cap">{ c.PhotoCaptions[0] }</div>
 			}
 		</div>
+	} else if c.PdfURL != "" {
+		<div class="widget pdf">
+			<div
+				class={ "w-pdf", templ.KV("cell-scroll", c.PdfInterval == 0) }
+				data-pdf-url={ c.PdfURL }
+				data-pdf-fit={ c.PdfFit }
+				data-pdf-interval={ fmt.Sprint(c.PdfInterval) }
+			></div>
+			<div class="w-pdf-controls">
+				<button type="button" title="−" onclick="fpPdfZoom(this,-1)">−</button>
+				<button type="button" title="⤢" onclick="fpPdfZoom(this,0)">⤢</button>
+				<button type="button" title="+" onclick="fpPdfZoom(this,1)">+</button>
+			</div>
+		</div>
 	} else if len(c.VideoIDs) > 0 {
 		<div class="widget video">
 			<div

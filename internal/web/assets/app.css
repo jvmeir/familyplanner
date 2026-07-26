@@ -369,6 +369,20 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 
 /* photo — show the WHOLE image, centered, scaled to fit the cell keeping aspect
    ratio (contain: never crops faces; letterboxes on black where aspects differ). */
+/* PDF widget: full-bleed viewer (canvas pages rendered by pdf-widget.js) with a
+   small floating control bar. In document mode .w-pdf is .cell-scroll (scrolls +
+   Ctrl-scroll + auto-scroll); in slideshow mode it fits one page per cell. */
+.widget.pdf { padding: 0; background: #2b2b2b; position: relative; }
+.w-pdf { width: 100%; height: 100%; overflow: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0; }
+.w-pdf canvas.w-pdf-page { max-width: 100%; box-shadow: 0 2px 10px rgba(0, 0, 0, .5); background: #fff; }
+.w-pdf-slide { justify-content: center; }
+.w-pdf-empty { color: #ddd; margin: auto; font-weight: 600; }
+.w-pdf-controls { position: absolute; right: 0.6em; bottom: 0.6em; z-index: 2; display: flex; gap: 4px; }
+.w-pdf-controls button {
+  width: 2.2em; height: 2.2em; padding: 0; border-radius: 8px; font-size: 1.1rem; line-height: 1;
+  background: rgba(0, 0, 0, .55); color: #fff; border: 1px solid rgba(255, 255, 255, .25);
+}
+
 .kind-photos .widget, .widget.photo { padding: 0; background: #000; }
 /* Optional photo caption (date · place) — a subtle gradient strip at the bottom. */
 .w-photo-cap {
