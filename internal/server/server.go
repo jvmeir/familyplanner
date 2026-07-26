@@ -1051,7 +1051,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, c templ.Componen
 // cacheSchemaVersion identifies the shape of the JSON stored in widget_cache.
 // Bump it whenever a widget's cached Data struct changes incompatibly so stale
 // rows from an older build are dropped (and re-fetched) instead of mis-decoded.
-const cacheSchemaVersion = "7" // v7: PhotosData gains per-photo captions
+const cacheSchemaVersion = "8" // v8: clockface facts via nl action API (clear empty-fact cache)
 
 // invalidateStaleCache clears widget_cache when the running build's cache schema
 // differs from what produced the stored rows.

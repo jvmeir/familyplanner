@@ -6,12 +6,31 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"strconv"
+	"net/url"
+	"regexp"
+	"strings"
 	"time"
 )
 
-// wikiOnThisDayBase is overridable in tests. Wikipedia's free on-this-day feed.
-var wikiOnThisDayBase = "https://nl.wikipedia.org/api/rest_v1/feed/onthisday/events"
+// nlWikiAPIBase is overridable in tests. The Dutch Wikipedia REST "on this day"
+// feed does not exist (nl is unsupported), so we parse the date page's
+// "Gebeurtenissen" section from the MediaWiki action API instead.
+var nlWikiAPIBase = "https://nl.wikipedia.org/w/api.php"
+
+// nlMonths maps 1..12 to the Dutch month name used in the date page title.
+var nlMonths = []string{"", "januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"}
+
+var (
+	reWikiComment  = regexp.MustCompile(`(?s)<!--.*?-->`)
+	reWikiRef      = regexp.MustCompile(`(?s)<ref[^>]*/>|<ref[^>]*>.*?</ref>`)
+	reWikiTemplate = regexp.MustCompile(`\{\{[^{}]*\}\}`)
+	reWikiTag      = regexp.MustCompile(`<[^>]+>`)
+	reWikiLinkAlt  = regexp.MustCompile(`\[\[[^\]|]*\|([^\]]*)\]\]`)
+	reWikiLink     = regexp.MustCompile(`\[\[([^\]]*)\]\]`)
+	reWikiBold     = regexp.MustCompile(`'{2,}`)
+	reWikiWS       = regexp.MustCompile(`\s+`)
+	reEventLine    = regexp.MustCompile(`^(\d{1,4})\s*[-–—]\s*(.+)$`)
+)
 
 // ClockFaceConfig is the per-instance configuration for the analog clock face. Sun
 // times come from Open-Meteo for the given place (reuses the weather geocoder).
@@ -142,10 +161,20 @@ func moonPhase(t time.Time) (icon, name string) {
 	return icons[idx], names[idx]
 }
 
-// onThisDay fetches Wikipedia's Dutch on-this-day events for t (best-effort).
+// onThisDay returns Dutch "op deze dag" events for t (best-effort). The Dutch
+// Wikipedia has no on-this-day REST feed, so we fetch the date page (e.g.
+// "26 juli") via the MediaWiki action API and parse its "Gebeurtenissen" section.
 func onThisDay(ctx context.Context, t time.Time) []string {
-	u := fmt.Sprintf("%s/%02d/%02d", wikiOnThisDayBase, int(t.Month()), t.Day())
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	page := fmt.Sprintf("%d %s", t.Day(), nlMonths[int(t.Month())])
+	q := url.Values{
+		"action":        {"parse"},
+		"page":          {page},
+		"prop":          {"wikitext"},
+		"format":        {"json"},
+		"formatversion": {"2"},
+		"redirects":     {"1"},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, nlWikiAPIBase+"?"+q.Encode(), nil)
 	if err != nil {
 		return nil
 	}
@@ -160,23 +189,55 @@ func onThisDay(ctx context.Context, t time.Time) []string {
 		return nil
 	}
 	var body struct {
-		Events []struct {
-			Year int    `json:"year"`
-			Text string `json:"text"`
-		} `json:"events"`
+		Parse struct {
+			Wikitext string `json:"wikitext"`
+		} `json:"parse"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil
 	}
-	out := make([]string, 0, len(body.Events))
-	for _, e := range body.Events {
-		if e.Text == "" {
+	return parseEvents(body.Parse.Wikitext)
+}
+
+// parseEvents extracts "YEAR – text" strings from the "Gebeurtenissen" section of
+// a Dutch Wikipedia date page's wikitext.
+func parseEvents(wikitext string) []string {
+	start := strings.Index(wikitext, "== Gebeurtenissen ==")
+	if start < 0 {
+		return nil
+	}
+	section := wikitext[start:]
+	// Cut at the next level-2 heading ("\n== "); "=== " subheadings don't match.
+	if end := strings.Index(section[len("== Gebeurtenissen =="):], "\n== "); end >= 0 {
+		section = section[:len("== Gebeurtenissen ==")+end]
+	}
+	out := make([]string, 0, 25)
+	for _, line := range strings.Split(section, "\n") {
+		line = strings.TrimSpace(strings.TrimLeft(line, "*"))
+		if line == "" || strings.HasPrefix(line, "{{") {
 			continue
 		}
-		out = append(out, strconv.Itoa(e.Year)+" – "+e.Text)
-	}
-	if len(out) > 25 {
-		out = out[:25]
+		clean := cleanWiki(line)
+		m := reEventLine.FindStringSubmatch(clean)
+		if m == nil {
+			continue
+		}
+		out = append(out, m[1]+" – "+strings.TrimSpace(m[2]))
+		if len(out) >= 25 {
+			break
+		}
 	}
 	return out
+}
+
+// cleanWiki strips MediaWiki markup (templates, refs, links, bold) to plain text.
+func cleanWiki(s string) string {
+	s = reWikiComment.ReplaceAllString(s, "")
+	s = reWikiRef.ReplaceAllString(s, "")
+	s = reWikiTemplate.ReplaceAllString(s, "")
+	s = reWikiLinkAlt.ReplaceAllString(s, "$1") // [[a|b]] -> b
+	s = reWikiLink.ReplaceAllString(s, "$1")    // [[a]]   -> a
+	s = reWikiTag.ReplaceAllString(s, "")
+	s = reWikiBold.ReplaceAllString(s, "")
+	return strings.TrimSpace(reWikiWS.ReplaceAllString(s, " "))
 }
