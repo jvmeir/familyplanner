@@ -159,6 +159,10 @@ func RegisterDefaults(r *Registry) {
 				{Value: "yes", LabelKey: "widget.clockface.facts.yes"},
 				{Value: "no", LabelKey: "widget.clockface.facts.no"},
 			}},
+			{Name: "announce_nav", LabelKey: "widget.clockface.field.announce_nav", Type: FieldSelect, Options: []Option{
+				{Value: "no", LabelKey: "widget.clockface.announce.no"},
+				{Value: "yes", LabelKey: "widget.clockface.announce.yes"},
+			}},
 		}},
 	})
 	r.Register(Type{

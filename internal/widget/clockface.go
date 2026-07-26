@@ -38,7 +38,8 @@ type ClockFaceConfig struct {
 	Location string `json:"location"` // place/address; geocoded (wins over lat/lon)
 	Lat      string `json:"lat"`
 	Lon      string `json:"lon"`
-	Facts    string `json:"facts"` // "yes" = show a rotating "op deze dag" fact
+	Facts    string `json:"facts"`        // "yes" = show a rotating "op deze dag" fact
+	Announce string `json:"announce_nav"` // "yes" = jump to this screen on a voice-clock announcement
 }
 
 // ClockFaceData is the normalized render data: sun marks, moon phase, and (optional)

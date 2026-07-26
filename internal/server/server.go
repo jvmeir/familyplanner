@@ -637,6 +637,20 @@ func (s *Server) handleKioskStream(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 				}
+				// If a clockface widget in the playlist opted in, jump to its screen so
+				// the TV shows the clock while the time is announced. Skip when paused (a
+				// manual freeze) or when that screen is already showing.
+				if !state.Paused() {
+					if vid, ok2 := s.announceClockView(r.Context(), s.deviceItems(r.Context(), dev)); ok2 {
+						if cur, has := state.Current(); !has || cur.ViewID != vid {
+							state.Goto(vid)
+							if !sendCurrent() {
+								return
+							}
+							reset(advance, dwell())
+						}
+					}
+				}
 			}
 			beat = voiceclock.NextBoundary(beat) // the boundary strictly after this one
 			chime.Reset(s.chimeDelay(r.Context(), s.now(), beat))
@@ -695,6 +709,32 @@ func (s *Server) renderViewComponent(ctx context.Context, view dbgen.View) templ
 	}
 	gs, cells := s.renderLegacyGrid(ctx, view)
 	return web.Grid(gs, cells)
+}
+
+// announceClockView returns the first view in items that contains a clockface
+// widget opted into "navigate on the voice-clock announcement" (config
+// announce_nav = "yes"), so the stream can jump there when the time is announced.
+func (s *Server) announceClockView(ctx context.Context, items []rotation.Item) (int64, bool) {
+	for _, it := range items {
+		v, err := s.store.GetView(ctx, it.ViewID)
+		if err != nil {
+			continue
+		}
+		for _, id := range s.viewWidgetIDs(ctx, v) {
+			w, err := s.store.GetWidget(ctx, id)
+			if err != nil || w.Type != "clockface" {
+				continue
+			}
+			var cfg struct {
+				Announce string `json:"announce_nav"`
+			}
+			_ = json.Unmarshal([]byte(w.ConfigJson), &cfg)
+			if cfg.Announce == "yes" {
+				return it.ViewID, true
+			}
+		}
+	}
+	return 0, false
 }
 
 // viewHasEndWidget reports whether a view contains a widget that emits an end
