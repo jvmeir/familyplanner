@@ -153,6 +153,8 @@ func (s *Server) routes() http.Handler {
 			r.Get("/admin/widgets/{id}/preview", s.handleWidgetPreview)
 			r.Post("/admin/widgets/{id}", s.handleWidgetUpdate)
 			r.Post("/admin/widgets/{id}/pdf", s.handleWidgetPdfUpload)
+			r.Get("/admin/widgets/{id}/onedrive", s.handleWidgetOneDriveBrowse)
+			r.Post("/admin/widgets/{id}/onedrive/select", s.handleWidgetOneDriveSelect)
 			r.Delete("/admin/widgets/{id}", s.handleWidgetDelete)
 
 			r.Get("/admin/playlists", s.handlePlaylists)
@@ -849,7 +851,15 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 	// A pdf widget serves its uploaded file from /media/pdf/{id} (the widget id is
 	// only known here). Empty PdfURL → the cell shows the "upload a PDF" placeholder.
 	if wgt.Type == "pdf" {
+		hasLocal := false
 		if _, err := os.Stat(s.pdfPath(widgetID)); err == nil {
+			hasLocal = true
+		}
+		var pc struct {
+			ODItem string `json:"od_item"`
+		}
+		_ = json.Unmarshal([]byte(wgt.ConfigJson), &pc)
+		if hasLocal || pc.ODItem != "" { // OneDrive is fetched into the cache on first request
 			vm.PdfURL = "/media/pdf/" + strconv.FormatInt(widgetID, 10)
 		}
 	}

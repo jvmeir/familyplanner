@@ -258,7 +258,9 @@ func RegisterDefaults(r *Registry) {
 		NameKey:     "widget.pdf.name",
 		NewProvider: newPdf,
 		Decode:      decodePdf,
-		// The PDF file is uploaded on the widget's edit page (not a schema field).
+		// A OneDrive source can be linked to pick a PDF/pptx from the cloud; a local
+		// upload (edit page) is the alternative. The file is not a schema field.
+		AcceptsSources: []string{"onedrive"},
 		Schema: Schema{Fields: []Field{
 			{Name: "interval", LabelKey: "widget.pdf.field.interval", Type: FieldNumber},
 			{Name: "fit", LabelKey: "widget.pdf.field.fit", Type: FieldSelect, Options: []Option{

@@ -267,6 +267,11 @@ html:has(#stage), html.kiosk { font-size: calc(clamp(20px, 2.6vmin, 46px) * var(
 .pl-item-dwell { display: inline-flex; align-items: center; gap: 0.25rem; }
 .pl-item-dwell input { width: 4.5rem; }
 .pl-dwell-unit { color: var(--text-muted); }
+/* OneDrive file picker (pdf widget). */
+.od-list { max-height: 40vh; overflow: auto; }
+.od-row { display: block; width: 100%; text-align: left; background: transparent; color: inherit; border: 1px solid transparent; border-radius: 8px; padding: 8px 10px; font: inherit; cursor: pointer; }
+.od-row:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.od-row-form { margin: 0; }
 /* The live dhms countdown ("5d 03:12:45") is a long string, not a single big
    number — size it to fit the cell width and keep the digits monospaced. */
 .w-big.countdown-live { font-size: calc(8cqmin * var(--kiosk-scale, 1)); white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: .02em; }

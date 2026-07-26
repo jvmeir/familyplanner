@@ -87,7 +87,52 @@ templ WidgetEditPage(id int64, name string, typeName string, fields []FieldVM, h
 		if acceptsSources {
 			@WidgetSources(id, linked, available)
 		}
+		if isPdf {
+			<div class="card">
+				<h2>{ i18n.T(ctx, "widget.pdf.od_pick") }</h2>
+				<p class="muted">{ i18n.T(ctx, "widget.pdf.od_hint") }</p>
+				<div id="odbrowse" hx-get={ "/admin/widgets/" + fmt.Sprint(id) + "/onedrive" } hx-trigger="load"></div>
+			</div>
+		}
 	}
+}
+
+// DriveChildVM is one row in the OneDrive file picker.
+type DriveChildVM struct {
+	ID       string
+	Name     string
+	IsFolder bool
+}
+
+// OneDriveBrowser renders one OneDrive folder's contents for the pdf widget's
+// file picker: folders drill down (HTMX), documents are selectable.
+templ OneDriveBrowser(widgetID int64, children []DriveChildVM, folder string, needSource bool) {
+	<div id="odbrowse">
+		if needSource {
+			<p class="muted">{ i18n.T(ctx, "widget.pdf.od_need_source") }</p>
+		} else {
+			<div class="btn-row">
+				<button type="button" class="btn ghost" hx-get={ "/admin/widgets/" + fmt.Sprint(widgetID) + "/onedrive" } hx-target="#odbrowse" hx-swap="outerHTML">⌂ { i18n.T(ctx, "widget.pdf.od_root") }</button>
+			</div>
+			<div class="list od-list">
+				if len(children) == 0 {
+					<p class="muted">{ i18n.T(ctx, "admin.empty") }</p>
+				}
+				for _, c := range children {
+					if c.IsFolder {
+						<button type="button" class="row od-row" hx-get={ "/admin/widgets/" + fmt.Sprint(widgetID) + "/onedrive?folder=" + c.ID } hx-target="#odbrowse" hx-swap="outerHTML">📁 { c.Name }</button>
+					} else {
+						<form class="od-row-form" method="post" action={ templ.SafeURL("/admin/widgets/" + fmt.Sprint(widgetID) + "/onedrive/select") }>
+							@csrfInput()
+							<input type="hidden" name="item" value={ c.ID }/>
+							<input type="hidden" name="name" value={ c.Name }/>
+							<button type="submit" class="row od-row">📄 { c.Name }</button>
+						</form>
+					}
+				}
+			</div>
+		}
+	</div>
 }
 
 // WidgetFields renders the config inputs for a widget type (HTMX-swapped on change).

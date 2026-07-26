@@ -2,10 +2,101 @@ package widget
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"sort"
 	"strings"
 )
+
+// DriveChild is one item in a OneDrive folder listing (the pdf/pptx file picker).
+type DriveChild struct {
+	ID       string
+	Name     string
+	IsFolder bool
+	IsDoc    bool // a PDF or an Office doc we can render (Graph converts to PDF)
+}
+
+// isPDFName / IsOfficeDoc / IsRenderableDoc classify a filename for the picker.
+func isPDFName(name string) bool { return strings.HasSuffix(strings.ToLower(name), ".pdf") }
+
+// IsOfficeDoc reports whether a file is an Office document Graph can render to
+// PDF via ?format=pdf (PowerPoint / Word / Excel).
+func IsOfficeDoc(name string) bool {
+	n := strings.ToLower(name)
+	for _, e := range []string{".pptx", ".ppt", ".docx", ".doc", ".xlsx"} {
+		if strings.HasSuffix(n, e) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsRenderableDoc reports whether a file can be shown by the pdf widget.
+func IsRenderableDoc(name string) bool { return isPDFName(name) || IsOfficeDoc(name) }
+
+// GraphListChildren lists the folders + renderable documents in a OneDrive folder
+// (empty id = drive root), for the pdf widget's file picker.
+func GraphListChildren(ctx context.Context, token, folderID string) ([]DriveChild, error) {
+	path := "/me/drive/root/children"
+	if folderID != "" {
+		path = "/me/drive/items/" + folderID + "/children"
+	}
+	var body struct {
+		Value []struct {
+			ID     string    `json:"id"`
+			Name   string    `json:"name"`
+			Folder *struct{} `json:"folder"`
+			File   *struct {
+				MimeType string `json:"mimeType"`
+			} `json:"file"`
+		} `json:"value"`
+	}
+	if err := graphGet(ctx, token, graphBase+path+"?$select=id,name,folder,file&$top=400", &body); err != nil {
+		return nil, err
+	}
+	out := make([]DriveChild, 0, len(body.Value))
+	for _, it := range body.Value {
+		c := DriveChild{ID: it.ID, Name: it.Name, IsFolder: it.Folder != nil}
+		c.IsDoc = it.File != nil && IsRenderableDoc(it.Name)
+		if c.IsFolder || c.IsDoc {
+			out = append(out, c)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].IsFolder != out[j].IsFolder {
+			return out[i].IsFolder // folders first
+		}
+		return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
+	})
+	return out, nil
+}
+
+// GraphFetchContent streams a drive item's bytes to dst. asPDF requests Graph's
+// on-the-fly PDF rendering (?format=pdf) for Office files; the /content redirect
+// to a pre-authenticated download URL is followed by the http client.
+func GraphFetchContent(ctx context.Context, token, itemID string, asPDF bool, dst io.Writer) error {
+	u := graphBase + "/me/drive/items/" + itemID + "/content"
+	if asPDF {
+		u += "?format=pdf"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("graph content: status %d", resp.StatusCode)
+	}
+	_, err = io.Copy(dst, io.LimitReader(resp.Body, 60<<20)) // cap at 60MB
+	return err
+}
 
 // GraphListAlbums lists OneDrive photo albums (personal OneDrive "bundles" with
 // an album facet). An album's photos are fetched with GraphFolderPhotos, since a
