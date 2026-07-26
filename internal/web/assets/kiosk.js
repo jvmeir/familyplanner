@@ -127,7 +127,7 @@
           const v = stage.querySelector(".view");
           if (v) v.classList.add("kslide");
         }
-        manualMode = false; focusIdx = -1; // a fresh view clears manual focus
+        focusIdx = -1; frozenEl = null; // a fresh view clears manual focus (auto-scroll resumes)
         tickCountdowns(); // set dhms text now so it doesn't flash the day-only fallback
         setupCellScroll(stage, lastDwellSecs);
         startSlideshows(stage);
@@ -154,9 +154,10 @@
     }
   }
 
-  // Manual widget focus/scroll (Ctrl+arrows). While active, stage auto-scroll is
-  // frozen so the user drives it. focusIdx = -1 means nothing focused.
-  var manualMode = false, focusIdx = -1;
+  // Manual widget focus/scroll (Ctrl+arrows). Only the FOCUSED widget's scroller
+  // is frozen (el.__fpFrozen) so the user drives it; every other widget keeps
+  // auto-scrolling, and a de-focused widget resumes. focusIdx = -1 = nothing focused.
+  var focusIdx = -1, frozenEl = null;
 
   // Auto-scroll any overflowing cell (calendar/agenda/list) so all content is
   // shown without shrinking the text. Time-based: one full top→bottom→top trip
@@ -165,16 +166,16 @@
   // a steady 30s loop. Per-element rAF, cancelled + restarted on each call.
   function setupCellScroll(root, dwellSecs) {
     if (!root) return;
-    if (manualMode && root === stage) return; // manual focus/scroll owns the stage now
     var cycleMs = (dwellSecs > 0 ? dwellSecs : 30) * 1000;
     root.querySelectorAll(".cell-scroll").forEach(function (el) {
+      if (el.__fpFrozen) return; // focused: keep its manual position + (frozen) loop
       if (el.__fpScrollRAF) { cancelAnimationFrame(el.__fpScrollRAF); el.__fpScrollRAF = 0; }
       el.scrollTop = 0;
       if (el.scrollHeight - el.clientHeight < 4) return; // fits: nothing to scroll
       var start = null;
       function frame(t) {
         if (!document.body.contains(el)) { el.__fpScrollRAF = 0; return; } // swapped out
-        if (manualMode && stage.contains(el)) { el.__fpScrollRAF = requestAnimationFrame(frame); return; } // frozen
+        if (el.__fpFrozen) { start = null; el.__fpScrollRAF = requestAnimationFrame(frame); return; } // frozen; restart cycle on resume
         if (start === null) start = t;
         var over = el.scrollHeight - el.clientHeight;
         if (over >= 4) {
@@ -214,7 +215,7 @@
     // widget. The video plays to its end undisturbed; only the ticker refreshes.
     // Also skip while the user is manually focusing/scrolling a widget, so their
     // scroll position + focus survive the periodic refresh.
-    if (!manualMode && !stage.querySelector(".w-yt")) {
+    if (focusIdx < 0 && !stage.querySelector(".w-yt")) {
       loadView(currentViewID, false);
     }
     loadTicker();
@@ -374,12 +375,19 @@
 
   // ---- manual widget focus + scroll (Ctrl+arrows) ----
   // Ctrl+←/→ moves a focus outline between the widgets on the current screen;
-  // Ctrl+↑/↓ scrolls the focused widget. Entering this freezes the auto-scroll
-  // (manualMode) so the user is in control. Typical flow: pause rotation, Ctrl+→
-  // to pick a widget, Ctrl+↓ to read down it. Esc leaves manual mode.
+  // Ctrl+↑/↓ scrolls the focused widget. Only the focused widget's auto-scroll
+  // freezes; others keep scrolling and a de-focused widget resumes. Typical flow:
+  // pause rotation, Ctrl+→ to pick a widget, Ctrl+↓ to read down it. Esc leaves;
+  // a screen rotation also clears focus and resumes auto-scroll.
   function stageWidgets() { return Array.prototype.slice.call(stage.querySelectorAll(".widget")); }
-  function paintFocus(els) {
+  // Freeze the focused widget's scroller (or none), resuming the previous one.
+  function freezeFocused(els) {
+    if (frozenEl) { frozenEl.__fpFrozen = false; frozenEl = null; } // resume previous widget's auto-scroll
+    var el = els[focusIdx];
+    var sc = el && el.querySelector(".cell-scroll");
+    if (sc) { sc.__fpFrozen = true; frozenEl = sc; }
     els.forEach(function (w, i) { w.classList.toggle("w-focused", i === focusIdx); });
+    if (el) el.scrollIntoView({ block: "nearest" });
   }
   function focusWidget(delta) {
     var els = stageWidgets();
@@ -387,24 +395,21 @@
     if (focusIdx < 0) focusIdx = delta > 0 ? 0 : els.length - 1;
     else focusIdx = (focusIdx + delta) % els.length;
     if (focusIdx < 0) focusIdx += els.length;
-    manualMode = true; // freeze auto-scroll
-    paintFocus(els);
-    els[focusIdx].scrollIntoView({ block: "nearest" });
+    freezeFocused(els);
   }
   function scrollFocused(dir) {
     var els = stageWidgets();
     if (focusIdx < 0 || focusIdx >= els.length) { focusWidget(1); return; } // focus first, then scroll
-    manualMode = true;
-    var sc = els[focusIdx].querySelector(".cell-scroll") || els[focusIdx];
-    var over = sc.scrollHeight - sc.clientHeight;
-    if (over <= 0) return;
-    var step = Math.max(40, sc.clientHeight * 0.4);
-    sc.scrollTop = Math.max(0, Math.min(over, sc.scrollTop + dir * step));
+    if (!frozenEl) freezeFocused(els);
+    if (!frozenEl) return; // focused widget isn't scrollable
+    var over = frozenEl.scrollHeight - frozenEl.clientHeight;
+    var step = Math.max(40, frozenEl.clientHeight * 0.4);
+    frozenEl.scrollTop = Math.max(0, Math.min(over, frozenEl.scrollTop + dir * step));
   }
   function exitManual() {
-    manualMode = false; focusIdx = -1;
+    if (frozenEl) { frozenEl.__fpFrozen = false; frozenEl = null; } // resume its auto-scroll
+    focusIdx = -1;
     stage.querySelectorAll(".w-focused").forEach(function (w) { w.classList.remove("w-focused"); });
-    setupCellScroll(stage, lastDwellSecs); // resume auto-scroll
   }
 
   // Keyboard remote (e.g. a presentation clicker or a keyboard on the kiosk):
