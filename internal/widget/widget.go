@@ -176,9 +176,11 @@ func RegisterDefaults(r *Registry) {
 				{Value: "days_table", LabelKey: "widget.calendar.mode.days_table"},
 				{Value: "week", LabelKey: "widget.calendar.mode.week"},
 				{Value: "month", LabelKey: "widget.calendar.mode.month"},
+				{Value: "weeks_abs", LabelKey: "widget.calendar.mode.weeks_abs"},
 			}},
 			{Name: "weeks_before", LabelKey: "widget.calendar.field.weeks_before", Type: FieldNumber},
 			{Name: "weeks_ahead", LabelKey: "widget.calendar.field.weeks_ahead", Type: FieldNumber},
+			{Name: "start_date", LabelKey: "widget.calendar.field.start_date", Type: FieldText},
 		}},
 	})
 	r.Register(Type{

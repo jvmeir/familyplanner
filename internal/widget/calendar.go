@@ -17,9 +17,10 @@ import (
 // CalendarConfig is the per-instance configuration.
 type CalendarConfig struct {
 	URL         string `json:"url"`
-	Mode        string `json:"mode"`         // "agenda" (default) | "month"
+	Mode        string `json:"mode"`         // "agenda" (default) | "month" | "week" | "days" | "weeks_abs"
 	WeeksBefore string `json:"weeks_before"` // agenda look-back (default 0)
-	WeeksAhead  string `json:"weeks_ahead"`  // agenda look-ahead (default 2)
+	WeeksAhead  string `json:"weeks_ahead"`  // look-ahead weeks; count of weeks in weeks_abs
+	StartDate   string `json:"start_date"`   // weeks_abs anchor (JJJJ-MM-DD); empty = current week
 	Filter      string `json:"filter"`       // only events whose summary/CATEGORIES match (comma, any)
 }
 
@@ -155,6 +156,19 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 	// Expansion window for recurring events, generous enough for agenda + month.
 	expandFrom := now.AddDate(0, 0, -70)
 	expandTo := now.AddDate(0, 0, 70)
+	// Absolute weeks can be pinned far from "now"; widen the fetch/expand window to
+	// cover the pinned range so MS Graph + recurring events actually show up there.
+	if p.cfg.Mode == "weeks_abs" {
+		if s := parseDate(p.cfg.StartDate, loc); !s.IsZero() {
+			wkStart := s.AddDate(0, 0, -((int(s.Weekday()) + 6) % 7))
+			if wkStart.AddDate(0, 0, -7).Before(expandFrom) {
+				expandFrom = wkStart.AddDate(0, 0, -7)
+			}
+			if end := wkStart.AddDate(0, 0, absWeekCount(p.cfg)*7+7); end.After(expandTo) {
+				expandTo = end
+			}
+		}
+	}
 
 	// Gather iCal feeds from the linked data sources (each with its own filter),
 	// falling back to a single URL in the widget config for backward compatibility.
@@ -279,6 +293,9 @@ func (p calendarProvider) Fetch(ctx context.Context) (Data, time.Duration, error
 		return CalendarData{Mode: "week", Month: buildWeekGrid(now, all, p.cfg)}, 15 * time.Minute, nil
 	case "days", "days_table":
 		return CalendarData{Mode: p.cfg.Mode, Days: buildSchedule(now, all, p.cfg)}, 15 * time.Minute, nil
+	case "weeks_abs":
+		// Reuse the "week" grid rendering; the grid itself is pinned to an absolute date.
+		return CalendarData{Mode: "week", Month: buildAbsWeeks(now, all, p.cfg)}, 15 * time.Minute, nil
 	default:
 		return CalendarData{Mode: "agenda", Events: buildAgenda(now, all, p.cfg)}, 15 * time.Minute, nil
 	}
@@ -311,6 +328,70 @@ func buildWeekGrid(now time.Time, all []calEvent, cfg CalendarConfig) *MonthGrid
 		grid.Weeks = append(grid.Weeks, week)
 	}
 	return grid
+}
+
+// absWeekCount is the number of weeks shown in absolute mode (weeks_ahead,
+// default 6, clamped 1..12).
+func absWeekCount(cfg CalendarConfig) int {
+	n := atoiDefault(cfg.WeeksAhead, 6)
+	if n < 1 {
+		n = 1
+	}
+	if n > 12 {
+		n = 12
+	}
+	return n
+}
+
+// buildAbsWeeks renders a fixed set of weeks starting at an absolute date
+// (config start_date, snapped to Monday) — e.g. pinned holiday planning that
+// doesn't move with "today". The week count comes from weeks_ahead. Today is
+// still highlighted if it falls inside the pinned range.
+func buildAbsWeeks(now time.Time, all []calEvent, cfg CalendarConfig) *MonthGrid {
+	loc := now.Location()
+	start := parseDate(cfg.StartDate, loc)
+	if start.IsZero() {
+		start = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	}
+	offset := (int(start.Weekday()) + 6) % 7 // Monday = 0
+	day := start.AddDate(0, 0, -offset)
+	first := day
+	count := absWeekCount(cfg)
+
+	grid := &MonthGrid{}
+	for w := 0; w < count; w++ {
+		var week []DayCell
+		for d := 0; d < 7; d++ {
+			cell := DayCell{Day: day.Day(), InMonth: true, Today: sameDate(day, now)}
+			for _, e := range all {
+				if e.occupies(day) {
+					cell.Events = append(cell.Events, e.item(day))
+				}
+			}
+			week = append(week, cell)
+			day = day.AddDate(0, 0, 1)
+		}
+		grid.Weeks = append(grid.Weeks, week)
+	}
+	last := day.AddDate(0, 0, -1)
+	grid.Title = fmt.Sprintf("%d %s – %d %s %d", first.Day(), nlMonthShort[int(first.Month())-1],
+		last.Day(), nlMonthShort[int(last.Month())-1], last.Year())
+	return grid
+}
+
+// parseDate parses a config date in a few common notations (leaving zero on
+// blank/invalid, which callers treat as "not set").
+func parseDate(s string, loc *time.Location) time.Time {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}
+	}
+	for _, layout := range []string{"2006-01-02", "02-01-2006", "02/01/2006", "2006/01/02"} {
+		if t, err := time.ParseInLocation(layout, s, loc); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
 }
 
 // fetchICS downloads and parses one iCal feed, expands recurrences, and applies
