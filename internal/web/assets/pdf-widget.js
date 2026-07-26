@@ -103,6 +103,17 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdf.worker.min.mjs";
     render(el);
   };
 
+  // Manually step a slideshow PDF to the next/prev page (focused-widget control),
+  // resetting the auto-advance timer. No-op in document (scroll) mode.
+  window.fpPdfStep = function (el, dir) {
+    var st = el.__fpPdf;
+    if (!st || !st.slideshow || !st.doc) return;
+    if (dir >= 0) st.page = st.page >= st.pages ? 1 : st.page + 1;
+    else st.page = st.page <= 1 ? st.pages : st.page - 1;
+    render(el);
+    scheduleSlide(el);
+  };
+
   // Render the initially inline screen once the module has loaded (kiosk.js runs
   // before this deferred module, so its first fpSetupPdfs call is a no-op).
   var stage = document.getElementById("stage");

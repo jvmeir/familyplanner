@@ -80,24 +80,33 @@
   function startSlideshows(root) {
     if (!root) return;
     root.querySelectorAll(".w-slideshow").forEach(function (img) {
-      if (img.__fpSlide) return; // already cycling
+      if (img.__fpStep) return; // already set up
       var urls = [], caps = [];
       try { urls = JSON.parse(img.dataset.photoUrls || "[]"); } catch (e) {}
       try { caps = JSON.parse(img.dataset.photoCaptions || "[]"); } catch (e) {}
-      if (urls.length < 2) return;
-      var secs = parseInt(img.dataset.photoSecs, 10) || 8;
+      if (urls.length < 2) { img.__fpStep = function () {}; return; } // single photo: nothing to step
+      var secs = Math.max(2, parseInt(img.dataset.photoSecs, 10) || 8);
       var cap = img.parentElement && img.parentElement.querySelector(".w-photo-cap");
       // Shuffle INDICES so the caption stays paired with its photo.
       var idxs = urls.map(function (_, i) { return i; });
       var order = fpShuffle(idxs.slice()), pos = 0;
-      img.__fpSlide = setInterval(function () {
-        if (!document.body.contains(img)) { clearInterval(img.__fpSlide); img.__fpSlide = null; return; }
-        pos++;
+      // Step +1 next / -1 previous, reshuffling on wrap; keeps caption in sync.
+      img.__fpStep = function (dir) {
+        pos += (dir < 0 ? -1 : 1);
         if (pos >= order.length) { order = fpShuffle(idxs.slice()); pos = 0; }
+        if (pos < 0) pos = order.length - 1;
         var i = order[pos];
         img.src = urls[i];
         if (cap) cap.textContent = caps[i] || "";
-      }, Math.max(2, secs) * 1000);
+      };
+      var tick = function () {
+        if (!document.body.contains(img)) { clearTimeout(img.__fpTimer); img.__fpTimer = null; return; }
+        img.__fpStep(1);
+        img.__fpTimer = setTimeout(tick, secs * 1000);
+      };
+      img.__fpTimer = setTimeout(tick, secs * 1000);
+      // Manual step resets the auto timer so it doesn't jump again immediately.
+      img.__fpReset = function () { clearTimeout(img.__fpTimer); img.__fpTimer = setTimeout(tick, secs * 1000); };
     });
   }
 
@@ -466,7 +475,17 @@
   }
   function scrollFocused(dir) {
     var els = stageWidgets();
-    if (focusIdx < 0 || focusIdx >= els.length) { focusWidget(1); return; } // focus first, then scroll
+    if (focusIdx < 0 || focusIdx >= els.length) { focusWidget(1); return; } // focus first, then step
+    var w = els[focusIdx];
+    // Media widgets: Ctrl+↑/↓ controls the medium instead of scrolling —
+    // photo → prev/next slide, video → play/pause, slideshow-PDF → prev/next page.
+    var yt = w.querySelector(".w-yt");
+    if (yt && window.fpVideoToggle) { window.fpVideoToggle(yt); return; }
+    var slide = w.querySelector(".w-slideshow");
+    if (slide && slide.__fpStep) { slide.__fpStep(dir); if (slide.__fpReset) slide.__fpReset(); return; }
+    var pdf = w.querySelector(".w-pdf");
+    if (pdf && (parseInt(pdf.dataset.pdfInterval, 10) || 0) > 0 && window.fpPdfStep) { window.fpPdfStep(pdf, dir); return; }
+    // Otherwise: scroll the focused widget's scroller.
     if (!frozenEl) freezeFocused(els);
     if (!frozenEl) return; // focused widget isn't scrollable
     var over = frozenEl.scrollHeight - frozenEl.clientHeight;

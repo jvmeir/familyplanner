@@ -43,6 +43,7 @@
     ctrl.playPause = function () {
       try { ctrl.player.getPlayerState() === YT.PlayerState.PLAYING ? ctrl.player.pauseVideo() : ctrl.player.playVideo(); } catch (x) {}
     };
+    el.__fpYt = ctrl; // expose the controller for manual play/pause (Ctrl-scroll on a focused video)
     var pv = { autoplay: 1, controls: 0, rel: 0, playsinline: 1, modestbranding: 1, mute: opts.mute ? 1 : 0 };
     ctrl.player = new YT.Player(holder, {
       width: "100%", height: "100%", videoId: list[0], playerVars: pv,
@@ -83,6 +84,11 @@
     stagePlayers = window.fpVideosIn(stage, {
       onAllEnded: onEnd ? function () { if (window.fpCtl) fpCtl("next"); } : null,
     });
+  };
+
+  // Toggle play/pause of the video in a .w-yt element (focused-widget control).
+  window.fpVideoToggle = function (el) {
+    if (el && el.__fpYt) { try { el.__fpYt.playPause(); } catch (e) {} }
   };
 
   if (stage) window.fpSetupVideos(); // initial on-screen video
