@@ -147,6 +147,21 @@ func RegisterDefaults(r *Registry) {
 		Schema:      Schema{}, // no configuration
 	})
 	r.Register(Type{
+		ID:          "clockface",
+		NameKey:     "widget.clockface.name",
+		NewProvider: newClockface,
+		Decode:      decodeClockface,
+		Schema: Schema{Fields: []Field{
+			{Name: "location", LabelKey: "widget.clockface.field.location", Type: FieldText},
+			{Name: "lat", LabelKey: "widget.weather.field.lat", Type: FieldText},
+			{Name: "lon", LabelKey: "widget.weather.field.lon", Type: FieldText},
+			{Name: "facts", LabelKey: "widget.clockface.field.facts", Type: FieldSelect, Options: []Option{
+				{Value: "yes", LabelKey: "widget.clockface.facts.yes"},
+				{Value: "no", LabelKey: "widget.clockface.facts.no"},
+			}},
+		}},
+	})
+	r.Register(Type{
 		ID:             "calendar",
 		NameKey:        "widget.calendar.name",
 		NewProvider:    newCalendar,

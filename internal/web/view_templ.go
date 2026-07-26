@@ -131,7 +131,7 @@ func PreviewPage(title string, body templ.Component) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\">✕</a><script src=\"/static/kiosk-preview.js\"></script> <script src=\"/static/yt.js\"></script> <script type=\"module\" src=\"/static/pdf-widget.js\"></script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\">✕</a><script src=\"/static/kiosk-preview.js\"></script> <script src=\"/static/yt.js\"></script> <script type=\"module\" src=\"/static/pdf-widget.js\"></script> <script src=\"/static/clockface.js\"></script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -174,7 +174,7 @@ func PreviewWidget(themeVars templ.SafeCSS, cell CellVM, onEnd bool) templ.Compo
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(themeVars)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view.templ`, Line: 29, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view.templ`, Line: 30, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -187,7 +187,7 @@ func PreviewWidget(themeVars templ.SafeCSS, cell CellVM, onEnd bool) templ.Compo
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolAttr(onEnd))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view.templ`, Line: 29, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view.templ`, Line: 30, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -268,7 +268,7 @@ func LayoutPane(vm LayoutVM) templ.Component {
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(PaneStyle(c.Weight))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view.templ`, Line: 42, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view.templ`, Line: 43, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {

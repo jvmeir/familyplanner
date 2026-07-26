@@ -107,6 +107,7 @@ type CellVM struct {
 	PdfURL        string          // uploaded PDF (empty = none uploaded yet)
 	PdfFit        string          // width | page
 	PdfInterval   int             // >0 = slideshow (seconds/page); 0 = scroll document
+	ClockJSON     string          // clockface: JSON blob (sun/moon/facts) for the SVG clock
 	CountdownTo   int64           // >0: render a live dhms countdown to this Unix time
 	Stale         bool
 	Style         templ.SafeCSS
@@ -521,6 +522,12 @@ func init() {
 			return CellVM{Sub: i18n.T(ctx, "widget.todolist.empty")}
 		}
 		return CellVM{Lines: d.Items}
+	})
+
+	RegisterFormatter("clockface", func(_ context.Context, data any) CellVM {
+		d, _ := data.(widget.ClockFaceData)
+		b, _ := json.Marshal(d)
+		return CellVM{ClockJSON: string(b)}
 	})
 
 	RegisterFormatter("pdf", func(ctx context.Context, data any) CellVM {

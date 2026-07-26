@@ -150,6 +150,7 @@
           const oe = !!(vv && vv.dataset.advanceOnEnd === "1");
           window.fpSetupPdfs(stage, { onEnd: oe ? function () { if (window.fpCtl) fpCtl("next"); } : null });
         }
+        if (window.fpSetupClocks) window.fpSetupClocks(stage);
         scheduleEndFallback();
       }
     } catch (e) {
@@ -360,6 +361,7 @@
         var onEnd = item.onEnd && (hasVideo || pdfEnd) ? function () { pipNext(); } : null;
         pipPlayers = window.fpVideosIn ? window.fpVideosIn(kpipBody, { mute: true, onAllEnded: hasVideo ? onEnd : null }) : [];
         if (window.fpSetupPdfs) window.fpSetupPdfs(kpipBody, { onEnd: pdfEnd ? onEnd : null });
+        if (window.fpSetupClocks) window.fpSetupClocks(kpipBody);
         if (onEnd) { pipProgress(0); } else { pipProgress(Math.max(3, item.dwell)); pipTimer = setTimeout(pipNext, Math.max(3, item.dwell) * 1000); }
       })
       .catch(function () { pipTimer = setTimeout(pipNext, 10000); }); // retry-ish on error

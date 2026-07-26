@@ -29,6 +29,10 @@ templ widgetCell(c CellVM) {
 				<div class="w-photo-cap">{ c.PhotoCaptions[0] }</div>
 			}
 		</div>
+	} else if c.ClockJSON != "" {
+		<div class="widget clockface">
+			<div class="w-clock" data-clock={ c.ClockJSON }></div>
+		</div>
 	} else if c.PdfURL != "" {
 		<div class="widget pdf">
 			<div

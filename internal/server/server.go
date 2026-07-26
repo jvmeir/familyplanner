@@ -875,7 +875,7 @@ func (s *Server) cellForWidget(ctx context.Context, widgetID int64, style templ.
 	switch {
 	case meta.HideTitle == "1":
 		vm.Title = ""
-	case vm.IframeURL != "" || vm.ImageURL != "" || len(vm.VideoIDs) > 0 || vm.PdfURL != "":
+	case vm.IframeURL != "" || vm.ImageURL != "" || len(vm.VideoIDs) > 0 || vm.PdfURL != "" || vm.ClockJSON != "":
 		// full-bleed media: no title bar
 		vm.Title = ""
 	default:
