@@ -21,8 +21,8 @@ Go · chi · templ · HTMX · SSE · modernc SQLite · sqlc · goose · scs · a
 Prerequisites: Go 1.26+, and the codegen tools:
 
 ```sh
-go install github.com/a-h/templ/cmd/templ@latest
-go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+go install github.com/a-h/templ/cmd/templ@v0.3.1020
+go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
 ```
 
 Then (using [Task](https://taskfile.dev)):

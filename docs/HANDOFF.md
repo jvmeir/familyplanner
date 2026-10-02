@@ -18,8 +18,8 @@ A self-hosted **family planner**: a read-only **kiosk** for a living-room TV plu
 Prereqs: **Go 1.26+**, and the codegen CLIs:
 
 ```sh
-go install github.com/a-h/templ/cmd/templ@latest
-go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+go install github.com/a-h/templ/cmd/templ@v0.3.1020
+go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
 # optional: Task runner (https://taskfile.dev) and air (live reload)
 ```
 
