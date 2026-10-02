@@ -15,7 +15,7 @@ or manually:
 ```sh
 task build          # produces bin/familyplanner
 cd test/ui
-npm install
+npm ci
 node run.mjs
 ```
 

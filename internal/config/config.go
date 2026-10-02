@@ -29,10 +29,8 @@ type Config struct {
 
 	// App-level OAuth client credentials (one app per provider). Data sources
 	// only store the user's token obtained via interactive sign-in.
-	MSClientID         string // Microsoft app (ms_graph + onedrive)
-	MSClientSecret     string
-	GoogleClientID     string // Google app (google_photos)
-	GoogleClientSecret string
+	MSClientID     string // Microsoft app (ms_graph + onedrive)
+	MSClientSecret string
 }
 
 // OAuthApp returns the app-level client credentials for a data-source type.
@@ -40,8 +38,6 @@ func (c *Config) OAuthApp(dsType string) (clientID, clientSecret string) {
 	switch dsType {
 	case "ms_graph", "onedrive", "ms_todo":
 		return c.MSClientID, c.MSClientSecret
-	case "google_photos":
-		return c.GoogleClientID, c.GoogleClientSecret
 	}
 	return "", ""
 }
@@ -90,8 +86,6 @@ func Load() (*Config, error) {
 
 	c.MSClientID = os.Getenv("FP_MS_CLIENT_ID")
 	c.MSClientSecret = os.Getenv("FP_MS_CLIENT_SECRET")
-	c.GoogleClientID = os.Getenv("FP_GOOGLE_CLIENT_ID")
-	c.GoogleClientSecret = os.Getenv("FP_GOOGLE_CLIENT_SECRET")
 
 	return c, nil
 }

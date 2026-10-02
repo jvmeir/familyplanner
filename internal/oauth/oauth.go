@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/microsoft"
 )
 
@@ -50,10 +49,6 @@ var providers = map[string]providerDef{
 		endpoint: microsoft.AzureADEndpoint("common"),
 		scopes:   []string{"offline_access", "Calendars.Read", "Tasks.Read"},
 	},
-	"google_photos": {
-		endpoint: google.Endpoint,
-		scopes:   []string{"https://www.googleapis.com/auth/photoslibrary.readonly"},
-	},
 	"onedrive": {
 		endpoint: microsoft.AzureADEndpoint("common"),
 		scopes:   []string{"offline_access", "Files.Read"},
@@ -64,14 +59,9 @@ var providers = map[string]providerDef{
 	},
 }
 
-// AuthOptions returns provider-specific authorize options (e.g. Google needs
-// access_type=offline + prompt=consent to return a refresh token).
-func AuthOptions(dsType string) []oauth2.AuthCodeOption {
-	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
-	if dsType == "google_photos" {
-		opts = append(opts, oauth2.ApprovalForce)
-	}
-	return opts
+// AuthOptions requests offline access for background token refresh.
+func AuthOptions(_ string) []oauth2.AuthCodeOption {
+	return []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
 }
 
 // Known reports whether a data-source type uses OAuth2.

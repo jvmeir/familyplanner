@@ -44,11 +44,11 @@ tasks:
       - go test -cover ./...
 
   test:ui:
-    desc: Synthetic browser (Playwright) UI tests for the kiosk SPA + PWA
+    desc: Browser (Playwright) UI tests for the server-rendered kiosk
     deps: [build]
     dir: test/ui
     cmds:
-      - npm install --no-audit --no-fund
+      - npm ci --no-audit --no-fund
       - node run.mjs
 
   ci:
