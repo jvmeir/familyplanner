@@ -2,14 +2,15 @@
 // SQLite DB, wait for health, run the Playwright suite against it, then tear the
 // server down and propagate the test exit code.
 //
-// Assumes `bin/familyplanner` was built with the WASM client embedded
+// Assumes `bin/familyplanner` was built with the server-rendered assets embedded
 // (`task build`, which the `test:ui` task depends on). Chrome or Edge must be
 // installed (Playwright launches it by channel; override with FP_UI_CHANNEL).
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve, dirname, basename } from 'node:path';
 
 const PORT = process.env.FP_UI_PORT || '8099';
 const BASE = `http://localhost:${PORT}`;
@@ -26,23 +27,32 @@ if (!BIN) {
   process.exit(2);
 }
 
-const DATA = join(tmpdir(), 'fp-ui-data');
-rmSync(DATA, { recursive: true, force: true });
-mkdirSync(DATA, { recursive: true });
+const DATA = mkdtempSync(join(tmpdir(), 'fp-ui-data-'));
 
 const srv = spawn(BIN, [], {
   env: {
     ...process.env,
     FP_ADDR: ':' + PORT,
     FP_DATA_DIR: DATA,
+    FP_DB_PATH: join(DATA, 'planner.db'),
+    FP_ENV: 'dev',
     FP_ADMIN_PASSPHRASE: process.env.FP_UI_PASSPHRASE || 'secret',
     FP_ENCRYPTION_KEY: 'ui-test-key-0123456789',
   },
   stdio: 'inherit',
 });
 
-function shutdown(code) {
-  try { srv.kill(); } catch {}
+async function shutdown(code) {
+  if (srv.exitCode === null && srv.signalCode === null) {
+    const closed = once(srv, 'close');
+    srv.kill();
+    await closed;
+  }
+  const target = resolve(DATA);
+  if (dirname(target) !== resolve(tmpdir()) || !basename(target).startsWith('fp-ui-data-')) {
+    throw new Error('Refusing to clean a directory outside the UI test temp directory');
+  }
+  rmSync(target, { recursive: true, force: true });
   process.exit(code);
 }
 
@@ -56,7 +66,7 @@ for (let i = 0; i < 60; i++) {
 }
 if (!up) {
   console.error('server did not become healthy at', BASE);
-  shutdown(1);
+  await shutdown(1);
 }
 
 const tests = spawn(process.execPath, ['--test', 'kiosk.test.mjs'], {

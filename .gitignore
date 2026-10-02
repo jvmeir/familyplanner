@@ -13,6 +13,7 @@
 .env
 
 # editor
+.claude/
 .idea/
 .vscode/
 *.swp

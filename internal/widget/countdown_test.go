@@ -62,6 +62,45 @@ func TestCountdownRejectsBadDate(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestCountdownLocalCalendarDays(t *testing.T) {
+	loc, err := time.LoadLocation("Europe/Brussels")
+	require.NoError(t, err)
+	reg := widget.NewRegistry()
+	widget.RegisterDefaults(reg)
+	typ, _ := reg.Get("countdown")
+	for _, tc := range []struct {
+		name, now, date string
+		days            int
+		ttl             time.Duration
+	}{
+		{"spring forward tomorrow", "2026-03-29 12:00", "2026-03-30", 1, time.Hour},
+		{"spring forward yesterday", "2026-03-30 12:00", "2026-03-29", -1, time.Hour},
+		{"fall back tomorrow", "2026-10-25 12:00", "2026-10-26", 1, time.Hour},
+		{"across summer time", "2026-03-28 12:00", "2026-04-02", 5, time.Hour},
+		{"midnight refresh", "2026-10-02 23:55", "2026-10-03", 1, 5 * time.Minute},
+		{"today with later target time", "2026-10-02 12:00", "2026-10-02", 0, time.Hour},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			now, err := time.ParseInLocation("2006-01-02 15:04", tc.now, loc)
+			require.NoError(t, err)
+			cfg, err := json.Marshal(widget.CountdownConfig{Date: tc.date, Time: "18:30", Precision: "dhms"})
+			require.NoError(t, err)
+			p, err := typ.NewProvider(cfg, nil, func() time.Time { return now })
+			require.NoError(t, err)
+			data, ttl, err := p.Fetch(context.Background())
+			require.NoError(t, err)
+			cd := data.(widget.CountdownData)
+			require.Equal(t, tc.days, cd.DaysLeft)
+			require.Equal(t, tc.days == 0, cd.Today)
+			require.Equal(t, tc.ttl, ttl)
+			target, err := time.ParseInLocation("2006-01-02 15:04", tc.date+" 18:30", loc)
+			require.NoError(t, err)
+			require.Equal(t, target.Unix(), cd.TargetUnix)
+			require.Equal(t, "dhms", cd.Precision)
+		})
+	}
+}
+
 func TestRegistryUnknownType(t *testing.T) {
 	reg := widget.NewRegistry()
 	_, ok := reg.Get("nope")

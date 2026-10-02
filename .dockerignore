@@ -1,5 +1,7 @@
 .git
 .github
+.claude
+**/node_modules
 /data
 /tmp
 /bin

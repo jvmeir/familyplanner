@@ -48,13 +48,14 @@ func newCountdown(raw json.RawMessage, _ []SourceInput, now NowFunc) (Provider, 
 }
 
 func (p countdownProvider) Fetch(_ context.Context) (Data, time.Duration, error) {
-	target, err := time.ParseInLocation("2006-01-02", p.cfg.Date, p.now().Location())
+	n := p.now()
+	target, err := time.ParseInLocation("2006-01-02", p.cfg.Date, n.Location())
 	if err != nil {
 		return nil, 0, err
 	}
-	n := p.now()
-	today := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, n.Location())
-	tgt := time.Date(target.Year(), target.Month(), target.Day(), 0, 0, 0, 0, n.Location())
+	// Compare calendar dates in UTC: local days can be 23 or 25 hours at DST.
+	today := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
+	tgt := time.Date(target.Year(), target.Month(), target.Day(), 0, 0, 0, 0, time.UTC)
 	days := int(tgt.Sub(today).Hours() / 24)
 
 	// Optional target time-of-day (default midnight) for the live dhms ticker.
@@ -69,11 +70,15 @@ func (p countdownProvider) Fetch(_ context.Context) (Data, time.Duration, error)
 		precision = "dhms"
 	}
 
+	// Expire at local midnight so a day-only countdown does not stay stale
+	// until the next hourly refresh.
+	nextDay := time.Date(n.Year(), n.Month(), n.Day()+1, 0, 0, 0, 0, n.Location())
+	ttl := min(time.Hour, nextDay.Sub(n))
 	return CountdownData{
 		Title:      p.cfg.Title,
 		DaysLeft:   days,
 		Today:      days == 0,
 		Precision:  precision,
 		TargetUnix: targetAt.Unix(),
-	}, time.Hour, nil
+	}, ttl, nil
 }

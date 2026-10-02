@@ -1,10 +1,8 @@
 // Synthetic browser tests for the server-rendered kiosk (templ + HTMX + SSE) and
-// its PWA behaviour, using Playwright to drive a real Chrome/Edge against a
+// its live updates, using Playwright to drive a real Chrome/Edge against a
 // running server (started by run.mjs). Covers:
 //   - the kiosk page renders the shell + widgets,
 //   - the footer "next" control swaps the view through the SSE loop,
-//   - the service worker registers and precaches the shell,
-//   - the kiosk still renders offline (PWA resilience),
 //   - the health badge appears when an OAuth source needs reconnect.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,11 +13,13 @@ const CHANNEL = process.env.FP_UI_CHANNEL || 'chrome';
 const PASSPHRASE = process.env.FP_UI_PASSPHRASE || 'secret';
 
 let browser, ctx, page;
+const pageErrors = [];
 
 before(async () => {
   browser = await chromium.launch({ channel: CHANNEL, headless: true });
   ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   page = await ctx.newPage();
+  page.on('pageerror', (error) => pageErrors.push(error.message));
   // Pair the device (sets the fp_kiosk cookie).
   await page.goto(BASE + '/pair', { waitUntil: 'domcontentloaded' });
   await page.fill('input[name="passphrase"]', PASSPHRASE);
@@ -28,6 +28,7 @@ before(async () => {
 
 after(async () => {
   await browser?.close();
+  assert.deepEqual(pageErrors, [], 'no browser runtime errors');
 });
 
 test('kiosk renders the shell and widgets', async () => {
@@ -36,15 +37,19 @@ test('kiosk renders the shell and widgets', async () => {
   const s = await page.evaluate(() => ({
     widgets: document.querySelectorAll('.view .widget').length,
     title: document.querySelector('.w-title')?.textContent?.trim(),
-    footer: !!document.querySelector('.kfooter'),
+    footer: !!document.querySelector('footer.kbar'),
     time: document.querySelector('.ktime')?.textContent?.trim() || '',
-    jumpOptions: document.querySelectorAll('#kjump option').length,
   }));
   assert.ok(s.widgets >= 1, 'renders at least one widget');
-  assert.equal(s.title, 'Kerstmis', 'countdown widget title');
+  assert.equal(s.title, 'Kerst', 'countdown widget name');
   assert.ok(s.footer, 'footer present');
   assert.match(s.time, /\d{1,2}:\d{2}/, 'live clock rendered');
-  assert.ok(s.jumpOptions >= 3, 'jump dropdown populated');
+  await page.waitForFunction((previous) => document.querySelector('#ktime')?.textContent?.trim() !== previous, s.time);
+  await page.keyboard.press('i');
+  await page.keyboard.press('o');
+  await page.waitForSelector('#kscreens:not([hidden]) .kscreens-list li');
+  assert.deepEqual((await page.locator('.kscreens-list li').allTextContents()).sort(), ['Aftellen', 'Demo'], 'screen picker lists seeded views');
+  await page.keyboard.press('Escape');
 });
 
 test('next control swaps the view via the SSE loop', async () => {
